@@ -1,3 +1,21 @@
+(eval-when-compile (require 'cl))
+
+(defstruct (node-region)
+  line-begin
+  line-end
+  outer-begin
+  outer-end
+  inner-begin
+  inner-end
+  indent
+  attributes)
+
+(defstruct (attr-region)
+  outer-begin
+  outer-end
+  value-begin
+  value-end)
+
 (defun --kite-dimmed-face-foreground (face w)
   (flet ((lerp (a b w)
                (+ (* a w)
@@ -328,14 +346,15 @@ The delimiters are <! and >."
 
 (defun --kite-insert-attribute (node-id attr-name attr-value)
   (let ((attr-begin (point-marker))
-        attr-end value-begin value-end)
+        (attr-region (make-attr-region)))
 
+    (setf (attr-region-outer-begin attr-region) (point-marker))
     (insert (concat " "
                     (propertize attr-name
                                 'read-only t
                                 'face 'kite-attribute-local-name-face)
                     "="))
-    (setq value-begin (point-marker))
+    (setf (attr-region-value-begin attr-region) (point-marker))
     (insert (propertize "\""
                         'kite-node-id node-id
                         'read-only t
@@ -354,10 +373,10 @@ The delimiters are <! and >."
                         'face 'kite-attribute-value-delimiter-face
                         'front-sticky '(keymap)
                         'rear-nonsticky '(keymap)))
-    (setq value-end (point-marker))
-    (setq attr-end (point-marker))
+    (setf (attr-region-value-end attr-region) (point-marker))
+    (setf (attr-region-outer-end attr-region) (point-marker))
 
-    (list (intern attr-name) attr-begin attr-end value-begin value-end)))
+    (cons (intern attr-name) attr-region)))
 
 (defun --kite-dom-insert-element (element indent loadp)
   (flet ((indent-prefix (indent)
@@ -385,9 +404,10 @@ The delimiters are <! and >."
           (node-id (cdr (assq 'nodeId element)))
           (localName (cdr (assq 'localName element)))
           (inhibit-read-only t)
-          (outer-begin (point-marker))
-          outer-end inner-begin inner-end
+          (node-region (make-node-region))
           attributes)
+
+      (setf (node-region-line-begin node-region) (point-marker))
 
       (cond
 
@@ -408,10 +428,12 @@ The delimiters are <! and >."
                                     'read-only t
                                     'face 'kite-tag-delimiter-face)
                         "\n"))
-        (setq inner-begin (point-marker))
+        (setf (node-region-inner-begin node-region) (point-marker))
+
         (mapcar (lambda (child) (--kite-dom-insert-element child (1+ indent) loadp))
                 (cdr (assq 'children element)))
-        (setq inner-end (point-marker))
+        (setf (node-region-inner-end node-region) (point-marker))
+
         (insert (concat (indent-prefix indent)
                         (propertize "<"
                                     'kite-node-id node-id
@@ -442,9 +464,9 @@ The delimiters are <! and >."
         (setq attributes (render-attributes element))
         (insert (propertize ">"
                             'face 'kite-tag-delimiter-face))
-        (setq inner-begin (point-marker))
+        (setf (node-region-inner-begin node-region) (point-marker))
         (insert "...")
-        (setq inner-end (point-marker))
+        (setf (node-region-inner-end node-region) (point-marker))
         (insert (concat (propertize "<"
                                     'kite-node-id node-id
                                     'read-only t
@@ -472,8 +494,10 @@ The delimiters are <! and >."
                                     'kite-node-id node-id
                                     'face 'kite-text-face)
                         "\n"))))
-      (setq outer-end (point-marker))
-      (puthash (cdr (assq 'nodeId element)) (list outer-begin outer-end inner-begin inner-end indent attributes) kite-dom-nodes))))
+      (setf (node-region-line-end node-region) (point-marker))
+      (setf (node-region-indent node-region) indent)
+      (setf (node-region-attributes node-region) attributes)
+      (puthash (cdr (assq 'nodeId element)) node-region kite-dom-nodes))))
 
 (defun --kite-kill-dom ()
   (ignore-errors
@@ -524,14 +548,15 @@ The delimiters are <! and >."
       (let ((inhibit-read-only t)
             (node-info
              (gethash (cdr (assq 'parentId packet)) kite-dom-nodes)))
-        (delete-region (nth 2 node-info) (nth 3 node-info))
-        (goto-char (nth 2 node-info))
+        (delete-region (node-region-inner-begin node-info)
+                       (node-region-inner-end node-info))
+        (goto-char (node-region-inner-begin node-info))
         (atomic-change-group
           (insert "\n")
           (mapcar (lambda (node)
-                    (--kite-dom-insert-element node (1+ (nth 4 node-info)) t))
+                    (--kite-dom-insert-element node (1+ (node-region-indent node-info)) t))
                   (cdr (assq 'nodes packet)))
-          (insert (make-string (* kite-dom-offset (nth 4 node-info)) 32)))))))
+          (insert (make-string (* kite-dom-offset (node-region-indent node-info)) 32)))))))
 
 (defun --kite-DOM-childNodeInserted (websocket-url packet)
   (--kite-log "--kite-DOM-childNodeInserted got packet %s" packet)
@@ -542,11 +567,15 @@ The delimiters are <! and >."
             (parent-node-id (cdr (assq 'parentNodeId packet))))
         (if (eq previous-node-id 0)
             (let ((node-info (gethash parent-node-id kite-dom-nodes)))
-              (goto-char (nth 2 node-info))
-              (--kite-dom-insert-element (cdr (assq 'node packet)) (1+ (nth 4 node-info)) t))
+              (goto-char (node-region-inner-begin node-info))
+              (--kite-dom-insert-element (cdr (assq 'node packet))
+                                         (1+ (node-region-indent node-info))
+                                         t))
           (let ((node-info (gethash previous-node-id kite-dom-nodes)))
-            (goto-char (nth 1 node-info))
-            (--kite-dom-insert-element (cdr (assq 'node packet)) (nth 4 node-info) t)))))))
+            (goto-char (node-region-line-end node-info))
+            (--kite-dom-insert-element (cdr (assq 'node packet))
+                                       (node-region-indent node-info)
+                                       t)))))))
 
 (defun --kite-DOM-childNodeCountUpdated (websocket-url packet)
   (--kite-log "--kite-DOM-childNodeCountUpdated got packet %s" packet))
@@ -557,7 +586,9 @@ The delimiters are <! and >."
     (save-excursion
       (let ((inhibit-read-only t)
             (node-info (gethash (cdr (assq 'nodeId packet)) kite-dom-nodes)))
-        (delete-region (nth 0 node-info) (nth 1 node-info))))))
+        (delete-region
+         (node-region-line-begin node-info)
+         (node-region-line-end node-info))))))
 
 (defun --kite-DOM-attributeModified (websocket-url packet)
   (--kite-log "--kite-DOM-attributeModified got packet %s" packet)
@@ -567,22 +598,23 @@ The delimiters are <! and >."
              (node-id (cdr (assq 'nodeId packet)))
              (attr-name (intern (cdr (assq 'name packet))))
              (node-info (gethash node-id kite-dom-nodes))
-             (attr-info (cdr (assq attr-name (nth 5 node-info)))))
+             (attr-info (cdr (assq attr-name (node-region-attributes node-info)))))
         (if attr-info
             ;; Modify existing attribute
             (progn
-              (goto-char (1+ (nth 2 attr-info)))
-              (delete-region (1+ (nth 2 attr-info)) (- (nth 3 attr-info) 1))
+              (goto-char (1+ (attr-region-value-begin attr-info)))
+              (delete-region (1+ (attr-region-value-begin attr-info))
+                             (- (attr-region-value-end attr-info) 1))
               (insert (propertize (cdr (assq 'value packet))
                                   'keymap kite-dom-attr-value-keymap
                                   'field 'kite-dom-attribute
                                   'point-left '--kite-dom-attr-value-left
                                   'face 'kite-attribute-value-face)))
           ;; Insert new attribute
-          (goto-char (nth 2 (car (nth 5 node-info))))
-          (setcar (cdr (cddddr node-info))
-                  (cons (--kite-insert-attribute node-id (cdr (assq 'name packet)) (cdr (assq 'value packet)))
-                        (nth 5 node-info))))))))
+          (goto-char (attr-region-value-end (cdar (node-region-attributes node-info))))
+          (setf (node-region-attributes node-info)
+                (cons (--kite-insert-attribute node-id (cdr (assq 'name packet)) (cdr (assq 'value packet)))
+                      (node-region-attributes node-info))))))))
 
 (defun --kite-DOM-attributeRemoved (websocket-url packet)
   (--kite-log "--kite-DOM-attributeRemoved got packet %s" packet)
@@ -591,10 +623,11 @@ The delimiters are <! and >."
       (let* ((inhibit-read-only t)
              (attr-name (intern (cdr (assq 'name packet))))
              (node-info (gethash (cdr (assq 'nodeId packet)) kite-dom-nodes))
-             (attr-info (cdr (assq attr-name (nth 5 node-info)))))
-        (delete-region (nth 0 attr-info) (nth 1 attr-info))
-        (setcar (cdr (cddddr node-info))
-                (assq-delete-all attr-name (nth 5 node-info)))))))
+             (attr-info (cdr (assq attr-name (node-region-attributes node-info)))))
+        (delete-region (attr-region-outer-begin attr-info)
+                       (attr-region-outer-end attr-info))
+        (setf (node-region-attributes node-info)
+              (assq-delete-all attr-name (node-region-attributes node-info)))))))
 
 (defun kite-dom-insert-attr-value (arg)
   (interactive "p")
@@ -797,7 +830,7 @@ The delimiters are <! and >."
 (defun kite-dom-goto-node (node-id)
   (interactive)
   (let ((node-info (gethash node-id kite-dom-nodes)))
-    (goto-char (nth 0 node-info))
+    (goto-char (node-region-line-begin node-info))
     (when (string= (current-message)
                    --kite-dom-pick-node-message)
       (message nil))))

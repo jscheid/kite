@@ -1,5 +1,3 @@
-(require 'el-mock)
-
 (defun --kite-equal-wildcard (o1 o2)
   (or (eq '* o1)
       (eq '* o2)
@@ -323,11 +321,11 @@
                       "  </body>\n"
                       "</html>\n")))
     (let* ((node-info (gethash 87 kite-dom-nodes))
-           (attr-info (cdr (assoc 'href (nth 5 node-info)))))
+           (attr-info (cdr (assoc 'href (node-region-attributes node-info)))))
 
       (should (eq (length "\"frobnicate\"")
-                  (- (marker-position (nth 3 attr-info))
-                     (marker-position (nth 2 attr-info))))))))
+                  (- (marker-position (attr-region-value-end attr-info))
+                     (marker-position (attr-region-value-begin attr-info))))))))
 
 (ert-deftest kite-test-dom-add-attribute ()
   "DOM is mutated correctly when attribute is modified"
@@ -356,7 +354,7 @@
                       "</html>\n")))
 
     (let* ((node-info (gethash 87 kite-dom-nodes))
-           (attr-info (cdr (assq 'baz (nth 5 node-info)))))
+           (attr-info (cdr (assq 'baz (node-region-attributes node-info)))))
       (should (not (null attr-info))))))
 
 (ert-deftest kite-test-dom-remove-attribute ()
@@ -386,7 +384,7 @@
                       "</html>\n")))
 
     (let* ((node-info (gethash 87 kite-dom-nodes))
-           (attr-info (cdr (assq 'href (nth 5 node-info)))))
+           (attr-info (cdr (assq 'href (node-region-attributes node-info)))))
       (should (null attr-info)))))
 
 (ert-deftest kite-test-rgba ()
@@ -428,7 +426,8 @@
 
 (ert-deftest kite-dom-hide-highlight ()
   "kite-dom-hide-highlight sends message to server"
-  (mocklet (((--kite-send "DOM.hideHighlight")))
+  (flet ((--kite-send (command &optional params callback)
+                      (should (string= command "DOM.hideHighlight"))))
     (kite-dom-hide-highlight)))
 
 (ert-deftest kite-dom-highlight-node ()
