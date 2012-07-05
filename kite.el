@@ -395,9 +395,11 @@ which should be a sequence of strings.  Naive implementation."
 
 (defun kite-connect (&optional host port)
   (interactive)
-  (let ((url-request-method "GET")
-        (url
-         (url-parse-make-urlobj "http" nil nil (or host "127.0.0.1") (or port 9222) "/json")))
+  (let* ((url-request-method "GET")
+         (use-host (or host "127.0.0.1"))
+         (use-port (or port 9222))
+         (url
+          (url-parse-make-urlobj "http" nil nil use-host use-port "/json")))
     (with-current-buffer (url-retrieve-synchronously url)
       (goto-char 0)
       (if (and (looking-at "HTTP/1\\.. 200")
@@ -477,7 +479,9 @@ which should be a sequence of strings.  Naive implementation."
               (if (cdr (gethash selection completion-strings))
                   (switch-to-buffer (cdr (gethash selection completion-strings)))
                 (--kite-connect-webservice (car (gethash selection completion-strings))))))
-        (error "Could not contact remote debugger, check host and port: %s" (buffer-string))))))
+        (error "Could not contact remote debugger at %s:%s, check host and port%s" use-host use-port
+               (if (> (length (buffer-string)) 0)
+                 (concat ": " (buffer-string)) ""))))))
 
 
 (defun --kite-Page-loadEventFired (websocket-url packet)
