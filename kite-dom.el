@@ -39,19 +39,34 @@
        (lerp (nth 1 bg) (nth 1 fg) darkness)
        (lerp (nth 2 bg) (nth 2 fg) darkness)))))
 
-(defface kite-css-selector '((t :inherit font-lock-function-name-face))
+
+;; Try loading css-mode so we can steal their faces
+(require 'css-mode nil t)
+
+(defface kite-css-selector
+  (if (facep 'css-selector)
+      '((t (:inherit css-selector)))
+    '((t :inherit font-lock-function-name-face)))
   "Face to use for selectors."
   :group 'kite)
-(defface kite-css-property '((t :inherit font-lock-variable-name-face))
+
+(defface kite-css-property
+  (if (facep 'css-property)
+      '((t (:inherit css-property)))
+    '((t :inherit font-lock-variable-name-face)))
   "Face to use for properties."
   :group 'kite)
+
 (defface kite-css-computed-unused-property
-  `((t :inherit kite-css-property-computed-unused
+  `((t :inherit kite-css-property
        :foreground ,(--kite-dimmed-face-foreground 'kite-css-property 0.5)))
   "Face to use for computed properties that are unused."
   :group 'kite)
 
-(defface kite-css-proprietary-property '((t :inherit (css-property italic)))
+(defface kite-css-proprietary-property
+  (if (facep 'css-proprietary-property)
+      '((t (:inherit css-proprietary-property)))
+    '((t :inherit (css-property italic))))
   "Face to use for vendor-specific properties."
   :group 'kite)
 
@@ -60,6 +75,9 @@
        :foreground ,(--kite-dimmed-face-foreground 'kite-css-property 0.5)))
   "Face to use for computed vendore-specific properties that are unused."
   :group 'kite)
+
+;; Try loading nxml-mode so we can steal their faces
+(require 'nxml-mode nil t)
 
 ;; The following are the colors we use with a light background.
 ;; The two blues have the same hue but contrasting saturation/value.
@@ -84,16 +102,20 @@
 (defconst kite-light-green-color "#70F170") ; hue 120
 
 (defface kite-delimited-data-face
-  `((((class color) (background light)) (:foreground ,kite-dark-blue-color))
-    (((class color) (background dark)) (:foreground ,kite-light-green-color)))
+  (if (facep 'nxml-delimited-data-face)
+      '((t (:inherit nxml-delimited-data-face)))
+    `((((class color) (background light)) (:foreground ,kite-dark-blue-color))
+      (((class color) (background dark)) (:foreground ,kite-light-green-color))))
   "Face used to highlight data enclosed between delimiters.
 By default, this is inherited by `kite-attribute-value-face'
 and `kite-processing-instruction-content-face'."
   :group 'kite-highlighting-faces)
 
 (defface kite-name-face
-  `((((class color) (background light)) (:foreground ,kite-green-color))
-    (((class color) (background dark)) (:foreground ,kite-sky-blue-color)))
+  (if (facep 'nxml-name-face)
+      '((t (:inherit nxml-name-face)))
+    `((((class color) (background light)) (:foreground ,kite-green-color))
+      (((class color) (background dark)) (:foreground ,kite-sky-blue-color))))
   "Face used to highlight various names.
 This includes element and attribute names, processing
 instruction targets and the CDATA keyword in a CDATA section.
@@ -101,27 +123,35 @@ This is not used directly, but only via inheritance by other faces."
   :group 'kite-highlighting-faces)
 
 (defface kite-ref-face
-  `((((class color) (background light)) (:foreground ,kite-light-blue-color))
-    (((class color) (background dark)) (:foreground ,kite-dark-green-color)))
+  (if (facep 'nxml-ref-face)
+      '((t (:inherit nxml-ref-face)))
+    `((((class color) (background light)) (:foreground ,kite-light-blue-color))
+      (((class color) (background dark)) (:foreground ,kite-dark-green-color))))
   "Face used to highlight character and entity references.
 This is not used directly, but only via inheritance by other faces."
   :group 'kite-highlighting-faces)
 
 (defface kite-delimiter-face
-  `((((class color) (background light)) (:foreground ,kite-light-blue-color))
-    (((class color) (background dark)) (:foreground ,kite-dark-green-color))
-    (t (:bold t)))
+  (if (facep 'nxml-delimiter-face)
+      '((t (:inherit nxml-delimiter-face)))
+    `((((class color) (background light)) (:foreground ,kite-light-blue-color))
+      (((class color) (background dark)) (:foreground ,kite-dark-green-color))
+      (t (:bold t))))
   "Face used to highlight delimiters.
 This is not used directly, but only via inheritance by other faces."
   :group 'kite-highlighting-faces)
 
 (defface kite-text-face
-  nil
+  (if (facep 'nxml-text-face)
+      '((t (:inherit nxml-text-face)))
+    nil)
   "Face used to highlight text."
   :group 'kite-highlighting-faces)
 
 (defface kite-comment-content-face
-  '((t (:italic t)))
+  (if (facep 'nxml-comment-content-face)
+      '((t (:inherit nxml-comment-content-face)))
+    '((t (:italic t))))
   "Face used to highlight the content of comments."
   :group 'kite-highlighting-faces)
 
