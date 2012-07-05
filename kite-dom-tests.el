@@ -321,7 +321,7 @@
                       "  </body>\n"
                       "</html>\n")))
     (let* ((node-info (gethash 87 kite-dom-nodes))
-           (attr-info (cdr (assoc 'href (node-region-attributes node-info)))))
+           (attr-info (cdr (assoc 'href (node-region-attribute-regions node-info)))))
 
       (should (eq (length "\"frobnicate\"")
                   (- (marker-position (attr-region-value-end attr-info))
@@ -354,7 +354,7 @@
                       "</html>\n")))
 
     (let* ((node-info (gethash 87 kite-dom-nodes))
-           (attr-info (cdr (assq 'baz (node-region-attributes node-info)))))
+           (attr-info (cdr (assq 'baz (node-region-attribute-regions node-info)))))
       (should (not (null attr-info))))))
 
 (ert-deftest kite-test-dom-remove-attribute ()
@@ -384,7 +384,7 @@
                       "</html>\n")))
 
     (let* ((node-info (gethash 87 kite-dom-nodes))
-           (attr-info (cdr (assq 'href (node-region-attributes node-info)))))
+           (attr-info (cdr (assq 'href (node-region-attribute-regions node-info)))))
       (should (null attr-info)))))
 
 (ert-deftest kite-test-rgba ()

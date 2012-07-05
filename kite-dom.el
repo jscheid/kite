@@ -8,7 +8,7 @@
   inner-begin
   inner-end
   indent
-  attributes)
+  attribute-regions)
 
 (defstruct (attr-region)
   outer-begin
@@ -383,7 +383,7 @@ The delimiters are <! and >."
                         (propertize
                          (make-string (* kite-dom-offset indent) 32)
                          'read-only t))
-         (render-attributes (element)
+         (render-attribute-regions (element)
                             (let* (attribute-info-list
                                    (node-id (cdr (assq 'nodeId element)))
                                    (attributes (cdr (assq 'attributes element)))
@@ -422,7 +422,7 @@ The delimiters are <! and >."
                         (propertize localName
                                     'kite-node-id node-id
                                     'face 'kite-element-local-name-face)))
-        (setq attributes (render-attributes element))
+        (setq attributes (render-attribute-regions element))
         (insert (concat (propertize ">"
                                     'kite-node-id node-id
                                     'read-only t
@@ -461,7 +461,7 @@ The delimiters are <! and >."
                         (propertize localName
                                     'kite-node-id node-id
                                     'face 'kite-element-local-name-face)))
-        (setq attributes (render-attributes element))
+        (setq attributes (render-attribute-regions element))
         (insert (propertize ">"
                             'face 'kite-tag-delimiter-face))
         (setf (node-region-inner-begin node-region) (point-marker))
@@ -496,7 +496,7 @@ The delimiters are <! and >."
                         "\n"))))
       (setf (node-region-line-end node-region) (point-marker))
       (setf (node-region-indent node-region) indent)
-      (setf (node-region-attributes node-region) attributes)
+      (setf (node-region-attribute-regions node-region) attributes)
       (puthash (cdr (assq 'nodeId element)) node-region kite-dom-nodes))))
 
 (defun --kite-kill-dom ()
@@ -546,17 +546,17 @@ The delimiters are <! and >."
   (with-current-buffer (--kite-dom-buffer websocket-url)
     (save-excursion
       (let ((inhibit-read-only t)
-            (node-info
+            (node-region
              (gethash (cdr (assq 'parentId packet)) kite-dom-nodes)))
-        (delete-region (node-region-inner-begin node-info)
-                       (node-region-inner-end node-info))
-        (goto-char (node-region-inner-begin node-info))
+        (delete-region (node-region-inner-begin node-region)
+                       (node-region-inner-end node-region))
+        (goto-char (node-region-inner-begin node-region))
         (atomic-change-group
           (insert "\n")
           (mapcar (lambda (node)
-                    (--kite-dom-insert-element node (1+ (node-region-indent node-info)) t))
+                    (--kite-dom-insert-element node (1+ (node-region-indent node-region)) t))
                   (cdr (assq 'nodes packet)))
-          (insert (make-string (* kite-dom-offset (node-region-indent node-info)) 32)))))))
+          (insert (make-string (* kite-dom-offset (node-region-indent node-region)) 32)))))))
 
 (defun --kite-DOM-childNodeInserted (websocket-url packet)
   (--kite-log "--kite-DOM-childNodeInserted got packet %s" packet)
@@ -566,15 +566,15 @@ The delimiters are <! and >."
             (previous-node-id (cdr (assq 'previousNodeId packet)))
             (parent-node-id (cdr (assq 'parentNodeId packet))))
         (if (eq previous-node-id 0)
-            (let ((node-info (gethash parent-node-id kite-dom-nodes)))
-              (goto-char (node-region-inner-begin node-info))
+            (let ((node-region (gethash parent-node-id kite-dom-nodes)))
+              (goto-char (node-region-inner-begin node-region))
               (--kite-dom-insert-element (cdr (assq 'node packet))
-                                         (1+ (node-region-indent node-info))
+                                         (1+ (node-region-indent node-region))
                                          t))
-          (let ((node-info (gethash previous-node-id kite-dom-nodes)))
-            (goto-char (node-region-line-end node-info))
+          (let ((node-region (gethash previous-node-id kite-dom-nodes)))
+            (goto-char (node-region-line-end node-region))
             (--kite-dom-insert-element (cdr (assq 'node packet))
-                                       (node-region-indent node-info)
+                                       (node-region-indent node-region)
                                        t)))))))
 
 (defun --kite-DOM-childNodeCountUpdated (websocket-url packet)
@@ -585,10 +585,10 @@ The delimiters are <! and >."
   (with-current-buffer (--kite-dom-buffer websocket-url)
     (save-excursion
       (let ((inhibit-read-only t)
-            (node-info (gethash (cdr (assq 'nodeId packet)) kite-dom-nodes)))
+            (node-region (gethash (cdr (assq 'nodeId packet)) kite-dom-nodes)))
         (delete-region
-         (node-region-line-begin node-info)
-         (node-region-line-end node-info))))))
+         (node-region-line-begin node-region)
+         (node-region-line-end node-region))))))
 
 (defun --kite-DOM-attributeModified (websocket-url packet)
   (--kite-log "--kite-DOM-attributeModified got packet %s" packet)
@@ -597,24 +597,24 @@ The delimiters are <! and >."
       (let* ((inhibit-read-only t)
              (node-id (cdr (assq 'nodeId packet)))
              (attr-name (intern (cdr (assq 'name packet))))
-             (node-info (gethash node-id kite-dom-nodes))
-             (attr-info (cdr (assq attr-name (node-region-attributes node-info)))))
-        (if attr-info
+             (node-region (gethash node-id kite-dom-nodes))
+             (attr-region (cdr (assq attr-name (node-region-attribute-regions node-region)))))
+        (if attr-region
             ;; Modify existing attribute
             (progn
-              (goto-char (1+ (attr-region-value-begin attr-info)))
-              (delete-region (1+ (attr-region-value-begin attr-info))
-                             (- (attr-region-value-end attr-info) 1))
+              (goto-char (1+ (attr-region-value-begin attr-region)))
+              (delete-region (1+ (attr-region-value-begin attr-region))
+                             (- (attr-region-value-end attr-region) 1))
               (insert (propertize (cdr (assq 'value packet))
                                   'keymap kite-dom-attr-value-keymap
                                   'field 'kite-dom-attribute
                                   'point-left '--kite-dom-attr-value-left
                                   'face 'kite-attribute-value-face)))
           ;; Insert new attribute
-          (goto-char (attr-region-value-end (cdar (node-region-attributes node-info))))
-          (setf (node-region-attributes node-info)
+          (goto-char (attr-region-value-end (cdar (node-region-attribute-regions node-region))))
+          (setf (node-region-attribute-regions node-region)
                 (cons (--kite-insert-attribute node-id (cdr (assq 'name packet)) (cdr (assq 'value packet)))
-                      (node-region-attributes node-info))))))))
+                      (node-region-attribute-regions node-region))))))))
 
 (defun --kite-DOM-attributeRemoved (websocket-url packet)
   (--kite-log "--kite-DOM-attributeRemoved got packet %s" packet)
@@ -622,12 +622,12 @@ The delimiters are <! and >."
     (save-excursion
       (let* ((inhibit-read-only t)
              (attr-name (intern (cdr (assq 'name packet))))
-             (node-info (gethash (cdr (assq 'nodeId packet)) kite-dom-nodes))
-             (attr-info (cdr (assq attr-name (node-region-attributes node-info)))))
-        (delete-region (attr-region-outer-begin attr-info)
-                       (attr-region-outer-end attr-info))
-        (setf (node-region-attributes node-info)
-              (assq-delete-all attr-name (node-region-attributes node-info)))))))
+             (node-region (gethash (cdr (assq 'nodeId packet)) kite-dom-nodes))
+             (attr-region (cdr (assq attr-name (node-region-attribute-regions node-region)))))
+        (delete-region (attr-region-outer-begin attr-region)
+                       (attr-region-outer-end attr-region))
+        (setf (node-region-attribute-regions node-region)
+              (assq-delete-all attr-name (node-region-attribute-regions node-region)))))))
 
 (defun kite-dom-insert-attr-value (arg)
   (interactive "p")
@@ -747,10 +747,10 @@ The delimiters are <! and >."
            (sort as-list
                  (lambda (x y) (string< (car x) (car y))))))
 
-      (let* ((node-info-buffer (get-buffer-create "*kite dom node details*"))
+      (let* ((node-region-buffer (get-buffer-create "*kite dom node details*"))
              (max-width 0)
-             (window (display-buffer node-info-buffer (list (cons 'display-buffer-pop-up-window nil)))))
-        (with-current-buffer node-info-buffer
+             (window (display-buffer node-region-buffer (list (cons 'display-buffer-pop-up-window nil)))))
+        (with-current-buffer node-region-buffer
           (special-mode)
           (let ((inhibit-read-only t))
             (erase-buffer)
@@ -829,8 +829,8 @@ The delimiters are <! and >."
 
 (defun kite-dom-goto-node (node-id)
   (interactive)
-  (let ((node-info (gethash node-id kite-dom-nodes)))
-    (goto-char (node-region-line-begin node-info))
+  (let ((node-region (gethash node-id kite-dom-nodes)))
+    (goto-char (node-region-line-begin node-region))
     (when (string= (current-message)
                    --kite-dom-pick-node-message)
       (message nil))))
