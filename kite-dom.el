@@ -802,3 +802,4 @@ The delimiters are <! and >."
                    --kite-dom-pick-node-message)
       (message nil))))
 
+(provide 'kite-dom)

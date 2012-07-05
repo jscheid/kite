@@ -928,3 +928,5 @@ which should be a sequence of strings.  Naive implementation."
 
                                             ;(insert (format "///! %s\n" (cdr (assq 'description (cdr (assq 'result result))))))))))))))))
 
+
+(provide 'kite)

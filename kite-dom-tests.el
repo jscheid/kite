@@ -473,3 +473,5 @@
   (interactive)
   (testcover-start "kite-dom.el")
   (ert-run-tests-interactively "^kite-"))
+
+(provide 'kite-dom-tests)
