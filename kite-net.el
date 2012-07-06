@@ -1,4 +1,52 @@
 
+(defface bg:kite-requestStart
+  '((t :background "#f00"))
+  "Bar chart for requestStart status"
+  :version "24.1"
+  :group 'ekwd-faces)
+
+(defface bg:kite-receiveHeadersEnd
+  '((t :background "#0f0"))
+  "Bar chart for receiveHeadersEnd status"
+  :version "24.1"
+  :group 'ekwd-faces)
+
+(defface bg:kite-sendEnd
+  '((t :background "#0ff"))
+  "Bar chart for receiveHeadersEnd status"
+  :version "24.1"
+  :group 'ekwd-faces)
+
+(defface bg:kite-pageStart
+  '((t))
+  "Bar chart for receiveHeadersEnd status"
+  :version "24.1"
+  :group 'ekwd-faces)
+
+(defface bg:kite-dataReceived
+  '((t :background "#f0f"))
+  "Bar chart for receiveHeadersEnd status"
+  :version "24.1"
+  :group 'ekwd-faces)
+
+(defface bg:kite-tick
+  '((t :background "#fff"))
+  "Bar chart tick color"
+  :version "24.1"
+  :group 'ekwd-faces)
+
+(defface kite-table-head
+  '((t :inherit highlight))
+  "Basic face used to highlight warnings."
+  :version "24.1"
+  :group 'ekwd-faces)
+
+(defface bg:kite-table-head
+  (list (list t :background (face-attribute 'kite-table-head :foreground nil 'default)))
+  "Basic face used to highlight warnings."
+  :version "24.1"
+  :group 'ekwd-faces)
+
 (defvar kite-network-mode-map
   (let ((map (make-keymap))
 	(menu-map (make-sparse-keymap)))
