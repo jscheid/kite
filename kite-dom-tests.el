@@ -127,9 +127,9 @@
   (with-temp-buffer
     (kite-dom-mode)
 
-    (flet ((--kite-send (command params callback)
-                        (should (string= command "DOM.requestChildNodes"))
-                        (should (equal params '((nodeId . 2))))))
+    (flet ((kite-send (command params callback)
+                      (should (string= command "DOM.requestChildNodes"))
+                      (should (equal params '((nodeId . 2))))))
 
       (let ((inhibit-read-only t))
         (--kite-dom-insert-element
@@ -147,15 +147,15 @@
                        "<empty>...</empty>\n"))
 
       (flet ((--kite-dom-buffer (websocket-url) (current-buffer)))
-        (--kite-DOM-setChildNodes nil
-                                  '((parentId . 2)
-                                    (nodes . [((attributes . [])
-                                               (childNodeCount . 0)
-                                               (nodeValue . nil)
-                                               (localName . "foo")
-                                               (nodeName . "FOO")
-                                               (nodeType . 1)
-                                               (nodeId . 2))]))))
+        (--kite-dom-DOM-setChildNodes nil
+                                      '((parentId . 2)
+                                        (nodes . [((attributes . [])
+                                                   (childNodeCount . 0)
+                                                   (nodeValue . nil)
+                                                   (localName . "foo")
+                                                   (nodeName . "FOO")
+                                                   (nodeType . 1)
+                                                   (nodeId . 2))]))))
 
       (should (string= (buffer-substring-no-properties (point-min)
                                                        (point-max))
@@ -176,16 +176,16 @@
 
       (flet ((--kite-dom-buffer (websocket-url) (current-buffer)))
 
-        (--kite-DOM-childNodeInserted "dummy"
-                                      '((node (attributes . [])
-                                              (childNodeCount . 0)
-                                              (nodeValue . nil)
-                                              (localName . "div")
-                                              (nodeName . "DIV")
-                                              (nodeType . 1)
-                                              (nodeId . 100))
-                                        (previousNodeId . 0)
-                                        (parentNodeId . 90)))
+        (--kite-dom-DOM-childNodeInserted "dummy"
+                                          '((node (attributes . [])
+                                                  (childNodeCount . 0)
+                                                  (nodeValue . nil)
+                                                  (localName . "div")
+                                                  (nodeName . "DIV")
+                                                  (nodeType . 1)
+                                                  (nodeId . 100))
+                                            (previousNodeId . 0)
+                                            (parentNodeId . 90)))
 
         (should (string= (buffer-substring-no-properties (point-min)
                                                          (point-max))
@@ -212,16 +212,16 @@
 
       (flet ((--kite-dom-buffer (websocket-url) (current-buffer)))
 
-        (--kite-DOM-childNodeInserted "dummy"
-                                      '((node (attributes . [])
-                                              (childNodeCount . 0)
-                                              (nodeValue . nil)
-                                              (localName . "div")
-                                              (nodeName . "DIV")
-                                              (nodeType . 1)
-                                              (nodeId . 100))
-                                        (previousNodeId . 0)
-                                        (parentNodeId . 89)))))
+        (--kite-dom-DOM-childNodeInserted "dummy"
+                                          '((node (attributes . [])
+                                                  (childNodeCount . 0)
+                                                  (nodeValue . nil)
+                                                  (localName . "div")
+                                                  (nodeName . "DIV")
+                                                  (nodeType . 1)
+                                                  (nodeId . 100))
+                                            (previousNodeId . 0)
+                                            (parentNodeId . 89)))))
 
     (should (string= (buffer-substring-no-properties (point-min)
                                                      (point-max))
@@ -248,16 +248,16 @@
 
       (flet ((--kite-dom-buffer (websocket-url) (current-buffer)))
 
-        (--kite-DOM-childNodeInserted "dummy"
-                                      '((node (attributes . [])
-                                              (childNodeCount . 0)
-                                              (nodeValue . nil)
-                                              (localName . "div")
-                                              (nodeName . "DIV")
-                                              (nodeType . 1)
-                                              (nodeId . 100))
-                                        (previousNodeId . 87)
-                                        (parentNodeId . 89)))))
+        (--kite-dom-DOM-childNodeInserted "dummy"
+                                          '((node (attributes . [])
+                                                  (childNodeCount . 0)
+                                                  (nodeValue . nil)
+                                                  (localName . "div")
+                                                  (nodeName . "DIV")
+                                                  (nodeType . 1)
+                                                  (nodeId . 100))
+                                            (previousNodeId . 87)
+                                            (parentNodeId . 89)))))
 
     (should (string= (buffer-substring-no-properties (point-min)
                                                      (point-max))
@@ -284,8 +284,8 @@
 
       (flet ((--kite-dom-buffer (websocket-url) (current-buffer)))
 
-        (--kite-DOM-childNodeRemoved "dummy"
-                                     '((nodeId . 89) (parentNodeId . 88)))))
+        (--kite-dom-DOM-childNodeRemoved "dummy"
+                                         '((nodeId . 89) (parentNodeId . 88)))))
 
     (should (string= (buffer-substring-no-properties (point-min)
                                                      (point-max))
@@ -306,8 +306,8 @@
 
       (flet ((--kite-dom-buffer (websocket-url) (current-buffer)))
 
-        (--kite-DOM-attributeModified "dummy"
-                                      '((value . "frobnicate") (name . "href") (nodeId . 87)))))
+        (--kite-dom-DOM-attributeModified "dummy"
+                                          '((value . "frobnicate") (name . "href") (nodeId . 87)))))
 
     (should (string= (buffer-substring-no-properties (point-min)
                                                      (point-max))
@@ -338,8 +338,8 @@
 
       (flet ((--kite-dom-buffer (websocket-url) (current-buffer)))
 
-        (--kite-DOM-attributeModified "dummy"
-                                      '((value . "bar") (name . "baz") (nodeId . 87)))))
+        (--kite-dom-DOM-attributeModified "dummy"
+                                          '((value . "bar") (name . "baz") (nodeId . 87)))))
 
     (should (string= (buffer-substring-no-properties (point-min)
                                                      (point-max))
@@ -368,8 +368,8 @@
 
       (flet ((--kite-dom-buffer (websocket-url) (current-buffer)))
 
-        (--kite-DOM-attributeRemoved "dummy"
-                                      '((name . "href") (nodeId . 87)))))
+        (--kite-dom-DOM-attributeRemoved "dummy"
+                                         '((name . "href") (nodeId . 87)))))
 
     (should (string= (buffer-substring-no-properties (point-min)
                                                      (point-max))
@@ -426,8 +426,8 @@
 
 (ert-deftest kite-dom-hide-highlight ()
   "kite-dom-hide-highlight sends message to server"
-  (flet ((--kite-send (command &optional params callback)
-                      (should (string= command "DOM.hideHighlight"))))
+  (flet ((kite-send (command &optional params callback)
+                    (should (string= command "DOM.hideHighlight"))))
     (kite-dom-hide-highlight)))
 
 (ert-deftest kite-dom-highlight-node ()
@@ -437,28 +437,28 @@
     (kite-dom-mode)
     (let ((inhibit-read-only t))
       (--kite-dom-insert-element simple-element 0 nil))
-    (flet ((--kite-send (command params callback)
-                        (should (string= command "DOM.highlightNode"))
-                        (should (--kite-equal-wildcard
-                                 params
-                                 '((nodeId . 88)
-                                   (highlightConfig
-                                    . ((showInfo . nil)
-                                       (contentColor . ((r . *) (g . *) (b . *) (a . *)))
-                                       (paddingColor . ((r . *) (g . *) (b . *) (a . *)))
-                                       (borderColor . ((r . *) (g . *) (b . *) (a . *)))
-                                       (marginColor . ((r . *) (g . *) (b . *) (a . *))))))))))
+    (flet ((kite-send (command params callback)
+                      (should (string= command "DOM.highlightNode"))
+                      (should (--kite-equal-wildcard
+                               params
+                               '((nodeId . 88)
+                                 (highlightConfig
+                                  . ((showInfo . nil)
+                                     (contentColor . ((r . *) (g . *) (b . *) (a . *)))
+                                     (paddingColor . ((r . *) (g . *) (b . *) (a . *)))
+                                     (borderColor . ((r . *) (g . *) (b . *) (a . *)))
+                                     (marginColor . ((r . *) (g . *) (b . *) (a . *))))))))))
       (goto-char (point-min))
       (kite-dom-highlight-node))))
 
 (ert-deftest kite-test-dom-inspect ()
-  (let (sent-packets)
+  (let (sent-packets kite-session)
     (with-temp-buffer
       (flet ((--kite-dom-buffer (websocket-url) (current-buffer))
              (--kite-websocket-url () t)
-             (--kite-send (command params callback)
-                          (setq sent-packets (cons (list command params callback)
-                                                   sent-packets))))
+             (kite-send (command params callback)
+                        (setq sent-packets (cons (list command params callback)
+                                                 sent-packets))))
         (kite-dom-inspect)))
     (should (--kite-equal-wildcard sent-packets
                                    '(("DOM.getDocument" nil *)

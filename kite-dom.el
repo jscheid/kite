@@ -246,7 +246,7 @@ This includes ths `x' in hex references."
   '((t (:inherit kite-name-face)))
   "Face used for the colon in attribute names."
   :group 'kite-highlighting-faces)
-  
+
 (defface kite-attribute-local-name-face
   '((t (:inherit kite-name-face)))
   "Face used for the local name of attributes."
@@ -341,36 +341,36 @@ The delimiters are <! and >."
   "Local keymap for `kite-dom-mode' buffers.")
 
 (setq kite-dom-mode-map
-  (let ((map (make-sparse-keymap))
-	(menu-map (make-sparse-keymap)))
-    ;(define-key map [remap self-insert-command] 'kite-dom-no-edit)
-    (suppress-keymap map t)
-    (define-key map "p" 'kite-dom-pick-node)
-    (define-key map "h" 'kite-dom-highlight-node)
-    (define-key map "H" 'kite-dom-hide-highlight)
-    (define-key map "c" 'kite-dom-show-matched-css)
-    (define-key map "C" 'kite-dom-show-computed-css)
-    map))
+      (let ((map (make-sparse-keymap))
+            (menu-map (make-sparse-keymap)))
+                                        ;(define-key map [remap self-insert-command] 'kite-dom-no-edit)
+        (suppress-keymap map t)
+        (define-key map "p" 'kite-dom-pick-node)
+        (define-key map "h" 'kite-dom-highlight-node)
+        (define-key map "H" 'kite-dom-hide-highlight)
+        (define-key map "c" 'kite-dom-show-matched-css)
+        (define-key map "C" 'kite-dom-show-computed-css)
+        map))
 
 (defvar kite-dom-attr-value-keymap nil
   "Keymap used inside editable fields in customization buffers.")
 
 (setq kite-dom-attr-value-keymap
-  (let ((map (make-sparse-keymap)))
-    (define-key map [remap self-insert-command] 'kite-dom-insert-attr-value)
-    (substitute-key-definition 'self-insert-command 'kite-dom-insert-attr-value map (current-global-map))
-    (define-key map "\C-c\C-c" 'kite-dom-attr-value-set)
-    (define-key map "\C-x\C-s" 'kite-dom-attr-value-save)
+      (let ((map (make-sparse-keymap)))
+        (define-key map [remap self-insert-command] 'kite-dom-insert-attr-value)
+        (substitute-key-definition 'self-insert-command 'kite-dom-insert-attr-value map (current-global-map))
+        (define-key map "\C-c\C-c" 'kite-dom-attr-value-set)
+        (define-key map "\C-x\C-s" 'kite-dom-attr-value-save)
 
-    (define-key map "\M-\C-u" 'kite-backward-up-element)
-    (define-key map "\M-\C-d" 'kite-down-element)
-    (define-key map "\M-\C-n" 'kite-forward-element)
-    (define-key map "\M-\C-p" 'kite-backward-element)
-    (define-key map "\M-{" 'kite-backward-paragraph)
-    (define-key map "\M-}" 'kite-forward-paragraph)
-    (define-key map "\M-h" 'kite-mark-paragraph)
+        (define-key map "\M-\C-u" 'kite-backward-up-element)
+        (define-key map "\M-\C-d" 'kite-down-element)
+        (define-key map "\M-\C-n" 'kite-forward-element)
+        (define-key map "\M-\C-p" 'kite-backward-element)
+        (define-key map "\M-{" 'kite-backward-paragraph)
+        (define-key map "\M-}" 'kite-forward-paragraph)
+        (define-key map "\M-h" 'kite-mark-paragraph)
 
-    map))
+        map))
 
 (define-derived-mode kite-dom-mode special-mode "kite-dom"
   "Toggle kite dom mode."
@@ -425,21 +425,21 @@ The delimiters are <! and >."
                          (make-string (* kite-dom-offset indent) 32)
                          'read-only t))
          (render-attribute-regions (element)
-                            (let* (attribute-info-list
-                                   (node-id (cdr (assq 'nodeId element)))
-                                   (attributes (cdr (assq 'attributes element)))
-                                   (attr-index 0)
-                                   (num-attrs (length attributes))
-                                   (inhibit-read-only t))
-                              (while (< attr-index num-attrs)
-                                (setq attribute-info-list
-                                      (cons
-                                       (--kite-insert-attribute node-id
-                                                                (elt attributes attr-index)
-                                                                (elt attributes (1+ attr-index)))
-                                       attribute-info-list))
-                                (setq attr-index (+ 2 attr-index)))
-                              attribute-info-list)))
+                                   (let* (attribute-info-list
+                                          (node-id (cdr (assq 'nodeId element)))
+                                          (attributes (cdr (assq 'attributes element)))
+                                          (attr-index 0)
+                                          (num-attrs (length attributes))
+                                          (inhibit-read-only t))
+                                     (while (< attr-index num-attrs)
+                                       (setq attribute-info-list
+                                             (cons
+                                              (--kite-insert-attribute node-id
+                                                                       (elt attributes attr-index)
+                                                                       (elt attributes (1+ attr-index)))
+                                              attribute-info-list))
+                                       (setq attr-index (+ 2 attr-index)))
+                                     attribute-info-list)))
 
     (let ((nodeType (cdr (assq 'nodeType element)))
           (node-id (cdr (assq 'nodeId element)))
@@ -525,8 +525,8 @@ The delimiters are <! and >."
                                     'face 'kite-tag-delimiter-face)
                         "\n"))
         (when loadp
-          (--kite-send "DOM.requestChildNodes" (list (cons 'nodeId (cdr (assq 'nodeId element))))
-                       (lambda (response) nil))))
+          (kite-send "DOM.requestChildNodes" (list (cons 'nodeId (cdr (assq 'nodeId element))))
+                     (lambda (response) nil))))
 
        ((eq nodeType 3)
         (insert (concat (indent-prefix indent)
@@ -542,9 +542,8 @@ The delimiters are <! and >."
 
 (defun --kite-kill-dom ()
   (ignore-errors
-    (with-current-buffer kite-connection
-      (--kite-send "CSS.disable" nil
-                   (lambda (response) (message "CSS disabled."))))))
+    (kite-send "CSS.disable" nil
+               (lambda (response) (message "CSS disabled.")))))
 
 (defun --kite-websocket-url ()
   (cdr (assq 'webSocketDebuggerUrl kite-tab-alist))  )
@@ -553,36 +552,33 @@ The delimiters are <! and >."
   (interactive)
   (--kite-log "opening dom")
   (lexical-let*
-      ((kite-connection (current-buffer))
+      ((kite-session kite-session)
        (buf (get-buffer-create
              (--kite-dom-buffer (--kite-websocket-url)))))
     (with-current-buffer buf
       (kite-dom-mode)
       (let ((inhibit-read-only t))
         (erase-buffer))
-      (set (make-local-variable 'kite-connection) kite-connection))
+      (set (make-local-variable 'kite-session) kite-session))
     (switch-to-buffer buf)
-    (--kite-send "CSS.enable" nil
-                 (lambda (response)
-                   (message "CSS.enable got response %s" response)
-                   (--kite-send "CSS.getAllStyleSheets" nil
-                                (lambda (response)
-                                  (message "CSS.getAllStyleSheets got response %s" response)))))
-    (--kite-send "DOM.getDocument" nil
-                 (lambda (response)
-                   (--kite-log "DOM.getDocument got response %s" response)
-                   (with-current-buffer buf
-                     (save-excursion
-                       (--kite-dom-insert-element (elt (cdr (assq 'children (assq 'root (assq 'result response)))) 0)
-                                                  0 t)))))))
-
-(defun --kite-DOM-documentUpdated (websocket-url packet)
-  t)
+    (kite-send "CSS.enable" nil
+               (lambda (response)
+                 (message "CSS.enable got response %s" response)
+                 (kite-send "CSS.getAllStyleSheets" nil
+                            (lambda (response)
+                              (message "CSS.getAllStyleSheets got response %s" response)))))
+    (kite-send "DOM.getDocument" nil
+               (lambda (response)
+                 (--kite-log "DOM.getDocument got response %s" response)
+                 (with-current-buffer buf
+                   (save-excursion
+                     (--kite-dom-insert-element (elt (cdr (assq 'children (assq 'root (assq 'result response)))) 0)
+                                                0 t)))))))
 
 (defun --kite-dom-buffer (websocket-url)
   (format "*kite dom %s*" websocket-url))
 
-(defun --kite-DOM-setChildNodes (websocket-url packet)
+(defun --kite-dom-DOM-setChildNodes (websocket-url packet)
   (--kite-log "--kite-DOM-setChildNodes got packet %s" packet)
   (with-current-buffer (--kite-dom-buffer websocket-url)
     (save-excursion
@@ -599,7 +595,7 @@ The delimiters are <! and >."
                   (cdr (assq 'nodes packet)))
           (insert (make-string (* kite-dom-offset (node-region-indent node-region)) 32)))))))
 
-(defun --kite-DOM-childNodeInserted (websocket-url packet)
+(defun --kite-dom-DOM-childNodeInserted (websocket-url packet)
   (--kite-log "--kite-DOM-childNodeInserted got packet %s" packet)
   (with-current-buffer (--kite-dom-buffer websocket-url)
     (save-excursion
@@ -618,10 +614,10 @@ The delimiters are <! and >."
                                        (node-region-indent node-region)
                                        t)))))))
 
-(defun --kite-DOM-childNodeCountUpdated (websocket-url packet)
+(defun --kite-dom-DOM-childNodeCountUpdated (websocket-url packet)
   (--kite-log "--kite-DOM-childNodeCountUpdated got packet %s" packet))
 
-(defun --kite-DOM-childNodeRemoved (websocket-url packet)
+(defun --kite-dom-DOM-childNodeRemoved (websocket-url packet)
   (--kite-log "--kite-DOM-childNodeRemoved got packet %s" packet)
   (with-current-buffer (--kite-dom-buffer websocket-url)
     (save-excursion
@@ -631,7 +627,7 @@ The delimiters are <! and >."
          (node-region-line-begin node-region)
          (node-region-line-end node-region))))))
 
-(defun --kite-DOM-attributeModified (websocket-url packet)
+(defun --kite-dom-DOM-attributeModified (websocket-url packet)
   (--kite-log "--kite-DOM-attributeModified got packet %s" packet)
   (with-current-buffer (--kite-dom-buffer websocket-url)
     (save-excursion
@@ -657,7 +653,7 @@ The delimiters are <! and >."
                 (cons (--kite-insert-attribute node-id (cdr (assq 'name packet)) (cdr (assq 'value packet)))
                       (node-region-attribute-regions node-region))))))))
 
-(defun --kite-DOM-attributeRemoved (websocket-url packet)
+(defun --kite-dom-DOM-attributeRemoved (websocket-url packet)
   (--kite-log "--kite-DOM-attributeRemoved got packet %s" packet)
   (with-current-buffer (--kite-dom-buffer websocket-url)
     (save-excursion
@@ -717,31 +713,31 @@ The delimiters are <! and >."
 (defun kite-dom-highlight-node ()
   (interactive)
 
-  (--kite-send "DOM.highlightNode"
-               (list (cons 'nodeId
-                           (get-char-property (point) 'kite-node-id))
-                     (cons 'highlightConfig
-                           `((showInfo . nil)
-                             (contentColor . ,(--kite-rgba 255 0 0 0.5))
-                             (paddingColor . ,(--kite-rgba 0 255 0 0.5))
-                             (borderColor . ,(--kite-rgba 0 0 255 0.5))
-                             (marginColor . ,(--kite-rgba 255 255 0 0.5)))))
-               (lambda (response)
-                 (--kite-log "DOM.highlightNode got response %s" response))))
+  (kite-send "DOM.highlightNode"
+             (list (cons 'nodeId
+                         (get-char-property (point) 'kite-node-id))
+                   (cons 'highlightConfig
+                         `((showInfo . nil)
+                           (contentColor . ,(--kite-rgba 255 0 0 0.5))
+                           (paddingColor . ,(--kite-rgba 0 255 0 0.5))
+                           (borderColor . ,(--kite-rgba 0 0 255 0.5))
+                           (marginColor . ,(--kite-rgba 255 255 0 0.5)))))
+             (lambda (response)
+               (--kite-log "DOM.highlightNode got response %s" response))))
 
 
 (defun kite-dom-hide-highlight ()
   (interactive)
-  (--kite-send "DOM.hideHighlight"))
+  (kite-send "DOM.hideHighlight"))
 
 (defun kite-dom-show-matched-css ()
   (interactive)
 
-  (--kite-send "CSS.getMatchedStylesForNode"
-               (list (cons 'nodeId
-                           (get-char-property (point) 'kite-node-id)))
-               (lambda (response)
-                 (message "CSS.getMatchedStylesForNode got response %s" response))))
+  (kite-send "CSS.getMatchedStylesForNode"
+             (list (cons 'nodeId
+                         (get-char-property (point) 'kite-node-id)))
+             (lambda (response)
+               (message "CSS.getMatchedStylesForNode got response %s" response))))
 
 (defun --kite-dom-make-style-to-rule-map (matched-styles-response)
 
@@ -834,38 +830,38 @@ The delimiters are <! and >."
   (interactive)
   (lexical-let ((barrier (cons nil nil))
                 (node-id (get-char-property (point) 'kite-node-id)))
-    (--kite-send "CSS.getComputedStyleForNode"
-                 (list (cons 'nodeId node-id))
-                 (lambda (response)
-                   (setcar barrier response)
-                   (when (and (not (null (car barrier)))
-                              (not (null (cdr barrier))))
-                     (--kite-dom-render-computed-css
-                      (car barrier) (cdr barrier)))))
-    (--kite-send "CSS.getMatchedStylesForNode"
-                 (list (cons 'nodeId node-id))
-                 (lambda (response)
-                   (setcdr barrier response)
-                   (when (and (not (null (car barrier)))
-                              (not (null (cdr barrier))))
-                     (--kite-dom-render-computed-css
-                      (car barrier) (cdr barrier)))))))
+    (kite-send "CSS.getComputedStyleForNode"
+               (list (cons 'nodeId node-id))
+               (lambda (response)
+                 (setcar barrier response)
+                 (when (and (not (null (car barrier)))
+                            (not (null (cdr barrier))))
+                   (--kite-dom-render-computed-css
+                    (car barrier) (cdr barrier)))))
+    (kite-send "CSS.getMatchedStylesForNode"
+               (list (cons 'nodeId node-id))
+               (lambda (response)
+                 (setcdr barrier response)
+                 (when (and (not (null (car barrier)))
+                            (not (null (cdr barrier))))
+                   (--kite-dom-render-computed-css
+                    (car barrier) (cdr barrier)))))))
 
 (defconst --kite-dom-pick-node-message
   "Now switch to your browser and select a DOM node")
 
 (defun kite-dom-pick-node ()
   (interactive)
-  (--kite-send "DOM.setInspectModeEnabled"
-               `((enabled . t)
-                 (highlightConfig
-                  . ((showInfo . nil)
-                     (contentColor . ,(--kite-rgba 255 0 0 0.5))
-                     (paddingColor . ,(--kite-rgba 0 255 0 0.5))
-                     (borderColor . ,(--kite-rgba 0 0 255 0.5))
-                     (marginColor . ,(--kite-rgba 255 255 0 0.5)))))
-               (lambda (response)
-                 (message --kite-dom-pick-node-message))))
+  (kite-send "DOM.setInspectModeEnabled"
+             `((enabled . t)
+               (highlightConfig
+                . ((showInfo . nil)
+                   (contentColor . ,(--kite-rgba 255 0 0 0.5))
+                   (paddingColor . ,(--kite-rgba 0 255 0 0.5))
+                   (borderColor . ,(--kite-rgba 0 0 255 0.5))
+                   (marginColor . ,(--kite-rgba 255 255 0 0.5)))))
+             (lambda (response)
+               (message --kite-dom-pick-node-message))))
 
 
 (defun kite-dom-goto-node (node-id)
@@ -875,5 +871,21 @@ The delimiters are <! and >."
     (when (string= (current-message)
                    --kite-dom-pick-node-message)
       (message nil))))
+
+(defun --kite-dom-Inspector-inspect (websocket-url packet)
+  (lexical-let ((websocket-url websocket-url))
+    (kite-send "DOM.requestNode" (list (assq 'objectId (cdr (assq 'object packet))))
+               (lambda (response)
+                 (with-current-buffer (--kite-dom-buffer websocket-url)
+                   (kite-dom-goto-node
+                    (cdr (assq 'nodeId (cdr (assq 'result response))))))))))
+
+(add-hook 'kite-DOM-attributeModified-hooks '--kite-dom-DOM-attributeModified)
+(add-hook 'kite-DOM-attributeRemoved-hooks '--kite-dom-DOM-attributeRemoved)
+(add-hook 'kite-DOM-childNodeCountUpdated-hooks '--kite-dom-DOM-childNodeCountUpdated)
+(add-hook 'kite-DOM-childNodeInserted-hooks '--kite-dom-DOM-childNodeInserted)
+(add-hook 'kite-DOM-childNodeRemoved-hooks '--kite-dom-DOM-childNodeRemoved)
+(add-hook 'kite-DOM-setChildNodes-hooks '--kite-dom-DOM-setChildNodes)
+(add-hook 'kite-Inspector-inspect-hooks '--kite-dom-Inspector-inspect)
 
 (provide 'kite-dom)

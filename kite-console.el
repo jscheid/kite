@@ -46,11 +46,10 @@
 
 (defun --kite-kill-console ()
   (ignore-errors
-    (with-current-buffer kite-connection
-      (--kite-send "Console.disable" nil
-                   (lambda (response) (--kite-log "Console disabled."))))))
+    (kite-send "Console.disable" nil
+               (lambda (response) (--kite-log "Console disabled.")))))
 
-(defun --kite-Console-messageAdded (websocket-url packet)
+(defun --kite-console-Console-messageAdded (websocket-url packet)
   (let ((buf (get-buffer (format "*kite console %s*" websocket-url))))
     (when buf
       (with-current-buffer buf
@@ -67,9 +66,8 @@
   (save-excursion
     (let ((inhibit-read-only t))
       (erase-buffer))
-    (with-current-buffer kite-connection
-      (--kite-send "Console.clearMessages" nil
-                   (lambda (response) (--kite-log "Console cleared."))))))
+    (kite-send "Console.clearMessages" nil
+               (lambda (response) (--kite-log "Console cleared.")))))
 
 (defun kite-show-log-entry ()
   (interactive)
@@ -103,17 +101,19 @@
   (interactive)
   (--kite-log "opening console")
   (lexical-let*
-      ((kite-connection (current-buffer))
+      ((kite-session kite-session)
        (buf (get-buffer-create (format "*kite console %s*" (cdr (assq 'webSocketDebuggerUrl kite-tab-alist))))))
     (with-current-buffer buf
       (kite-console-mode)
-      (set (make-local-variable 'kite-connection) kite-connection))
+      (set (make-local-variable 'kite-session) kite-session))
     (switch-to-buffer buf)
     (erase-buffer)
     (save-excursion
       (with-current-buffer kite-connection
         (--kite-log "sending in buffer %s" (current-buffer))
-        (--kite-send "Console.enable" nil
-                     (lambda (response) (--kite-log "Console enabled.")))))))
+        (kite-send "Console.enable" nil
+                   (lambda (response) (--kite-log "Console enabled.")))))))
+
+(add-hook 'kite-Console-messageAdded-hooks '--kite-console-Console-messageAdded)
 
 (provide 'kite-console)

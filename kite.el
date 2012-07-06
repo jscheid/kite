@@ -2,14 +2,49 @@
 (require 'websocket);
 (eval-when-compile (require 'cl))
 
+(setq websocket-debug t)
+
+(defvar kite-tab-history nil)
+
+(defvar kite-Console-messageAdded-hooks nil)
+(defvar kite-CSS-mediaQueryResultChanged-hooks nil)
+(defvar kite-DOM-attributeModified-hooks nil)
+(defvar kite-DOM-attributeRemoved-hooks nil)
+(defvar kite-DOM-childNodeCountUpdated-hooks nil)
+(defvar kite-DOM-childNodeInserted-hooks nil)
+(defvar kite-DOM-childNodeRemoved-hooks nil)
+(defvar kite-DOM-documentUpdated-hooks nil)
+(defvar kite-DOM-setChildNodes-hooks nil)
+(defvar kite-Debugger-globalObjectCleared-hooks nil)
+(defvar kite-Debugger-paused-hooks nil)
+(defvar kite-Debugger-resumed-hooks nil)
+(defvar kite-Debugger-scriptParsed-hooks nil)
+(defvar kite-Inspector-inspect-hooks nil)
+(defvar kite-Network-dataReceived-hooks nil)
+(defvar kite-Network-loadingFinished-hooks nil)
+(defvar kite-Network-requestWillBeSent-hooks nil)
+(defvar kite-Network-responseReceived-hooks nil)
+(defvar kite-Page-domContentEventFired-hooks nil)
+(defvar kite-Page-frameNavigated-hooks nil)
+(defvar kite-Page-loadEventFired-hooks nil)
+
 (require 'kite-dom)
 (require 'kite-net)
 (require 'kite-repl)
 (require 'kite-console)
 
-(setq websocket-debug t)
+(defstruct (kite-session)
+  websocket
+  page-favicon-url
+  page-thumbnail-url
+  page-url
+  page-title
+  (next-request-id 0)
+  (pending-requests (make-hash-table))
+  (buffers nil))
 
-(defvar kite-tab-history nil)
+(defvar kite-active-sessions
+  (make-hash-table :test 'equal :weakness 'value))
 
 (defun --kite-format-stacktrace (stacktrace)
   (let ((formatted "") (index 0))
@@ -44,66 +79,58 @@
   "Toggle kite connection mode."
   (set (make-local-variable 'kill-buffer-hook) '--kite-kill-buffer)
   (make-local-variable 'kite-tab-alist)
-  (make-local-variable 'kite-pending-requests)
-  (make-local-variable 'kite-next-id)
-  (make-local-variable 'kite-websocket)
   (setq case-fold-search nil))
 
 (defun kite-debug-pause ()
   (interactive)
-  (--kite-send "Debugger.pause" nil
-               (lambda (response) (--kite-log "Execution paused."))))
+  (kite-send "Debugger.pause" nil
+             (lambda (response) (--kite-log "Execution paused."))))
 
 (defun kite-debug-continue ()
   (interactive)
-  (--kite-send "Debugger.resume" nil
-               (lambda (response) (--kite-log "Execution resumed."))))
+  (kite-send "Debugger.resume" nil
+             (lambda (response) (--kite-log "Execution resumed."))))
 
 (defun kite-debug-reload ()
   (interactive)
-  
+
   (with-current-buffer (if (boundp 'kite-connection)
                            kite-connection
                          (current-buffer))
-    (--kite-send "Page.reload" nil
-                 (lambda (response) (--kite-log "Page reloaded.")))))
+    (kite-send "Page.reload" nil
+               (lambda (response) (--kite-log "Page reloaded.")))))
 
 (defun --kite-connection-buffer ()
   (if (boundp 'kite-connection)
       kite-connection
     (current-buffer)))
 
-(defun --kite-send (method &optional params callback callback-args)
+(defun kite-send (method &optional params callback callback-args)
   (let ((callback-buffer (current-buffer))
-        (request-id (with-current-buffer (--kite-connection-buffer)
-                      (setq kite-next-id (1+ kite-next-id))))
-        (websocket (with-current-buffer (--kite-connection-buffer)
-                     kite-websocket)))
-    (with-current-buffer (--kite-connection-buffer)
-      (puthash request-id (list (or callback (lambda (response) nil))
-                                callback-buffer
-                                callback-args) kite-pending-requests))
-    (websocket-send-text websocket
+        (request-id (incf (kite-session-next-request-id kite-session))))
+    (puthash request-id (list (or callback (lambda (response) nil))
+                              callback-buffer
+                              callback-args)
+             (kite-session-pending-requests kite-session))
+    (websocket-send-text (kite-session-websocket kite-session)
                          (json-encode
                           (list
                            (cons :jsonrpc "2.0")
                            (cons :method method)
                            (cons :params params)
-                           (cons :id request-id)
-                           )))))
+                           (cons :id request-id))))))
+
+(defun --kite-session-remove-current-buffer ()
+  (setf (kite-session-buffers kite-session)
+        (delete (current-buffer) (kite-session-buffers kite-session)))
+  (when (null (kite-session-buffers kite-session))
+    (websocket-close (kite-session-websocket kite-session))
+    (remhash (websocket-url (kite-session-websocket kite-session))
+             kite-active-sessions)))
 
 (defun --kite-kill-buffer ()
   (ignore-errors
-    (websocket-close kite-websocket)))
-
-(defun --kite-Debugger-paused (websocket-url packet)
-  (--kite-log "New state: Paused"))
-
-(defun --kite-Debugger-resumed (websocket-url packet)
-  (--kite-log "New state: Resumed"))
-
-(defun --kite-Debugger-scriptParsed (websocket-url packet)
-  (--kite-log "Script parsed."))
+    (--kite-session-remove-current-buffer)))
 
 (defun --kite-connect-webservice (tab-alist)
   (lexical-let* ((websocket-url (cdr (assq 'webSocketDebuggerUrl tab-alist)))
@@ -117,30 +144,35 @@
           (kite-connection-mode)
           (switch-to-buffer buf)
           (setq kite-tab-alist tab-alist)
-          (setq kite-pending-requests (make-hash-table))
-          (setq kite-next-id 0)
           (setq kite-websocket
                 (websocket-open websocket-url
                                 :on-message (lambda (websocket frame)
                                               (--kite-log "received frame: %s" frame)
-                                              (when (and (eq (aref frame 0) 'cl-struct-websocket-frame)
-                                                         (eq (aref frame 1) 'text))
-                                                (let ((response (json-read-from-string (aref frame 2))))
-                                                  (when (listp response)
-                                                    (with-current-buffer buf
-                                                      (let ((response-id (cdr (assq 'id response))))
-                                                        (if response-id
-                                                            (let ((callback-info (gethash response-id kite-pending-requests)))
-                                                              (remhash response-id kite-pending-requests)
-                                                              (with-current-buffer (nth 1 callback-info)
-                                                                (apply (nth 0 callback-info) (assq-delete-all 'id response) (nth 2 callback-info))))
-                                                          (apply (symbol-function (intern
-                                                                                   (concat "--kite-"
-                                                                                           (replace-regexp-in-string "\\." "-"
-                                                                                                                     (cdr (assq 'method response))))))
-                                                                 websocket-url
-                                                                 (cdr (assq 'params response))
-                                                                 nil))))))))
+                                              (let ((kite-session (gethash (websocket-url websocket)
+                                                                           kite-active-sessions)))
+                                                (when (and (eq (aref frame 0) 'cl-struct-websocket-frame)
+                                                           (eq (aref frame 1) 'text))
+                                                  (let ((response (json-read-from-string (aref frame 2))))
+                                                    (when (listp response)
+                                                      (with-current-buffer buf
+                                                        (let ((response-id (cdr (assq 'id response))))
+                                                          (if response-id
+                                                              (let ((callback-info (gethash response-id
+                                                                                            (kite-session-pending-requests kite-session))))
+                                                                (remhash response-id (kite-session-pending-requests kite-session))
+                                                                (with-current-buffer (nth 1 callback-info)
+                                                                  (apply (nth 0 callback-info)
+                                                                         (assq-delete-all 'id response)
+                                                                         (nth 2 callback-info))))
+
+                                                            (run-hook-with-args
+                                                             (intern
+                                                              (concat "kite-"
+                                                                      (replace-regexp-in-string "\\." "-"
+                                                                                                (cdr (assq 'method response)))
+                                                                      "-hooks"))
+                                                             websocket-url
+                                                             (cdr (assq 'params response)))))))))))
 
                                 :on-close (lambda (websocket)
                                             (--kite-log "websocket connection closed"))))
@@ -164,30 +196,43 @@
                  (ewoc (ewoc-create
                         (lambda (x)
 
-            (insert (concat (propertize (concat " " (cdr (assq 'title kite-tab-alist)) "\n\n") 'face 'info-title-1))
-                    (propertize "URL: " 'face 'bold)
-                    (cdr (assq 'url kite-tab-alist))
-                    "\n"
-                    (propertize "Status: " 'face 'bold)
-                    (propertize "Running" 'face 'success)
-                    "\n\n"
-                    "Press ? for help\n")))))
+                          (insert (concat (propertize (concat " " (cdr (assq 'title kite-tab-alist)) "\n\n") 'face 'info-title-1))
+                                  (propertize "URL: " 'face 'bold)
+                                  (cdr (assq 'url kite-tab-alist))
+                                  "\n"
+                                  (propertize "Status: " 'face 'bold)
+                                  (propertize "Running" 'face 'success)
+                                  "\n\n"
+                                  "Press ? for help\n")))))
 
             (set (make-local-variable 'ekwd-connection-ewoc) ewoc)
 
             (ewoc-enter-last ewoc 0)
 
+            (set (make-local-variable 'kite-session)
+                 (make-kite-session
+                  :websocket kite-websocket
+                  :page-favicon-url (cdr (assq 'faviconUrl tab-alist))
+                  :page-thumbnail-url (cdr (assq 'thumbnailUrl tab-alist))
+                  :page-url (cdr (assq 'url tab-alist))
+                  :page-title (cdr (assq 'title tab-alist))))
 
-            (--kite-send "Page.enable" nil
-                         (lambda (response) (--kite-log "Page notifications enabled.")))
-            (--kite-send "Inspector.enable" nil
-                         (lambda (response) (--kite-log "Inspector enabled.")))
-            (--kite-send "Debugger.enable" nil
-                         (lambda (response) (--kite-log "Debugger enabled.")))
-            (--kite-send "CSS.enable" nil
-                         (lambda (response) (--kite-log "CSS enabled.")))
-            (--kite-send "Debugger.canSetScriptSource" nil
-                         (lambda (response) (--kite-log "got response: %s" response)))
+            (setf (kite-session-buffers kite-session)
+                  (cons (current-buffer)
+                        (kite-session-buffers kite-session)))
+
+            (puthash websocket-url kite-session kite-active-sessions)
+
+            (kite-send "Page.enable" nil
+                       (lambda (response) (--kite-log "Page notifications enabled.")))
+            (kite-send "Inspector.enable" nil
+                       (lambda (response) (--kite-log "Inspector enabled.")))
+            (kite-send "Debugger.enable" nil
+                       (lambda (response) (--kite-log "Debugger enabled.")))
+            (kite-send "CSS.enable" nil
+                       (lambda (response) (--kite-log "CSS enabled.")))
+            (kite-send "Debugger.canSetScriptSource" nil
+                       (lambda (response) (--kite-log "got response: %s" response)))
             ))))))
 
 (defun --kite-longest-prefix (strings)
@@ -218,7 +263,7 @@ which should be a sequence of strings.  Naive implementation."
                  (completion-strings (make-hash-table :test 'equal))
                  (completion-candidates nil))
 
-            ; Gather debuggers from server response
+            ;; Gather debuggers from server response
 
             (mapcar (lambda (el)
                       (when (assq 'webSocketDebuggerUrl el)
@@ -228,20 +273,21 @@ which should be a sequence of strings.  Naive implementation."
                          available-debuggers)))
                     debugger-tabs)
 
-            ; Gather debuggers currently open
+            ;; Gather debuggers currently open
 
-            (mapcar (lambda (buf)
-                      (with-current-buffer buf
-                        (when (and (eq major-mode 'kite-connection-mode)
-                                   (websocket-openp kite-websocket))
-                          (puthash
-                           (cdr (assq 'webSocketDebuggerUrl kite-tab-alist))
-                           (cons kite-tab-alist buf)
-                           available-debuggers))))
-                    (buffer-list))
+            (maphash (lambda (websocket-url kite-session)
+                       (puthash
+                        websocket-url
+                        `(((webSocketDebuggerUrl . ,websocket-url)
+                           (thumbnailUrl . ,(kite-session-page-thumbnail-url kite-session))
+                           (faviconUrl . ,(kite-session-page-favicon-url kite-session))
+                           (title . ,(kite-session-page-title kite-session))
+                           (url . ,(kite-session-page-url kite-session))) . ,kite-session)
+                        available-debuggers))
+                     kite-active-sessions)
 
-            ; For each human readable identifier (url or title), see
-            ; if it is ambiguous
+            ;; For each human readable identifier (url or title), see
+            ;; if it is ambiguous
 
             (flet ((add-item (item url)
                              (let ((existing (gethash item available-strings '(0))))
@@ -256,7 +302,7 @@ which should be a sequence of strings.  Naive implementation."
                              (add-item title websocket-url))))
                        available-debuggers))
 
-            ; Final pass, disambiguate and rearrange
+            ;; Final pass, disambiguate and rearrange
 
             (flet ((disambiguate (string websocket-url)
                                  (let ((existing (gethash string available-strings)))
@@ -273,7 +319,7 @@ which should be a sequence of strings.  Naive implementation."
                            (puthash (disambiguate title websocket-url) value completion-strings)))
                        available-debuggers))
 
-            ; Map to keys
+            ;; Map to keys
 
             (maphash (lambda (key value)
                        (setq completion-candidates (cons key completion-candidates)))
@@ -285,18 +331,13 @@ which should be a sequence of strings.  Naive implementation."
                               nil t nil 'kite-tab-history)))
 
               (if (cdr (gethash selection completion-strings))
-                  (switch-to-buffer (cdr (gethash selection completion-strings)))
+                  (switch-to-buffer (car (kite-session-buffers
+                                          (cdr (gethash selection completion-strings)))))
                 (--kite-connect-webservice (car (gethash selection completion-strings))))))
         (error "Could not contact remote debugger at %s:%s, check host and port%s" use-host use-port
                (if (> (length (buffer-string)) 0)
-                 (concat ": " (buffer-string)) ""))))))
+                   (concat ": " (buffer-string)) ""))))))
 
-
-(defun --kite-Page-loadEventFired (websocket-url packet)
-  t)
-
-(defun --kite-Debugger-globalObjectCleared (websocket-url packet)
-  t)
 
 (defun* --kite-fill-overflow (string width &key (align 'left) (trim 'right))
   (let ((string-length (length string)))
@@ -316,20 +357,5 @@ which should be a sequence of strings.  Naive implementation."
             (concat (make-string left-fill 32)
                     string
                     (make-string left-fill 32)))))))))
-
-(defun --kite-Page-frameNavigated (websocket-url packet)
-  t)
-
-(defun --kite-CSS-mediaQueryResultChanged (websocket-url packet)
-  t)
-
-(defun --kite-Inspector-inspect (websocket-url packet)
-  (lexical-let ((websocket-url websocket-url))
-    (--kite-send "DOM.requestNode" (list (assq 'objectId (cdr (assq 'object packet))))
-                 (lambda (response)
-                   (with-current-buffer (--kite-dom-buffer websocket-url)
-                     (kite-dom-goto-node
-                      (cdr (assq 'nodeId (cdr (assq 'result response))))))))))
-
 
 (provide 'kite)

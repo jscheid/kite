@@ -67,7 +67,7 @@
   (setq case-fold-search nil)
   (setq line-spacing (max (or line-spacing 0) 2)))
 
-(defun --kite-Network-loadingFinished (websocket-url packet)
+(defun --kite-net-Network-loadingFinished (websocket-url packet)
   (--kite-log "--kite-Network-loadingFinished"))
 
 (defun --kite-network-barchart-width ()
@@ -272,7 +272,7 @@
   (interactive)
   (--kite-log "opening network")
   (lexical-let*
-      ((kite-connection (current-buffer))
+      ((kite-session kite-session)
        (buf (get-buffer-create (format "*kite network %s*" (cdr (assq 'webSocketDebuggerUrl kite-tab-alist))))))
     (with-current-buffer buf
       (kite-network-mode)
@@ -284,14 +284,11 @@
                           ""
                           "\nReload the page to show network information\n" t)))
 
-      (set (make-local-variable 'kite-connection) kite-connection)
+      (set (make-local-variable 'kite-session) kite-session)
       (set (make-local-variable 'kite-requests) (make-hash-table :test 'equal)))
     (switch-to-buffer buf)
-    (save-excursion
-      (with-current-buffer kite-connection
-        (--kite-log "sending in buffer %s" (current-buffer))
-        (--kite-send "Network.enable" nil
-                     (lambda (response) (--kite-log "Network enabled.")))))))
+    (kite-send "Network.enable" nil
+               (lambda (response) (--kite-log "Network enabled.")))))
 
 (defun --kite-network-update-min-max-time ()
   (with-current-buffer (format "*kite network %s*" websocket-url)
@@ -331,7 +328,7 @@
           (setq kite-max-time max-time)
           t)))))
 
-(defun --kite-Network-requestWillBeSent (websocket-url packet)
+(defun --kite-net-Network-requestWillBeSent (websocket-url packet)
   (with-current-buffer (format "*kite network %s*" websocket-url)
     (let ((inhibit-read-only t))
       (when (string= (cdr (assq 'url (cdr (assq 'request packet))))
@@ -349,7 +346,7 @@
             (ewoc-refresh kite-ewoc))
         (ewoc-invalidate kite-ewoc (car request-data))))))
 
-(defun --kite-Network-responseReceived (websocket-url packet)
+(defun --kite-net-Network-responseReceived (websocket-url packet)
   (with-current-buffer (format "*kite network %s*" websocket-url)
     (let ((inhibit-read-only t)
           (request-data (gethash (cdr (assq 'requestId packet)) kite-requests)))
@@ -362,7 +359,7 @@
             (ewoc-refresh kite-ewoc))
         (ewoc-invalidate kite-ewoc (car request-data))))))
 
-(defun --kite-Network-dataReceived (websocket-url packet)
+(defun --kite-net-Network-dataReceived (websocket-url packet)
   (with-current-buffer (format "*kite network %s*" websocket-url)
     (let ((inhibit-read-only t)
           (request-data (gethash (cdr (assq 'requestId packet)) kite-requests)))
@@ -377,11 +374,10 @@
 
 (defun --kite-kill-network ()
   (ignore-errors
-    (with-current-buffer kite-connection
-      (--kite-send "Network.disable" nil
-                   (lambda (response) (--kite-log "Network disabled."))))))
+    (kite-send "Network.disable" nil
+               (lambda (response) (--kite-log "Network disabled.")))))
 
-(defun --kite-Page-domContentEventFired (websocket-url packet)
+(defun --kite-net-Page-domContentEventFired (websocket-url packet)
   (let ((network-buffer (get-buffer (format "*kite network %s*" websocket-url))))
     (when network-buffer
       (with-current-buffer network-buffer
@@ -391,5 +387,11 @@
                        (> kite-dom-content-fired-timestamp kite-max-time)))
           (setq kite-max-time kite-dom-content-fired-timestamp)
           (ewoc-refresh kite-ewoc))))))
+
+(add-hook 'kite-Page-domContentEventFired-hooks '--kite-net-Page-domContentEventFired)
+(add-hook 'kite-Network-dataReceived-hooks '--kite-net-Network-dataReceived)
+(add-hook 'kite-Network-loadingFinished-hooks '--kite-net-Network-loadingFinished)
+(add-hook 'kite-Network-responseReceived-hooks '--kite-net-Network-responseReceived)
+(add-hook 'kite-Network-requestWillBeSent-hooks '--kite-net-Network-requestWillBeSent)
 
 (provide 'kite-net)
