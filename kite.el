@@ -3,7 +3,8 @@
   (add-to-list 'load-path (expand-file-name "misc" (file-name-directory (buffer-file-name)))))
 
 (require 'json)
-(require 'websocket);
+(require 'websocket)
+(require 'url-parse)
 (eval-when-compile (require 'cl))
 
 (setq websocket-debug t)
@@ -45,9 +46,18 @@
   page-url
   page-title
   breakpoint-ewoc
+  (script-infos (make-hash-table :test 'equal))
+  (debugger-state "resumed")
   (next-request-id 0)
   (pending-requests (make-hash-table))
   (buffers nil))
+
+(defstruct (kite-script-info)
+  url
+  start-line
+  start-column
+  end-line
+  end-column)
 
 (defvar kite-active-sessions
   (make-hash-table :test 'equal :weakness 'value))
@@ -114,11 +124,6 @@
     (kite-send "Page.reload" nil
                (lambda (response) (--kite-log "Page reloaded.")))))
 
-(defun --kite-connection-buffer ()
-  (if (boundp 'kite-connection)
-      kite-connection
-    (current-buffer)))
-
 (defun kite-send (method &optional params callback callback-args)
   (let ((callback-buffer (current-buffer))
         (request-id (incf (kite-session-next-request-id kite-session))))
@@ -147,9 +152,9 @@
     (--kite-session-remove-current-buffer)))
 
 (defun --kite-connect-webservice (tab-alist)
-  (lexical-let* ((websocket-url (cdr (assq 'webSocketDebuggerUrl tab-alist)))
-                 (faviconUrl (cdr (assq 'faviconUrl tab-alist)))
-                 (thumbnailUrl (cdr (assq 'thumbnailUrl tab-alist))))
+  (lexical-let* ((websocket-url (plist-get tab-alist :webSocketDebuggerUrl))
+                 (faviconUrl (plist-get tab-alist :faviconUrl))
+                 (thumbnailUrl (plist-get tab-alist :thumbnailUrl)))
     (--kite-log "connecting to %s" websocket-url)
     (lexical-let ((buf (get-buffer-create (format "*kite %s*" websocket-url)))
                   (favicon-marker nil))
@@ -198,10 +203,10 @@
           (set (make-local-variable 'kite-session)
                (make-kite-session
                 :websocket kite-websocket
-                :page-favicon-url (cdr (assq 'faviconUrl tab-alist))
-                :page-thumbnail-url (cdr (assq 'thumbnailUrl tab-alist))
-                :page-url (cdr (assq 'url tab-alist))
-                :page-title (cdr (assq 'title tab-alist))))
+                :page-favicon-url (plist-get tab-alist :faviconUrl)
+                :page-thumbnail-url (plist-get tab-alist :thumbnailUrl)
+                :page-url (plist-get tab-alist :page-url)
+                :page-title (plist-get tab-alist :title)))
 
           (puthash websocket-url kite-session kite-active-sessions)
 
@@ -227,20 +232,21 @@
           (setq favicon-marker (point-marker))
           (let* ((inhibit-read-only t)
                  (ewoc (ewoc-create
-                        (lambda (x)
+                        (lambda (session)
+                          (message "kite-connection-ewoc re-render")
 
-                          (insert (concat (propertize (concat " " (cdr (assq 'title kite-tab-alist)) "\n\n") 'face 'info-title-1))
+                          (insert (concat (propertize (concat " " (plist-get kite-tab-alist :title) "\n\n") 'face 'info-title-1))
                                   (propertize "URL: " 'face 'bold)
-                                  (cdr (assq 'url kite-tab-alist))
+                                  (plist-get kite-tab-alist :url)
                                   "\n"
                                   (propertize "Status: " 'face 'bold)
-                                  (propertize "Resumed" 'face 'success)
+                                  (propertize (kite-session-debugger-state session) 'face 'success)
                                   "\n\n"
                                   "Press ? for help\n")))))
 
-            (set (make-local-variable 'ekwd-connection-ewoc) ewoc)
+            (set (make-local-variable 'kite-connection-ewoc) ewoc)
 
-            (ewoc-enter-last ewoc 0)
+            (ewoc-enter-last ewoc kite-session)
 
             (goto-char (point-max))
             (setf (kite-session-breakpoint-ewoc kite-session)
@@ -280,7 +286,9 @@ which should be a sequence of strings.  Naive implementation."
       (goto-char 0)
       (if (and (looking-at "HTTP/1\\.. 200")
                (re-search-forward "\n\n" nil t))
-          (let* ((debugger-tabs (let ((json-array-type 'list)) (json-read)))
+          (let* ((debugger-tabs (let ((json-array-type 'list)
+                                      (json-object-type 'plist))
+                                  (json-read)))
                  (available-debuggers (make-hash-table))
                  (available-strings (make-hash-table :test 'equal))
                  (completion-strings (make-hash-table :test 'equal))
@@ -289,9 +297,9 @@ which should be a sequence of strings.  Naive implementation."
             ;; Gather debuggers from server response
 
             (mapcar (lambda (el)
-                      (when (assq 'webSocketDebuggerUrl el)
+                      (when (plist-member el :webSocketDebuggerUrl)
                         (puthash
-                         (cdr (assq 'webSocketDebuggerUrl el))
+                         (plist-get el :webSocketDebuggerUrl)
                          (cons el nil)
                          available-debuggers)))
                     debugger-tabs)
@@ -317,9 +325,9 @@ which should be a sequence of strings.  Naive implementation."
                                (puthash item (cons (1+ (car existing)) (cons url (cdr existing))) available-strings))))
 
               (maphash (lambda (key value)
-                         (let ((url (cdr (assq 'url (car value))))
-                               (title (cdr (assq 'title (car value))))
-                               (websocket-url (cdr (assq 'webSocketDebuggerUrl (car value)))))
+                         (let ((url (plist-get (car value) :url))
+                               (title (plist-get (car value) :title))
+                               (websocket-url (plist-get (car value) :webSocketDebuggerUrl)))
                            (add-item url websocket-url)
                            (when (not (equal title url))
                              (add-item title websocket-url))))
@@ -334,9 +342,9 @@ which should be a sequence of strings.  Naive implementation."
                                      (concat string " (" (substring websocket-url (length (--kite-longest-prefix (cdr existing))))  ")")))))
 
               (maphash (lambda (key value)
-                         (let ((url (cdr (assq 'url (car value))))
-                               (title (cdr (assq 'title (car value))))
-                               (websocket-url (cdr (assq 'webSocketDebuggerUrl (car value)))))
+                         (let ((url (plist-get (car value) :url))
+                               (title (plist-get (car value) :title))
+                               (websocket-url (plist-get (car value) :webSocketDebuggerUrl)))
 
                            (puthash (disambiguate url websocket-url) value completion-strings)
                            (puthash (disambiguate title websocket-url) value completion-strings)))
@@ -380,5 +388,71 @@ which should be a sequence of strings.  Naive implementation."
             (concat (make-string left-fill 32)
                     string
                     (make-string left-fill 32)))))))))
+
+(defun --kite-connection-buffer (websocket-url)
+  (format "*kite %s*" websocket-url))
+
+(defun kite--Debugger-paused (websocket-url packet)
+  (with-current-buffer (--kite-connection-buffer websocket-url)
+    (setf (kite-session-debugger-state kite-session) "paused")
+    (ewoc-refresh kite-connection-ewoc)
+    (let* ((call-frames (plist-get packet :callFrames))
+           (first-call-frame (elt call-frames 0))
+           (location (plist-get first-call-frame :location))
+           (script-info (gethash (plist-get location :scriptId)
+                                 (kite-session-script-infos kite-session))))
+      (lexical-let ((line-number (- (plist-get location :lineNumber)))
+                    (column-number (plist-get location :columnNumber)))
+        (kite-visit-script
+         script-info
+         (lambda ()
+           (goto-line line-number)
+           (beginning-of-line)
+           (forward-char column-number))))
+      (message "Debugger paused"))))
+
+(defun kite--create-remote-script-buffer (script-info after-load-function)
+  (lexical-let* ((url (kite-script-info-url script-info))
+                 (url-parts (url-generic-parse-url url))
+                 (after-load-function after-load-function)
+                 (new-buffer (generate-new-buffer url)))
+    (kite-send "Debugger.getScriptSource" (list (cons 'scriptId (plist-get location :scriptId)))
+               (lambda (response)
+                 (with-current-buffer new-buffer
+                   (setq buffer-file-name (url-filename url-parts))
+                   (insert (plist-get (plist-get response :result) :scriptSource))
+                   (setq buffer-read-only t)
+                   (set-buffer-modified-p nil)
+                   (normal-mode)
+                   (funcall after-load-function))))
+    new-buffer))
+
+(defun kite-visit-script (script-info after-load-function)
+  (interactive)
+  (let* ((url (kite-script-info-url script-info))
+         (url-parts (url-generic-parse-url url)))
+    (cond
+     ((string= (url-type url-parts) "file")
+      (find-file (url-filename url-parts))
+      (funcall after-load-function)))
+    (t
+     (switch-to-buffer (or (get-buffer url)
+                           (kite--create-remote-script-buffer
+                            script-info after-load-function))))))
+
+(defun kite--Debugger-scriptParsed (websocket-url packet)
+  (puthash
+   (plist-get packet :scriptId)
+   (make-kite-script-info
+    :url (plist-get packet :url)
+    :start-line (plist-get packet :startLine)
+    :start-column (plist-get packet :startColumn)
+    :end-line (plist-get packet :endLine)
+    :end-column (plist-get packet :endColumn))
+   (kite-session-script-infos kite-session)))
+
+(add-hook 'kite-Debugger-paused-hooks 'kite--Debugger-paused)
+
+(add-hook 'kite-Debugger-scriptParsed-hooks 'kite--Debugger-scriptParsed)
 
 (provide 'kite)
