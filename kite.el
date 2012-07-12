@@ -152,30 +152,49 @@
                                                                            kite-active-sessions)))
                                                 (when (and (eq (aref frame 0) 'cl-struct-websocket-frame)
                                                            (eq (aref frame 1) 'text))
-                                                  (let ((response (json-read-from-string (aref frame 2))))
+                                                  (let* ((json-object-type 'plist)
+                                                         (response (json-read-from-string (aref frame 2))))
+
+                                                    (--kite-log "received response: %s (type %s)" response (type-of response))
                                                     (when (listp response)
                                                       (with-current-buffer buf
-                                                        (let ((response-id (cdr (assq 'id response))))
+                                                        (let ((response-id (plist-get response :id)))
                                                           (if response-id
                                                               (let ((callback-info (gethash response-id
                                                                                             (kite-session-pending-requests kite-session))))
                                                                 (remhash response-id (kite-session-pending-requests kite-session))
                                                                 (with-current-buffer (nth 1 callback-info)
                                                                   (apply (nth 0 callback-info)
-                                                                         (assq-delete-all 'id response)
+                                                                         response
                                                                          (nth 2 callback-info))))
 
                                                             (run-hook-with-args
                                                              (intern
                                                               (concat "kite-"
                                                                       (replace-regexp-in-string "\\." "-"
-                                                                                                (cdr (assq 'method response)))
+                                                                                                (plist-get response :method))
                                                                       "-hooks"))
                                                              websocket-url
-                                                             (cdr (assq 'params response)))))))))))
+                                                             (plist-get response :params))))))))))
 
                                 :on-close (lambda (websocket)
                                             (--kite-log "websocket connection closed"))))
+
+
+          (set (make-local-variable 'kite-session)
+               (make-kite-session
+                :websocket kite-websocket
+                :page-favicon-url (cdr (assq 'faviconUrl tab-alist))
+                :page-thumbnail-url (cdr (assq 'thumbnailUrl tab-alist))
+                :page-url (cdr (assq 'url tab-alist))
+                :page-title (cdr (assq 'title tab-alist))))
+
+          (puthash websocket-url kite-session kite-active-sessions)
+
+          (setf (kite-session-buffers kite-session)
+                (cons (current-buffer)
+                      (kite-session-buffers kite-session)))
+
           (when (and faviconUrl
                      (not (string= faviconUrl "")))
             (url-retrieve faviconUrl

@@ -426,8 +426,8 @@ The delimiters are <! and >."
                          'read-only t))
          (render-attribute-regions (element)
                                    (let* (attribute-info-list
-                                          (node-id (cdr (assq 'nodeId element)))
-                                          (attributes (cdr (assq 'attributes element)))
+                                          (node-id (plist-get element :nodeId))
+                                          (attributes (plist-get element :attributes))
                                           (attr-index 0)
                                           (num-attrs (length attributes))
                                           (inhibit-read-only t))
@@ -441,9 +441,9 @@ The delimiters are <! and >."
                                        (setq attr-index (+ 2 attr-index)))
                                      attribute-info-list)))
 
-    (let ((nodeType (cdr (assq 'nodeType element)))
-          (node-id (cdr (assq 'nodeId element)))
-          (localName (cdr (assq 'localName element)))
+    (let ((nodeType (plist-get element :nodeType))
+          (node-id (plist-get element :nodeId))
+          (localName (plist-get element :localName))
           (inhibit-read-only t)
           (node-region (make-node-region))
           attributes)
@@ -453,8 +453,8 @@ The delimiters are <! and >."
       (cond
 
        ((and (eq nodeType 1)
-             (or (eq 0 (cdr (assq 'childNodeCount element)))
-                 (assq 'children element)))
+             (or (eq 0 (plist-get element :childNodeCount))
+                 (plist-member element :children)))
         (insert (concat (indent-prefix indent)
                         (propertize "<"
                                     'kite-node-id node-id
@@ -472,7 +472,7 @@ The delimiters are <! and >."
         (setf (node-region-inner-begin node-region) (point-marker))
 
         (mapcar (lambda (child) (--kite-dom-insert-element child (1+ indent) loadp))
-                (cdr (assq 'children element)))
+                (plist-get element :children))
         (setf (node-region-inner-end node-region) (point-marker))
 
         (insert (concat (indent-prefix indent)
@@ -525,25 +525,26 @@ The delimiters are <! and >."
                                     'face 'kite-tag-delimiter-face)
                         "\n"))
         (when loadp
-          (kite-send "DOM.requestChildNodes" (list (cons 'nodeId (cdr (assq 'nodeId element))))
+          (kite-send "DOM.requestChildNodes" (list (cons 'nodeId (plist-get element :nodeId)))
                      (lambda (response) nil))))
 
        ((eq nodeType 3)
         (insert (concat (indent-prefix indent)
                         (propertize (replace-regexp-in-string "\\(^\\(\\s \\|\n\\)+\\|\\(\\s \\|\n\\)+$\\)" ""
-                                                              (cdr (assq 'nodeValue element)))
+                                                              (plist-get element :nodeValue))
                                     'kite-node-id node-id
                                     'face 'kite-text-face)
                         "\n"))))
       (setf (node-region-line-end node-region) (point-marker))
       (setf (node-region-indent node-region) indent)
       (setf (node-region-attribute-regions node-region) attributes)
-      (puthash (cdr (assq 'nodeId element)) node-region kite-dom-nodes))))
+      (puthash (plist-get element :nodeId) node-region kite-dom-nodes))))
 
 (defun --kite-kill-dom ()
-  (ignore-errors
-    (kite-send "CSS.disable" nil
-               (lambda (response) (message "CSS disabled.")))))
+  t)
+;  (ignore-errors
+;    (kite-send "CSS.disable" nil
+;               (lambda (response) (message "CSS disabled.")))))
 
 (defun --kite-websocket-url ()
   (cdr (assq 'webSocketDebuggerUrl kite-tab-alist))  )
@@ -572,7 +573,7 @@ The delimiters are <! and >."
                  (--kite-log "DOM.getDocument got response %s" response)
                  (with-current-buffer buf
                    (save-excursion
-                     (--kite-dom-insert-element (elt (cdr (assq 'children (assq 'root (assq 'result response)))) 0)
+                     (--kite-dom-insert-element (elt (plist-get (plist-get (plist-get response :result) :root) :children) 0)
                                                 0 t)))))))
 
 (defun --kite-dom-buffer (websocket-url)
@@ -584,7 +585,7 @@ The delimiters are <! and >."
     (save-excursion
       (let ((inhibit-read-only t)
             (node-region
-             (gethash (cdr (assq 'parentId packet)) kite-dom-nodes)))
+             (gethash (plist-get packet :parentId) kite-dom-nodes)))
         (delete-region (node-region-inner-begin node-region)
                        (node-region-inner-end node-region))
         (goto-char (node-region-inner-begin node-region))
@@ -592,7 +593,7 @@ The delimiters are <! and >."
           (insert "\n")
           (mapcar (lambda (node)
                     (--kite-dom-insert-element node (1+ (node-region-indent node-region)) t))
-                  (cdr (assq 'nodes packet)))
+                  (plist-get packet :nodes))
           (insert (make-string (* kite-dom-offset (node-region-indent node-region)) 32)))))))
 
 (defun --kite-dom-DOM-childNodeInserted (websocket-url packet)
@@ -600,17 +601,17 @@ The delimiters are <! and >."
   (with-current-buffer (--kite-dom-buffer websocket-url)
     (save-excursion
       (let ((inhibit-read-only t)
-            (previous-node-id (cdr (assq 'previousNodeId packet)))
-            (parent-node-id (cdr (assq 'parentNodeId packet))))
+            (previous-node-id (plist-get packet :previousNodeId))
+            (parent-node-id (plist-get packet :parentNodeId)))
         (if (eq previous-node-id 0)
             (let ((node-region (gethash parent-node-id kite-dom-nodes)))
               (goto-char (node-region-inner-begin node-region))
-              (--kite-dom-insert-element (cdr (assq 'node packet))
+              (--kite-dom-insert-element (plist-get packet :node)
                                          (1+ (node-region-indent node-region))
                                          t))
           (let ((node-region (gethash previous-node-id kite-dom-nodes)))
             (goto-char (node-region-line-end node-region))
-            (--kite-dom-insert-element (cdr (assq 'node packet))
+            (--kite-dom-insert-element (plist-get packet :node)
                                        (node-region-indent node-region)
                                        t)))))))
 
@@ -622,7 +623,7 @@ The delimiters are <! and >."
   (with-current-buffer (--kite-dom-buffer websocket-url)
     (save-excursion
       (let ((inhibit-read-only t)
-            (node-region (gethash (cdr (assq 'nodeId packet)) kite-dom-nodes)))
+            (node-region (gethash (plist-get packet :nodeId) kite-dom-nodes)))
         (delete-region
          (node-region-line-begin node-region)
          (node-region-line-end node-region))))))
@@ -631,9 +632,11 @@ The delimiters are <! and >."
   (--kite-log "--kite-DOM-attributeModified got packet %s" packet)
   (with-current-buffer (--kite-dom-buffer websocket-url)
     (save-excursion
+      (message "packet is %s node-id is %s" packet (plist-get packet :nodeId))
+      (message "kite-dom-nodes are %s" kite-dom-nodes)
       (let* ((inhibit-read-only t)
-             (node-id (cdr (assq 'nodeId packet)))
-             (attr-name (intern (cdr (assq 'name packet))))
+             (node-id (plist-get packet :nodeId))
+             (attr-name (intern (plist-get packet :name)))
              (node-region (gethash node-id kite-dom-nodes))
              (attr-region (cdr (assq attr-name (node-region-attribute-regions node-region)))))
         (if attr-region
@@ -642,7 +645,7 @@ The delimiters are <! and >."
               (goto-char (1+ (attr-region-value-begin attr-region)))
               (delete-region (1+ (attr-region-value-begin attr-region))
                              (- (attr-region-value-end attr-region) 1))
-              (insert (propertize (cdr (assq 'value packet))
+              (insert (propertize (plist-get packet :value)
                                   'keymap kite-dom-attr-value-keymap
                                   'field 'kite-dom-attribute
                                   'point-left '--kite-dom-attr-value-left
@@ -650,7 +653,7 @@ The delimiters are <! and >."
           ;; Insert new attribute
           (goto-char (attr-region-value-end (cdar (node-region-attribute-regions node-region))))
           (setf (node-region-attribute-regions node-region)
-                (cons (--kite-insert-attribute node-id (cdr (assq 'name packet)) (cdr (assq 'value packet)))
+                (cons (--kite-insert-attribute node-id (plist-get packet :name) (plist-get packet :value))
                       (node-region-attribute-regions node-region))))))))
 
 (defun --kite-dom-DOM-attributeRemoved (websocket-url packet)
@@ -658,8 +661,8 @@ The delimiters are <! and >."
   (with-current-buffer (--kite-dom-buffer websocket-url)
     (save-excursion
       (let* ((inhibit-read-only t)
-             (attr-name (intern (cdr (assq 'name packet))))
-             (node-region (gethash (cdr (assq 'nodeId packet)) kite-dom-nodes))
+             (attr-name (intern (plist-get packet :name)))
+             (node-region (gethash (plist-get packet :nodeId) kite-dom-nodes))
              (attr-region (cdr (assq attr-name (node-region-attribute-regions node-region)))))
         (delete-region (attr-region-outer-begin attr-region)
                        (attr-region-outer-end attr-region))
@@ -742,20 +745,20 @@ The delimiters are <! and >."
 (defun --kite-dom-make-style-to-rule-map (matched-styles-response)
 
   (let ((style-to-rule-map (make-hash-table)))
-    (let* ((matched-css-rules (cdr (assq 'matchedCSSRules (cdr (assq 'result matched-styles-response)))))
+    (let* ((matched-css-rules (plist-get (plist-get matched-styles-response :result) :matchedCSSRules))
            (num-matched-rules (length matched-css-rules))
            (matched-rule-index 0))
       (while (< matched-rule-index num-matched-rules)
         (let* ((matched-rule (elt matched-css-rules matched-rule-index))
-               (rule-info (list (cdr (assq 'selectorText matched-rule))
-                                (cdr (assq 'origin matched-rule))
-                                (cdr (assq 'sourceLine matched-rule))))
-               (style-arr (cdr (assq 'cssProperties (cdr (assq 'style matched-rule)))))
+               (rule-info (list (plist-get matched-rule :selectorText)
+                                (plist-get matched-rule :origin)
+                                (plist-get matched-rule :sourceLine)))
+               (style-arr (plist-get (plist-get matched-rule :style) :cssProperties))
                (num-styles (length style-arr))
                (style-index 0))
           (while (< style-index num-styles)
-            (let ((style-name (cdr (assq 'name (elt style-arr style-index))))
-                  (style-value (cdr (assq 'value (elt style-arr style-index)))))
+            (let ((style-name (plist-get (elt style-arr style-index) :name))
+                  (style-value (plist-get (elt style-arr style-index) :value)))
               (puthash (intern style-name)
                        (cons (cons rule-info
                                    style-value)
@@ -770,14 +773,14 @@ The delimiters are <! and >."
   (message "--kite-dom-render-computed-css have matched styles %s" matched-styles-response)
 
   (let* ((style-to-rule-map (--kite-dom-make-style-to-rule-map matched-styles-response))
-         (arr (cdr (assq 'computedStyle (cdr (assq 'result computed-styles-response)))))
+         (arr (plist-get (plist-get computed-styles-response :result) :computedStyle))
          (index 0)
          (arr-len (length arr))
          as-list)
     (while (< index arr-len)
       (let ((item (elt arr index)))
-        (setq as-list (cons (cons (cdr (assq 'name item))
-                                  (cdr (assq 'value item)))
+        (setq as-list (cons (cons (plist-get item :name)
+                                  (plist-get item :value))
                             as-list)))
       (setq index (1+ index)))
     (let ((sorted-styles
@@ -874,11 +877,11 @@ The delimiters are <! and >."
 
 (defun --kite-dom-Inspector-inspect (websocket-url packet)
   (lexical-let ((websocket-url websocket-url))
-    (kite-send "DOM.requestNode" (list (assq 'objectId (cdr (assq 'object packet))))
+    (kite-send "DOM.requestNode" (list (assq 'objectId (plist-get packet :object)))
                (lambda (response)
                  (with-current-buffer (--kite-dom-buffer websocket-url)
                    (kite-dom-goto-node
-                    (cdr (assq 'nodeId (cdr (assq 'result response))))))))))
+                    (plist-get (plist-get response :result) :nodeId)))))))
 
 (add-hook 'kite-DOM-attributeModified-hooks '--kite-dom-DOM-attributeModified)
 (add-hook 'kite-DOM-attributeRemoved-hooks '--kite-dom-DOM-attributeRemoved)

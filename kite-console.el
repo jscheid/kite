@@ -55,9 +55,9 @@
       (with-current-buffer buf
         (let ((inhibit-read-only t))
           (goto-char (point-max))
-          (insert (propertize (concat (cdr (assq 'text packet)) "\n")
+          (insert (propertize (concat (plist-get packet :text) "\n")
                               'log-message packet
-                              'face (intern (format "kite-log-%s" (cdr (assq 'level packet))))))
+                              'face (intern (format "kite-log-%s" (plist-get packet :level)))))
           (goto-char (point-max))
           (--kite-log "message added, url is %s, packet is %s" websocket-url packet))))))
 
@@ -82,14 +82,14 @@
                         "Level: %s\n"
                         "Repeat Count: %s\n"
                         "Message:\n\n%s\n\nStack Trace:\n\n%s")
-                       (cdr (assq 'url log-message))
-                       (cdr (assq 'line log-message))
-                       (cdr (assq 'source log-message))
-                       (cdr (assq 'type log-message))
-                       (cdr (assq 'level log-message))
-                       (cdr (assq 'repeatCount log-message))
-                       (cdr (assq 'text log-message))
-                       (--kite-format-stacktrace (cdr (assq 'stackTrace log-message)))
+                       (plist-get log-message :url)
+                       (plist-get log-message :line)
+                       (plist-get log-message :source)
+                       (plist-get log-message :type)
+                       (plist-get log-message :level)
+                       (plist-get log-message :repeatCount)
+                       (plist-get log-message :text)
+                       (--kite-format-stacktrace (plist-get log-message :stackTrace))
                        ))))))
 
 (defun --kite-log (format-string &rest args)

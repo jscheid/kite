@@ -101,7 +101,7 @@
             (setq times (cons (list 'requestStart (cdr (assq 'timestamp (cdr packet)))) times)))
            ((eq 'response-received (car packet))
             (let* ((timing (cdr (assq 'timing (cdr (assq 'response (cdr packet))))))
-                   (request-time (cdr (assq 'requestTime timing)))
+                   (request-time (plist-get timing :requestTime))
                    (relative-times '(
                                      sslEnd
                                      sslStart
@@ -310,7 +310,7 @@
                                                    (cdr (assq 'timestamp (cdr (car packets))))))
                               (timing (and (eq 'response-received (car (car packets)))
                                            (cdr (assq 'timing (cdr (assq 'response (cdr (car packets))))))))
-                              (request-time (cdr (assq 'requestTime timing))))
+                              (request-time (plist-get timing :requestTime)))
                          (when data-timestamp
                            (setq max-time (max max-time data-timestamp)))
                          (while relative-times
@@ -331,13 +331,13 @@
 (defun --kite-net-Network-requestWillBeSent (websocket-url packet)
   (with-current-buffer (format "*kite network %s*" websocket-url)
     (let ((inhibit-read-only t))
-      (when (string= (cdr (assq 'url (cdr (assq 'request packet))))
-                     (cdr (assq 'documentURL packet)))
+      (when (string= (cdr (assq 'url (plist-get packet :request)))
+                     (plist-get packet :documentURL))
         (clrhash kite-requests)
         (ewoc-filter kite-ewoc (lambda (x) nil)))
       (goto-char (point-max))
       (let ((ewoc-node (ewoc-enter-last kite-ewoc nil)))
-        (puthash (cdr (assq 'requestId packet)) (list ewoc-node) kite-requests)
+        (puthash (plist-get packet :requestId) (list ewoc-node) kite-requests)
         (ewoc-set-data ewoc-node
                        (list (cons 'will-be-sent packet))))
       (if (--kite-network-update-min-max-time)
@@ -349,7 +349,7 @@
 (defun --kite-net-Network-responseReceived (websocket-url packet)
   (with-current-buffer (format "*kite network %s*" websocket-url)
     (let ((inhibit-read-only t)
-          (request-data (gethash (cdr (assq 'requestId packet)) kite-requests)))
+          (request-data (gethash (plist-get packet :requestId) kite-requests)))
       (ewoc-set-data (car request-data)
                      (cons (cons 'response-received packet)
                            (ewoc-data (car request-data))))
@@ -362,7 +362,7 @@
 (defun --kite-net-Network-dataReceived (websocket-url packet)
   (with-current-buffer (format "*kite network %s*" websocket-url)
     (let ((inhibit-read-only t)
-          (request-data (gethash (cdr (assq 'requestId packet)) kite-requests)))
+          (request-data (gethash (plist-get packet :requestId) kite-requests)))
       (ewoc-set-data (car request-data)
                      (cons (cons 'data-received packet)
                            (ewoc-data (car request-data))))
@@ -381,7 +381,7 @@
   (let ((network-buffer (get-buffer (format "*kite network %s*" websocket-url))))
     (when network-buffer
       (with-current-buffer network-buffer
-        (set (make-local-variable 'kite-dom-content-fired-timestamp) (cdr (assq 'timestamp packet)))
+        (set (make-local-variable 'kite-dom-content-fired-timestamp) (plist-get packet :timestamp))
         (when (and (boundp 'kite-max-time)
                    (or (null kite-max-time)
                        (> kite-dom-content-fired-timestamp kite-max-time)))
