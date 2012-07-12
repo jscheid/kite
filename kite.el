@@ -36,6 +36,7 @@
 (require 'kite-net)
 (require 'kite-repl)
 (require 'kite-console)
+(require 'kite-breakpoint)
 
 (defstruct (kite-session)
   websocket
@@ -43,6 +44,7 @@
   page-thumbnail-url
   page-url
   page-title
+  breakpoint-ewoc
   (next-request-id 0)
   (pending-requests (make-hash-table))
   (buffers nil))
@@ -66,16 +68,24 @@
 
 (defvar kite-connection-mode-map
   (let ((map (make-keymap))
+	(ctl-c-b-map (make-keymap))
 	(menu-map (make-sparse-keymap)))
     (suppress-keymap map t)
     (define-key map "C" 'kite-console)
-    (define-key map "p" 'kite-debug-pause)
+    (define-key map "p" 'kite-toggle-next-instruction-breakpoint)
+    (define-key map "b" 'kite-toggle-exception-breakpoint)
     (define-key map "c" 'kite-debug-continue)
     (define-key map "r" 'kite-debug-reload)
     (define-key map "R" 'kite-repl)
     (define-key map "D" 'kite-dom-inspect)
     (define-key map "N" 'kite-network)
     (define-key map "T" 'kite-timeline)
+    (define-key mode-specific-map "b" ctl-c-b-map)
+    (define-key ctl-c-b-map "x" 'kite-set-xhr-breakpoint)
+    (define-key ctl-c-b-map "d" 'kite-set-dom-event-breakpoint)
+    (define-key ctl-c-b-map "i" 'kite-set-instrumentation-breakpoint)
+    (define-key ctl-c-b-map "b" 'kite-toggle-exception-breakpoint)
+    (define-key ctl-c-b-map "p" 'kite-toggle-next-instruction-breakpoint)
     map)
   "Local keymap for `kite-connection-mode' buffers.")
 
@@ -224,7 +234,7 @@
                                   (cdr (assq 'url kite-tab-alist))
                                   "\n"
                                   (propertize "Status: " 'face 'bold)
-                                  (propertize "Running" 'face 'success)
+                                  (propertize "Resumed" 'face 'success)
                                   "\n\n"
                                   "Press ? for help\n")))))
 
@@ -232,19 +242,9 @@
 
             (ewoc-enter-last ewoc 0)
 
-            (set (make-local-variable 'kite-session)
-                 (make-kite-session
-                  :websocket kite-websocket
-                  :page-favicon-url (cdr (assq 'faviconUrl tab-alist))
-                  :page-thumbnail-url (cdr (assq 'thumbnailUrl tab-alist))
-                  :page-url (cdr (assq 'url tab-alist))
-                  :page-title (cdr (assq 'title tab-alist))))
-
-            (setf (kite-session-buffers kite-session)
-                  (cons (current-buffer)
-                        (kite-session-buffers kite-session)))
-
-            (puthash websocket-url kite-session kite-active-sessions)
+            (goto-char (point-max))
+            (setf (kite-session-breakpoint-ewoc kite-session)
+                  (kite--make-breakpoint-ewoc))
 
             (kite-send "Page.enable" nil
                        (lambda (response) (--kite-log "Page notifications enabled.")))
