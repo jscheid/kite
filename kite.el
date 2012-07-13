@@ -39,6 +39,12 @@
 (require 'kite-console)
 (require 'kite-breakpoint)
 
+(defconst kite--debugger-state-resumed
+  (propertize "Resumed" 'face 'success))
+
+(defconst kite--debugger-state-paused
+  (propertize "Paused" 'face 'warning))
+
 (defstruct (kite-session)
   websocket
   page-favicon-url
@@ -47,7 +53,7 @@
   page-title
   breakpoint-ewoc
   (script-infos (make-hash-table :test 'equal))
-  (debugger-state "resumed")
+  (debugger-state kite--debugger-state-resumed)
   (next-request-id 0)
   (pending-requests (make-hash-table))
   (buffers nil))
@@ -98,6 +104,37 @@
     (define-key ctl-c-b-map "p" 'kite-toggle-next-instruction-breakpoint)
     map)
   "Local keymap for `kite-connection-mode' buffers.")
+
+(defvar kite-debugging-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map "\C-ci" 'kite-step-into)
+    (define-key map "\C-co" 'kite-step-over)
+    (define-key map "\C-cu" 'kite-step-out)
+    (define-key map "\C-cp" 'kite-debug-pause)
+    map)
+  "Local keymap for the `kite-debugging-mode' minor mode")
+
+(defun kite-step-into ()
+  (interactive)
+  (kite-send "Debugger.pause" nil
+             (lambda (response)
+               (--kite-log "Response to Debugger.pause is %s" response)
+               (kite-send "Debugger.stepInto" nil
+                          (lambda (response)
+                            (--kite-log "Response to Debugger.stepInto is %s" response))))))
+
+(defun kite-step-over ()
+  (interactive)
+  (kite-send "Debugger.stepOver"))
+
+(defun kite-step-out ()
+  (interactive)
+  (kite-send "Debugger.stepOut"))
+
+(define-minor-mode kite-debugging-mode
+  "Toggle kite JavaScript debugging in this buffer."
+  :lighter (:eval (kite--debug-stats-mode-line-indicator))
+  :keymap 'kite-debugging-mode-map)
 
 (define-derived-mode kite-connection-mode special-mode "kite-connection"
   "Toggle kite connection mode."
@@ -240,7 +277,7 @@
                                   (plist-get kite-tab-alist :url)
                                   "\n"
                                   (propertize "Status: " 'face 'bold)
-                                  (propertize (kite-session-debugger-state session) 'face 'success)
+                                  (kite-session-debugger-state session)
                                   "\n\n"
                                   "Press ? for help\n")))))
 
@@ -392,9 +429,13 @@ which should be a sequence of strings.  Naive implementation."
 (defun --kite-connection-buffer (websocket-url)
   (format "*kite %s*" websocket-url))
 
+(defun kite--Debugger-resumed (websocket-url packet)
+  (with-current-buffer (--kite-connection-buffer websocket-url)
+    (setf (kite-session-debugger-state kite-session) kite--debugger-state-resumed)))
+
 (defun kite--Debugger-paused (websocket-url packet)
   (with-current-buffer (--kite-connection-buffer websocket-url)
-    (setf (kite-session-debugger-state kite-session) "paused")
+    (setf (kite-session-debugger-state kite-session) kite--debugger-state-paused)
     (ewoc-refresh kite-connection-ewoc)
     (let* ((call-frames (plist-get packet :callFrames))
            (first-call-frame (elt call-frames 0))
@@ -402,10 +443,13 @@ which should be a sequence of strings.  Naive implementation."
            (script-info (gethash (plist-get location :scriptId)
                                  (kite-session-script-infos kite-session))))
       (lexical-let ((line-number (- (plist-get location :lineNumber)))
-                    (column-number (plist-get location :columnNumber)))
+                    (column-number (plist-get location :columnNumber))
+                    (kite-session kite-session))
         (kite-visit-script
          script-info
          (lambda ()
+           (kite-debugging-mode)
+           (set (make-local-variable 'kite-session) kite-session)
            (goto-line line-number)
            (beginning-of-line)
            (forward-char column-number))))
@@ -434,11 +478,11 @@ which should be a sequence of strings.  Naive implementation."
     (cond
      ((string= (url-type url-parts) "file")
       (find-file (url-filename url-parts))
-      (funcall after-load-function)))
-    (t
-     (switch-to-buffer (or (get-buffer url)
-                           (kite--create-remote-script-buffer
-                            script-info after-load-function))))))
+      (funcall after-load-function))
+     (t
+      (switch-to-buffer (or (get-buffer url)
+                            (kite--create-remote-script-buffer
+                             script-info after-load-function)))))))
 
 (defun kite--Debugger-scriptParsed (websocket-url packet)
   (puthash
@@ -451,8 +495,12 @@ which should be a sequence of strings.  Naive implementation."
     :end-column (plist-get packet :endColumn))
    (kite-session-script-infos kite-session)))
 
-(add-hook 'kite-Debugger-paused-hooks 'kite--Debugger-paused)
+(defun kite--debug-stats-mode-line-indicator ()
+  "Returns a string to be displayed in the mode line"
+  (concat " (" (kite-session-debugger-state kite-session) ")"))
 
+(add-hook 'kite-Debugger-paused-hooks 'kite--Debugger-paused)
+(add-hook 'kite-Debugger-resumed-hooks 'kite--Debugger-resumed)
 (add-hook 'kite-Debugger-scriptParsed-hooks 'kite--Debugger-scriptParsed)
 
 (provide 'kite)
