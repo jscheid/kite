@@ -34,6 +34,7 @@
 (defvar kite-Page-loadEventFired-hooks nil)
 
 (require 'kite-dom)
+(require 'kite-memory)
 (require 'kite-net)
 (require 'kite-repl)
 (require 'kite-console)
@@ -96,6 +97,7 @@
     (define-key map "D" 'kite-dom-inspect)
     (define-key map "N" 'kite-network)
     (define-key map "T" 'kite-timeline)
+    (define-key map "M" 'kite-memory)
     (define-key mode-specific-map "b" ctl-c-b-map)
     (define-key ctl-c-b-map "x" 'kite-set-xhr-breakpoint)
     (define-key ctl-c-b-map "d" 'kite-set-dom-event-breakpoint)
