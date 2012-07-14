@@ -190,118 +190,130 @@
   (ignore-errors
     (kite--session-remove-current-buffer)))
 
+(defun kite--on-message (websocket frame)
+  (kite--log "received frame: %s" frame)
+  (let ((buf (current-buffer))
+        (kite-session (gethash (websocket-url websocket)
+                               kite-active-sessions)))
+    (when (and (eq (aref frame 0) 'cl-struct-websocket-frame)
+               (eq (aref frame 1) 'text))
+      (let* ((json-object-type 'plist)
+             (response (json-read-from-string (aref frame 2))))
+
+        (kite--log "received response: %s (type %s)"
+                   response
+                   (type-of response))
+        (when (listp response)
+          (with-current-buffer buf
+            (let ((response-id (plist-get response :id)))
+              (if response-id
+                  (let ((callback-info
+                         (gethash response-id
+                                  (kite-session-pending-requests
+                                   kite-session))))
+                    (remhash response-id (kite-session-pending-requests
+                                          kite-session))
+                    (with-current-buffer (nth 1 callback-info)
+                      (apply (nth 0 callback-info)
+                             response
+                             (nth 2 callback-info))))
+
+                (run-hook-with-args
+                 (intern
+                  (concat "kite-"
+                          (replace-regexp-in-string
+                           "\\."
+                           "-"
+                           (plist-get response :method))
+                          "-hooks"))
+                 (websocket-url websocket)
+                 (plist-get response :params))))))))))
+
+(defun kite--on-close (websocket)
+  (kite--log "websocket connection closed"))
+
+(defun kite--insert-favicon-async (favicon-url)
+  (let ((favicon-marker (point-marker)))
+    (url-retrieve
+     favicon-url
+     (lambda (status)
+       (goto-char 0)
+       (when (and (looking-at "HTTP/1\\.. 200")
+                  (re-search-forward "\n\n" nil t))
+         (ignore-errors
+           (let* ((favicon-image
+                   (create-image (buffer-substring (point) (buffer-size)) nil t)))
+             (save-excursion
+               (with-current-buffer buf
+                 (goto-char (marker-position favicon-marker))
+                 (let ((inhibit-read-only t))
+                   (insert-image favicon-image)))))))))))
+
+(defun kite--connect-buffer-insert ()
+
+  (let ((favicon-url (kite-session-page-favicon-url kite-session)))
+    (when (and favicon-url
+               (not (string= favicon-url "")))
+      (kite--insert-favicon-async favicon-url))
+
+    (let* ((inhibit-read-only t)
+           (ewoc (ewoc-create
+                  (lambda (session)
+                    (insert (concat (propertize (concat " " (kite-session-page-title kite-session) "\n\n")
+                                                'face 'info-title-1))
+                            (propertize "URL: " 'face 'bold)
+                            (kite-session-page-url kite-session)
+                            "\n"
+                            (propertize "Status: " 'face 'bold)
+                            (kite-session-debugger-state session)
+                            "\n\n"
+                            "Press ? for help\n")))))
+
+      (set (make-local-variable 'kite-connection-ewoc) ewoc)
+
+      (ewoc-enter-last ewoc kite-session)
+
+      (goto-char (point-max))
+      (setf (kite-session-breakpoint-ewoc kite-session)
+            (kite--make-breakpoint-ewoc)))))
+
 (defun kite--connect-webservice (tab-alist)
-  (lexical-let* ((websocket-url (plist-get tab-alist :webSocketDebuggerUrl))
-                 (faviconUrl (plist-get tab-alist :faviconUrl))
-                 (thumbnailUrl (plist-get tab-alist :thumbnailUrl)))
-    (kite--log "connecting to %s" websocket-url)
-    (lexical-let ((buf (get-buffer-create (format "*kite %s*" websocket-url)))
-                  (favicon-marker nil))
-      (save-excursion
-        (with-current-buffer buf
-          (kite-connection-mode)
-          (switch-to-buffer buf)
-          (setq kite-tab-alist tab-alist)
-          (setq kite-websocket
-                (websocket-open websocket-url
-                                :on-message (lambda (websocket frame)
-                                              (kite--log "received frame: %s" frame)
-                                              (let ((kite-session (gethash (websocket-url websocket)
-                                                                           kite-active-sessions)))
-                                                (when (and (eq (aref frame 0) 'cl-struct-websocket-frame)
-                                                           (eq (aref frame 1) 'text))
-                                                  (let* ((json-object-type 'plist)
-                                                         (response (json-read-from-string (aref frame 2))))
+  (let ((websocket-url (plist-get tab-alist :webSocketDebuggerUrl)))
+    (switch-to-buffer
+     (get-buffer-create
+      (format "*kite %s*" websocket-url)))
+    (kite-connection-mode)
+    (setq kite-tab-alist tab-alist)
 
-                                                    (kite--log "received response: %s (type %s)" response (type-of response))
-                                                    (when (listp response)
-                                                      (with-current-buffer buf
-                                                        (let ((response-id (plist-get response :id)))
-                                                          (if response-id
-                                                              (let ((callback-info (gethash response-id
-                                                                                            (kite-session-pending-requests kite-session))))
-                                                                (remhash response-id (kite-session-pending-requests kite-session))
-                                                                (with-current-buffer (nth 1 callback-info)
-                                                                  (apply (nth 0 callback-info)
-                                                                         response
-                                                                         (nth 2 callback-info))))
+    (set (make-local-variable 'kite-session)
+         (make-kite-session
+          :websocket (websocket-open
+                      websocket-url
+                      :on-message (function kite--on-message)
+                      :on-close (function kite--on-close))
+          :page-favicon-url (plist-get tab-alist :faviconUrl)
+          :page-thumbnail-url (plist-get tab-alist :thumbnailUrl)
+          :page-url (plist-get tab-alist :url)
+          :page-title (plist-get tab-alist :title)))
 
-                                                            (run-hook-with-args
-                                                             (intern
-                                                              (concat "kite-"
-                                                                      (replace-regexp-in-string "\\." "-"
-                                                                                                (plist-get response :method))
-                                                                      "-hooks"))
-                                                             websocket-url
-                                                             (plist-get response :params))))))))))
+    (puthash websocket-url kite-session kite-active-sessions)
 
-                                :on-close (lambda (websocket)
-                                            (kite--log "websocket connection closed"))))
+    (setf (kite-session-buffers kite-session)
+          (cons (current-buffer)
+                (kite-session-buffers kite-session)))
 
+    (kite--connect-buffer-insert)
 
-          (set (make-local-variable 'kite-session)
-               (make-kite-session
-                :websocket kite-websocket
-                :page-favicon-url (plist-get tab-alist :faviconUrl)
-                :page-thumbnail-url (plist-get tab-alist :thumbnailUrl)
-                :page-url (plist-get tab-alist :page-url)
-                :page-title (plist-get tab-alist :title)))
-
-          (puthash websocket-url kite-session kite-active-sessions)
-
-          (setf (kite-session-buffers kite-session)
-                (cons (current-buffer)
-                      (kite-session-buffers kite-session)))
-
-          (when (and faviconUrl
-                     (not (string= faviconUrl "")))
-            (url-retrieve faviconUrl
-                          (lambda (status)
-                            (goto-char 0)
-                            (when (and (looking-at "HTTP/1\\.. 200")
-                                       (re-search-forward "\n\n" nil t))
-                              (ignore-errors
-                                (let* ((favicon-image
-                                        (create-image (buffer-substring (point) (buffer-size)) nil t)))
-                                  (save-excursion
-                                    (with-current-buffer buf
-                                      (goto-char (marker-position favicon-marker))
-                                      (let ((inhibit-read-only t))
-                                        (insert-image favicon-image))))))))))
-          (setq favicon-marker (point-marker))
-          (let* ((inhibit-read-only t)
-                 (ewoc (ewoc-create
-                        (lambda (session)
-                          (message "kite-connection-ewoc re-render")
-
-                          (insert (concat (propertize (concat " " (plist-get kite-tab-alist :title) "\n\n") 'face 'info-title-1))
-                                  (propertize "URL: " 'face 'bold)
-                                  (plist-get kite-tab-alist :url)
-                                  "\n"
-                                  (propertize "Status: " 'face 'bold)
-                                  (kite-session-debugger-state session)
-                                  "\n\n"
-                                  "Press ? for help\n")))))
-
-            (set (make-local-variable 'kite-connection-ewoc) ewoc)
-
-            (ewoc-enter-last ewoc kite-session)
-
-            (goto-char (point-max))
-            (setf (kite-session-breakpoint-ewoc kite-session)
-                  (kite--make-breakpoint-ewoc))
-
-            (kite-send "Page.enable" nil
-                       (lambda (response) (kite--log "Page notifications enabled.")))
-            (kite-send "Inspector.enable" nil
-                       (lambda (response) (kite--log "Inspector enabled.")))
-            (kite-send "Debugger.enable" nil
-                       (lambda (response) (kite--log "Debugger enabled.")))
-            (kite-send "CSS.enable" nil
-                       (lambda (response) (kite--log "CSS enabled.")))
-            (kite-send "Debugger.canSetScriptSource" nil
-                       (lambda (response) (kite--log "got response: %s" response)))
-            ))))))
+    (kite-send "Page.enable" nil
+               (lambda (response) (kite--log "Page notifications enabled.")))
+    (kite-send "Inspector.enable" nil
+               (lambda (response) (kite--log "Inspector enabled.")))
+    (kite-send "Debugger.enable" nil
+               (lambda (response) (kite--log "Debugger enabled.")))
+    (kite-send "CSS.enable" nil
+               (lambda (response) (kite--log "CSS enabled.")))
+    (kite-send "Debugger.canSetScriptSource" nil
+               (lambda (response) (kite--log "got response: %s" response)))))
 
 (defun kite--longest-prefix (strings)
   "Return the longest prefix common to all the given STRINGS,
