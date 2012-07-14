@@ -340,6 +340,6 @@
         (kite--set-breakpoint new-breakpoint
                               (lambda (response)
                                 (kite--add-breakpoint breakpoint-ewoc new-breakpoint)
-                                (ewoc-invalidate breakpoint-ewoc))))))))
+                                (ewoc-invalidate breakpoint-ewoc)))))))
 
 (provide 'kite-breakpoint)
