@@ -411,11 +411,11 @@ which should be a sequence of strings.  Naive implementation."
                               "Choose tab: "
                               completion-candidates
                               nil t nil 'kite-tab-history)))
-
-              (if (cdr (gethash selection completion-strings))
-                  (switch-to-buffer (car (kite-session-buffers
-                                          (cdr (gethash selection completion-strings)))))
-                (kite--connect-webservice (car (gethash selection completion-strings))))))
+              (when (not (eq 0 (length selection)))
+                (if (cdr (gethash selection completion-strings))
+                    (switch-to-buffer (car (kite-session-buffers
+                                            (cdr (gethash selection completion-strings)))))
+                  (kite--connect-webservice (car (gethash selection completion-strings)))))))
         (error "Could not contact remote debugger at %s:%s, check host and port%s" use-host use-port
                (if (> (length (buffer-string)) 0)
                    (concat ": " (buffer-string)) ""))))))
