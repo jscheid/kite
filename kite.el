@@ -374,12 +374,16 @@ which should be a sequence of strings.  Naive implementation."
 
             (flet ((add-item (item url)
                              (let ((existing (gethash item available-strings '(0))))
-                               (puthash item (cons (1+ (car existing)) (cons url (cdr existing))) available-strings))))
+                               (puthash item
+                                        (cons (1+ (car existing))
+                                              (cons url (cdr existing)))
+                                        available-strings))))
 
               (maphash (lambda (key value)
                          (let ((url (plist-get (car value) :url))
                                (title (plist-get (car value) :title))
-                               (websocket-url (plist-get (car value) :webSocketDebuggerUrl)))
+                               (websocket-url (plist-get (car value)
+                                                         :webSocketDebuggerUrl)))
                            (add-item url websocket-url)
                            (when (not (equal title url))
                              (add-item title websocket-url))))
@@ -388,24 +392,37 @@ which should be a sequence of strings.  Naive implementation."
             ;; Final pass, disambiguate and rearrange
 
             (flet ((disambiguate (string websocket-url)
-                                 (let ((existing (gethash string available-strings)))
+                                 (let ((existing
+                                        (gethash string available-strings)))
                                    (if (<= (car existing) 1)
                                        string
-                                     (concat string " (" (substring websocket-url (length (kite--longest-prefix (cdr existing))))  ")")))))
+                                     (concat string
+                                             " ("
+                                             (substring websocket-url
+                                                        (length (kite--longest-prefix
+                                                                 (cdr existing))))
+                                             ")")))))
 
               (maphash (lambda (key value)
                          (let ((url (plist-get (car value) :url))
                                (title (plist-get (car value) :title))
-                               (websocket-url (plist-get (car value) :webSocketDebuggerUrl)))
+                               (websocket-url (plist-get
+                                               (car value)
+                                               :webSocketDebuggerUrl)))
 
-                           (puthash (disambiguate url websocket-url) value completion-strings)
-                           (puthash (disambiguate title websocket-url) value completion-strings)))
+                           (puthash (disambiguate url websocket-url)
+                                    value
+                                    completion-strings)
+                           (puthash (disambiguate title websocket-url)
+                                    value
+                                    completion-strings)))
                        available-debuggers))
 
             ;; Map to keys
 
             (maphash (lambda (key value)
-                       (setq completion-candidates (cons key completion-candidates)))
+                       (setq completion-candidates
+                             (cons key completion-candidates)))
                      completion-strings)
 
             (let ((selection (completing-read
@@ -414,10 +431,14 @@ which should be a sequence of strings.  Naive implementation."
                               nil t nil 'kite-tab-history)))
               (when (not (eq 0 (length selection)))
                 (if (cdr (gethash selection completion-strings))
-                    (switch-to-buffer (car (kite-session-buffers
-                                            (cdr (gethash selection completion-strings)))))
-                  (kite--connect-webservice (car (gethash selection completion-strings)))))))
-        (error "Could not contact remote debugger at %s:%s, check host and port%s" use-host use-port
+                    (switch-to-buffer
+                     (car (kite-session-buffers
+                           (cdr (gethash selection completion-strings)))))
+                  (kite--connect-webservice
+                   (car (gethash selection completion-strings)))))))
+        (error "Could not contact remote debugger at %s:%s, check host and port%s"
+               use-host
+               use-port
                (if (> (length (buffer-string)) 0)
                    (concat ": " (buffer-string)) ""))))))
 
