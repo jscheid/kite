@@ -343,8 +343,10 @@ The delimiters are <! and >."
 (setq kite-dom-mode-map
       (let ((map (make-sparse-keymap))
             (menu-map (make-sparse-keymap)))
-                                        ;(define-key map [remap self-insert-command] 'kite-dom-no-edit)
+        ;;(define-key map [remap self-insert-command] 'kite-dom-no-edit)
         (suppress-keymap map t)
+        (define-key map (kbd "RET") 'undefined)
+        (define-key map (kbd "DEL") 'kite-dom-delete-node-or-attribute)
         (define-key map "p" 'kite-dom-pick-node)
         (define-key map "h" 'kite-dom-highlight-node)
         (define-key map "H" 'kite-dom-hide-highlight)
@@ -359,6 +361,7 @@ The delimiters are <! and >."
       (let ((map (make-sparse-keymap)))
         (define-key map [remap self-insert-command] 'kite-dom-insert-attr-value)
         (substitute-key-definition 'self-insert-command 'kite-dom-insert-attr-value map (current-global-map))
+        (define-key map (kbd "DEL") 'backward-delete-char-untabify)
         (define-key map "\C-c\C-c" 'kite-dom-attr-value-set)
         (define-key map "\C-x\C-s" 'kite-dom-attr-value-save)
 
@@ -392,6 +395,7 @@ The delimiters are <! and >."
     (setf (attr-region-outer-begin attr-region) (point-marker))
     (insert (concat " "
                     (propertize attr-name
+                                'kite-node-id node-id
                                 'read-only t
                                 'face 'kite-attribute-local-name-face)
                     "="))
@@ -420,9 +424,10 @@ The delimiters are <! and >."
     (cons (intern attr-name) attr-region)))
 
 (defun --kite-dom-insert-element (element indent loadp)
-  (flet ((indent-prefix (indent)
+  (flet ((indent-prefix (indent node-id)
                         (propertize
                          (make-string (* kite-dom-offset indent) 32)
+                         'kite-node-id node-id
                          'read-only t))
          (render-attribute-regions (element)
                                    (let* (attribute-info-list
@@ -455,7 +460,7 @@ The delimiters are <! and >."
        ((and (eq nodeType 1)
              (or (eq 0 (plist-get element :childNodeCount))
                  (plist-member element :children)))
-        (insert (concat (indent-prefix indent)
+        (insert (concat (indent-prefix indent node-id)
                         (propertize "<"
                                     'kite-node-id node-id
                                     'read-only t
@@ -475,7 +480,7 @@ The delimiters are <! and >."
                 (plist-get element :children))
         (setf (node-region-inner-end node-region) (point-marker))
 
-        (insert (concat (indent-prefix indent)
+        (insert (concat (indent-prefix indent node-id)
                         (propertize "<"
                                     'kite-node-id node-id
                                     'read-only t
@@ -494,7 +499,7 @@ The delimiters are <! and >."
                         "\n")))
 
        ((eq nodeType 1)
-        (insert (concat (indent-prefix indent)
+        (insert (concat (indent-prefix indent node-id)
                         (propertize "<"
                                     'kite-node-id node-id
                                     'read-only t
@@ -529,7 +534,7 @@ The delimiters are <! and >."
                      (lambda (response) nil))))
 
        ((eq nodeType 3)
-        (insert (concat (indent-prefix indent)
+        (insert (concat (indent-prefix indent node-id)
                         (propertize (replace-regexp-in-string "\\(^\\(\\s \\|\n\\)+\\|\\(\\s \\|\n\\)+$\\)" ""
                                                               (plist-get element :nodeValue))
                                     'kite-node-id node-id
@@ -547,7 +552,7 @@ The delimiters are <! and >."
 ;               (lambda (response) (message "CSS disabled.")))))
 
 (defun --kite-websocket-url ()
-  (cdr (assq 'webSocketDebuggerUrl kite-tab-alist))  )
+  (websocket-url (kite-session-websocket kite-session)))
 
 (defun kite-dom-inspect ()
   (interactive)
@@ -594,7 +599,10 @@ The delimiters are <! and >."
           (mapcar (lambda (node)
                     (--kite-dom-insert-element node (1+ (node-region-indent node-region)) t))
                   (plist-get packet :nodes))
-          (insert (make-string (* kite-dom-offset (node-region-indent node-region)) 32)))))))
+          (insert (propertize
+                   (make-string (* kite-dom-offset (node-region-indent node-region)) 32)
+                   'kite-node-id (plist-get packet :parentId)
+                   'read-only t)))))))
 
 (defun --kite-dom-DOM-childNodeInserted (websocket-url packet)
   (--kite-log "--kite-DOM-childNodeInserted got packet %s" packet)
@@ -882,6 +890,15 @@ The delimiters are <! and >."
                  (with-current-buffer (--kite-dom-buffer websocket-url)
                    (kite-dom-goto-node
                     (plist-get (plist-get response :result) :nodeId)))))))
+
+(defun kite--dom-node-at-point ()
+  (get-text-property (point) 'kite-node-id))
+
+(defun kite-dom-delete-node-or-attribute ()
+  (interactive)
+  (let ((node-id (kite--dom-node-at-point)))
+    (when node-id
+      (kite-send "DOM.removeNode" (list (cons 'nodeId node-id))))))
 
 (add-hook 'kite-DOM-attributeModified-hooks '--kite-dom-DOM-attributeModified)
 (add-hook 'kite-DOM-attributeRemoved-hooks '--kite-dom-DOM-attributeRemoved)
