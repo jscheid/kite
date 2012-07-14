@@ -352,6 +352,7 @@ The delimiters are <! and >."
         (define-key map "H" 'kite-dom-hide-highlight)
         (define-key map "c" 'kite-dom-show-matched-css)
         (define-key map "C" 'kite-dom-show-computed-css)
+        (define-key map "\C-xnd" 'kite-dom-narrow-to-node)
         map))
 
 (defvar kite-dom-attr-value-keymap nil
@@ -899,6 +900,15 @@ The delimiters are <! and >."
   (let ((node-id (kite--dom-node-at-point)))
     (when node-id
       (kite-send "DOM.removeNode" (list (cons 'nodeId node-id))))))
+
+(defun kite-dom-narrow-to-node (&optional arg)
+  (interactive)
+  (let ((node-id (kite--dom-node-at-point)))
+    (when node-id
+      (let ((node-region (gethash node-id kite-dom-nodes)))
+        (narrow-to-region
+         (node-region-line-begin node-region)
+         (node-region-line-end node-region))))))
 
 (add-hook 'kite-DOM-attributeModified-hooks 'kite--dom-DOM-attributeModified)
 (add-hook 'kite-DOM-attributeRemoved-hooks 'kite--dom-DOM-attributeRemoved)
