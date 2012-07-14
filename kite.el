@@ -360,11 +360,12 @@ which should be a sequence of strings.  Naive implementation."
             (maphash (lambda (websocket-url kite-session)
                        (puthash
                         websocket-url
-                        `(((webSocketDebuggerUrl . ,websocket-url)
-                           (thumbnailUrl . ,(kite-session-page-thumbnail-url kite-session))
-                           (faviconUrl . ,(kite-session-page-favicon-url kite-session))
-                           (title . ,(kite-session-page-title kite-session))
-                           (url . ,(kite-session-page-url kite-session))) . ,kite-session)
+                        `((:webSocketDebuggerUrl
+                           ,websocket-url
+                           :thumbnailUrl ,(kite-session-page-thumbnail-url kite-session)
+                           :faviconUrl ,(kite-session-page-favicon-url kite-session)
+                           :title ,(kite-session-page-title kite-session)
+                           :url ,(kite-session-page-url kite-session)) . ,kite-session)
                         available-debuggers))
                      kite-active-sessions)
 
