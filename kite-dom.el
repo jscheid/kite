@@ -16,7 +16,7 @@
   value-begin
   value-end)
 
-(defun --kite-dimmed-face-foreground (face darkness)
+(defun kite--dimmed-face-foreground (face darkness)
   "Return a color value string suitable for passing as the value
   for the :foreground face property that represents a
   'dimmed' (darker) variant of the foreground color of the given
@@ -59,7 +59,7 @@
 
 (defface kite-css-computed-unused-property
   `((t :inherit kite-css-property
-       :foreground ,(--kite-dimmed-face-foreground 'kite-css-property 0.5)))
+       :foreground ,(kite--dimmed-face-foreground 'kite-css-property 0.5)))
   "Face to use for computed properties that are unused."
   :group 'kite)
 
@@ -72,7 +72,7 @@
 
 (defface kite-css-computed-proprietary-unused-property
   `((t :inherit kite-css-proprietary-property
-       :foreground ,(--kite-dimmed-face-foreground 'kite-css-property 0.5)))
+       :foreground ,(kite--dimmed-face-foreground 'kite-css-property 0.5)))
   "Face to use for computed vendore-specific properties that are unused."
   :group 'kite)
 
@@ -377,18 +377,18 @@ The delimiters are <! and >."
 
 (define-derived-mode kite-dom-mode special-mode "kite-dom"
   "Toggle kite dom mode."
-  (set (make-local-variable 'kill-buffer-hook) '--kite-kill-dom)
+  (set (make-local-variable 'kill-buffer-hook) 'kite--kill-dom)
   (setq buffer-read-only nil)
   (set (make-local-variable 'kite-dom-nodes) (make-hash-table)))
 
 (defconst kite-dom-offset 2)
 
-(defun --kite-dom-attr-value-left (old-point new-point)
+(defun kite--dom-attr-value-left (old-point new-point)
   (when (not (eq (get-text-property new-point 'point-left)
-                 '--kite-dom-attr-value-left))
-    (message "--kite-dom-attr-value-left %s %s" old-point new-point)))
+                 'kite--dom-attr-value-left))
+    (message "kite--dom-attr-value-left %s %s" old-point new-point)))
 
-(defun --kite-insert-attribute (node-id attr-name attr-value)
+(defun kite--insert-attribute (node-id attr-name attr-value)
   (let ((attr-begin (point-marker))
         (attr-region (make-attr-region)))
 
@@ -408,7 +408,7 @@ The delimiters are <! and >."
     (insert (propertize attr-value
                         'kite-node-id node-id
                         'face 'kite-attribute-value-face
-                        'point-left '--kite-dom-attr-value-left
+                        'point-left 'kite--dom-attr-value-left
                         'keymap kite-dom-attr-value-keymap
                         'field 'kite-dom-attribute))
     (insert (propertize "\""
@@ -423,7 +423,7 @@ The delimiters are <! and >."
 
     (cons (intern attr-name) attr-region)))
 
-(defun --kite-dom-insert-element (element indent loadp)
+(defun kite--dom-insert-element (element indent loadp)
   (flet ((indent-prefix (indent node-id)
                         (propertize
                          (make-string (* kite-dom-offset indent) 32)
@@ -439,7 +439,7 @@ The delimiters are <! and >."
                                      (while (< attr-index num-attrs)
                                        (setq attribute-info-list
                                              (cons
-                                              (--kite-insert-attribute node-id
+                                              (kite--insert-attribute node-id
                                                                        (elt attributes attr-index)
                                                                        (elt attributes (1+ attr-index)))
                                               attribute-info-list))
@@ -476,7 +476,7 @@ The delimiters are <! and >."
                         "\n"))
         (setf (node-region-inner-begin node-region) (point-marker))
 
-        (mapcar (lambda (child) (--kite-dom-insert-element child (1+ indent) loadp))
+        (mapcar (lambda (child) (kite--dom-insert-element child (1+ indent) loadp))
                 (plist-get element :children))
         (setf (node-region-inner-end node-region) (point-marker))
 
@@ -545,22 +545,22 @@ The delimiters are <! and >."
       (setf (node-region-attribute-regions node-region) attributes)
       (puthash (plist-get element :nodeId) node-region kite-dom-nodes))))
 
-(defun --kite-kill-dom ()
+(defun kite--kill-dom ()
   t)
 ;  (ignore-errors
 ;    (kite-send "CSS.disable" nil
 ;               (lambda (response) (message "CSS disabled.")))))
 
-(defun --kite-websocket-url ()
+(defun kite--websocket-url ()
   (websocket-url (kite-session-websocket kite-session)))
 
 (defun kite-dom-inspect ()
   (interactive)
-  (--kite-log "opening dom")
+  (kite--log "opening dom")
   (lexical-let*
       ((kite-session kite-session)
        (buf (get-buffer-create
-             (--kite-dom-buffer (--kite-websocket-url)))))
+             (kite--dom-buffer (kite--websocket-url)))))
     (with-current-buffer buf
       (kite-dom-mode)
       (let ((inhibit-read-only t))
@@ -575,18 +575,18 @@ The delimiters are <! and >."
                               (message "CSS.getAllStyleSheets got response %s" response)))))
     (kite-send "DOM.getDocument" nil
                (lambda (response)
-                 (--kite-log "DOM.getDocument got response %s" response)
+                 (kite--log "DOM.getDocument got response %s" response)
                  (with-current-buffer buf
                    (save-excursion
-                     (--kite-dom-insert-element (elt (plist-get (plist-get (plist-get response :result) :root) :children) 0)
+                     (kite--dom-insert-element (elt (plist-get (plist-get (plist-get response :result) :root) :children) 0)
                                                 0 t)))))))
 
-(defun --kite-dom-buffer (websocket-url)
+(defun kite--dom-buffer (websocket-url)
   (format "*kite dom %s*" websocket-url))
 
-(defun --kite-dom-DOM-setChildNodes (websocket-url packet)
-  (--kite-log "--kite-DOM-setChildNodes got packet %s" packet)
-  (with-current-buffer (--kite-dom-buffer websocket-url)
+(defun kite--dom-DOM-setChildNodes (websocket-url packet)
+  (kite--log "kite--DOM-setChildNodes got packet %s" packet)
+  (with-current-buffer (kite--dom-buffer websocket-url)
     (save-excursion
       (let ((inhibit-read-only t)
             (node-region
@@ -597,16 +597,16 @@ The delimiters are <! and >."
         (atomic-change-group
           (insert "\n")
           (mapcar (lambda (node)
-                    (--kite-dom-insert-element node (1+ (node-region-indent node-region)) t))
+                    (kite--dom-insert-element node (1+ (node-region-indent node-region)) t))
                   (plist-get packet :nodes))
           (insert (propertize
                    (make-string (* kite-dom-offset (node-region-indent node-region)) 32)
                    'kite-node-id (plist-get packet :parentId)
                    'read-only t)))))))
 
-(defun --kite-dom-DOM-childNodeInserted (websocket-url packet)
-  (--kite-log "--kite-DOM-childNodeInserted got packet %s" packet)
-  (with-current-buffer (--kite-dom-buffer websocket-url)
+(defun kite--dom-DOM-childNodeInserted (websocket-url packet)
+  (kite--log "kite--DOM-childNodeInserted got packet %s" packet)
+  (with-current-buffer (kite--dom-buffer websocket-url)
     (save-excursion
       (let ((inhibit-read-only t)
             (previous-node-id (plist-get packet :previousNodeId))
@@ -614,21 +614,21 @@ The delimiters are <! and >."
         (if (eq previous-node-id 0)
             (let ((node-region (gethash parent-node-id kite-dom-nodes)))
               (goto-char (node-region-inner-begin node-region))
-              (--kite-dom-insert-element (plist-get packet :node)
+              (kite--dom-insert-element (plist-get packet :node)
                                          (1+ (node-region-indent node-region))
                                          t))
           (let ((node-region (gethash previous-node-id kite-dom-nodes)))
             (goto-char (node-region-line-end node-region))
-            (--kite-dom-insert-element (plist-get packet :node)
+            (kite--dom-insert-element (plist-get packet :node)
                                        (node-region-indent node-region)
                                        t)))))))
 
-(defun --kite-dom-DOM-childNodeCountUpdated (websocket-url packet)
-  (--kite-log "--kite-DOM-childNodeCountUpdated got packet %s" packet))
+(defun kite--dom-DOM-childNodeCountUpdated (websocket-url packet)
+  (kite--log "kite--DOM-childNodeCountUpdated got packet %s" packet))
 
-(defun --kite-dom-DOM-childNodeRemoved (websocket-url packet)
-  (--kite-log "--kite-DOM-childNodeRemoved got packet %s" packet)
-  (with-current-buffer (--kite-dom-buffer websocket-url)
+(defun kite--dom-DOM-childNodeRemoved (websocket-url packet)
+  (kite--log "kite--DOM-childNodeRemoved got packet %s" packet)
+  (with-current-buffer (kite--dom-buffer websocket-url)
     (save-excursion
       (let ((inhibit-read-only t)
             (node-region (gethash (plist-get packet :nodeId) kite-dom-nodes)))
@@ -636,9 +636,9 @@ The delimiters are <! and >."
          (node-region-line-begin node-region)
          (node-region-line-end node-region))))))
 
-(defun --kite-dom-DOM-attributeModified (websocket-url packet)
-  (--kite-log "--kite-DOM-attributeModified got packet %s" packet)
-  (with-current-buffer (--kite-dom-buffer websocket-url)
+(defun kite--dom-DOM-attributeModified (websocket-url packet)
+  (kite--log "kite--DOM-attributeModified got packet %s" packet)
+  (with-current-buffer (kite--dom-buffer websocket-url)
     (save-excursion
       (message "packet is %s node-id is %s" packet (plist-get packet :nodeId))
       (message "kite-dom-nodes are %s" kite-dom-nodes)
@@ -656,17 +656,17 @@ The delimiters are <! and >."
               (insert (propertize (plist-get packet :value)
                                   'keymap kite-dom-attr-value-keymap
                                   'field 'kite-dom-attribute
-                                  'point-left '--kite-dom-attr-value-left
+                                  'point-left 'kite--dom-attr-value-left
                                   'face 'kite-attribute-value-face)))
           ;; Insert new attribute
           (goto-char (attr-region-value-end (cdar (node-region-attribute-regions node-region))))
           (setf (node-region-attribute-regions node-region)
-                (cons (--kite-insert-attribute node-id (plist-get packet :name) (plist-get packet :value))
+                (cons (kite--insert-attribute node-id (plist-get packet :name) (plist-get packet :value))
                       (node-region-attribute-regions node-region))))))))
 
-(defun --kite-dom-DOM-attributeRemoved (websocket-url packet)
-  (--kite-log "--kite-DOM-attributeRemoved got packet %s" packet)
-  (with-current-buffer (--kite-dom-buffer websocket-url)
+(defun kite--dom-DOM-attributeRemoved (websocket-url packet)
+  (kite--log "kite--DOM-attributeRemoved got packet %s" packet)
+  (with-current-buffer (kite--dom-buffer websocket-url)
     (save-excursion
       (let* ((inhibit-read-only t)
              (attr-name (intern (plist-get packet :name)))
@@ -715,7 +715,7 @@ The delimiters are <! and >."
   (interactive "p")
   t)
 
-(defun --kite-rgba (r g b a)
+(defun kite--rgba (r g b a)
   `((r . ,r)
     (g . ,g)
     (b . ,b)
@@ -729,12 +729,12 @@ The delimiters are <! and >."
                          (get-char-property (point) 'kite-node-id))
                    (cons 'highlightConfig
                          `((showInfo . nil)
-                           (contentColor . ,(--kite-rgba 255 0 0 0.5))
-                           (paddingColor . ,(--kite-rgba 0 255 0 0.5))
-                           (borderColor . ,(--kite-rgba 0 0 255 0.5))
-                           (marginColor . ,(--kite-rgba 255 255 0 0.5)))))
+                           (contentColor . ,(kite--rgba 255 0 0 0.5))
+                           (paddingColor . ,(kite--rgba 0 255 0 0.5))
+                           (borderColor . ,(kite--rgba 0 0 255 0.5))
+                           (marginColor . ,(kite--rgba 255 255 0 0.5)))))
              (lambda (response)
-               (--kite-log "DOM.highlightNode got response %s" response))))
+               (kite--log "DOM.highlightNode got response %s" response))))
 
 
 (defun kite-dom-hide-highlight ()
@@ -750,7 +750,7 @@ The delimiters are <! and >."
              (lambda (response)
                (message "CSS.getMatchedStylesForNode got response %s" response))))
 
-(defun --kite-dom-make-style-to-rule-map (matched-styles-response)
+(defun kite--dom-make-style-to-rule-map (matched-styles-response)
 
   (let ((style-to-rule-map (make-hash-table)))
     (let* ((matched-css-rules (plist-get (plist-get matched-styles-response :result) :matchedCSSRules))
@@ -777,10 +777,10 @@ The delimiters are <! and >."
     (message "style-to-rule-map is %s" style-to-rule-map)
     style-to-rule-map))
 
-(defun --kite-dom-render-computed-css (computed-styles-response matched-styles-response)
-  (message "--kite-dom-render-computed-css have matched styles %s" matched-styles-response)
+(defun kite--dom-render-computed-css (computed-styles-response matched-styles-response)
+  (message "kite--dom-render-computed-css have matched styles %s" matched-styles-response)
 
-  (let* ((style-to-rule-map (--kite-dom-make-style-to-rule-map matched-styles-response))
+  (let* ((style-to-rule-map (kite--dom-make-style-to-rule-map matched-styles-response))
          (arr (plist-get (plist-get computed-styles-response :result) :computedStyle))
          (index 0)
          (arr-len (length arr))
@@ -847,7 +847,7 @@ The delimiters are <! and >."
                  (setcar barrier response)
                  (when (and (not (null (car barrier)))
                             (not (null (cdr barrier))))
-                   (--kite-dom-render-computed-css
+                   (kite--dom-render-computed-css
                     (car barrier) (cdr barrier)))))
     (kite-send "CSS.getMatchedStylesForNode"
                (list (cons 'nodeId node-id))
@@ -855,10 +855,10 @@ The delimiters are <! and >."
                  (setcdr barrier response)
                  (when (and (not (null (car barrier)))
                             (not (null (cdr barrier))))
-                   (--kite-dom-render-computed-css
+                   (kite--dom-render-computed-css
                     (car barrier) (cdr barrier)))))))
 
-(defconst --kite-dom-pick-node-message
+(defconst kite--dom-pick-node-message
   "Now switch to your browser and select a DOM node")
 
 (defun kite-dom-pick-node ()
@@ -867,12 +867,12 @@ The delimiters are <! and >."
              `((enabled . t)
                (highlightConfig
                 . ((showInfo . nil)
-                   (contentColor . ,(--kite-rgba 255 0 0 0.5))
-                   (paddingColor . ,(--kite-rgba 0 255 0 0.5))
-                   (borderColor . ,(--kite-rgba 0 0 255 0.5))
-                   (marginColor . ,(--kite-rgba 255 255 0 0.5)))))
+                   (contentColor . ,(kite--rgba 255 0 0 0.5))
+                   (paddingColor . ,(kite--rgba 0 255 0 0.5))
+                   (borderColor . ,(kite--rgba 0 0 255 0.5))
+                   (marginColor . ,(kite--rgba 255 255 0 0.5)))))
              (lambda (response)
-               (message --kite-dom-pick-node-message))))
+               (message kite--dom-pick-node-message))))
 
 
 (defun kite-dom-goto-node (node-id)
@@ -880,14 +880,14 @@ The delimiters are <! and >."
   (let ((node-region (gethash node-id kite-dom-nodes)))
     (goto-char (node-region-line-begin node-region))
     (when (string= (current-message)
-                   --kite-dom-pick-node-message)
+                   kite--dom-pick-node-message)
       (message nil))))
 
-(defun --kite-dom-Inspector-inspect (websocket-url packet)
+(defun kite--dom-Inspector-inspect (websocket-url packet)
   (lexical-let ((websocket-url websocket-url))
     (kite-send "DOM.requestNode" (list (assq 'objectId (plist-get packet :object)))
                (lambda (response)
-                 (with-current-buffer (--kite-dom-buffer websocket-url)
+                 (with-current-buffer (kite--dom-buffer websocket-url)
                    (kite-dom-goto-node
                     (plist-get (plist-get response :result) :nodeId)))))))
 
@@ -900,12 +900,12 @@ The delimiters are <! and >."
     (when node-id
       (kite-send "DOM.removeNode" (list (cons 'nodeId node-id))))))
 
-(add-hook 'kite-DOM-attributeModified-hooks '--kite-dom-DOM-attributeModified)
-(add-hook 'kite-DOM-attributeRemoved-hooks '--kite-dom-DOM-attributeRemoved)
-(add-hook 'kite-DOM-childNodeCountUpdated-hooks '--kite-dom-DOM-childNodeCountUpdated)
-(add-hook 'kite-DOM-childNodeInserted-hooks '--kite-dom-DOM-childNodeInserted)
-(add-hook 'kite-DOM-childNodeRemoved-hooks '--kite-dom-DOM-childNodeRemoved)
-(add-hook 'kite-DOM-setChildNodes-hooks '--kite-dom-DOM-setChildNodes)
-(add-hook 'kite-Inspector-inspect-hooks '--kite-dom-Inspector-inspect)
+(add-hook 'kite-DOM-attributeModified-hooks 'kite--dom-DOM-attributeModified)
+(add-hook 'kite-DOM-attributeRemoved-hooks 'kite--dom-DOM-attributeRemoved)
+(add-hook 'kite-DOM-childNodeCountUpdated-hooks 'kite--dom-DOM-childNodeCountUpdated)
+(add-hook 'kite-DOM-childNodeInserted-hooks 'kite--dom-DOM-childNodeInserted)
+(add-hook 'kite-DOM-childNodeRemoved-hooks 'kite--dom-DOM-childNodeRemoved)
+(add-hook 'kite-DOM-setChildNodes-hooks 'kite--dom-DOM-setChildNodes)
+(add-hook 'kite-Inspector-inspect-hooks 'kite--dom-Inspector-inspect)
 
 (provide 'kite-dom)

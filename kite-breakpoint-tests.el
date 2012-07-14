@@ -9,7 +9,7 @@
                       (when callback
                         (funcall callback (funcall response-function* command params)))))
       (funcall body))
-    (should (--kite-equal-wildcard sent-packets
+    (should (kite--equal-wildcard sent-packets
                                    expected-packets))))
 
 (ert-deftest kite-next-instruction-breakpoint-test ()

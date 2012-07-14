@@ -40,16 +40,16 @@
 
 (define-derived-mode kite-console-mode special-mode "kite-console"
   "Toggle kite console mode."
-  (set (make-local-variable 'kill-buffer-hook) '--kite-kill-console)
+  (set (make-local-variable 'kill-buffer-hook) 'kite--kill-console)
   (hl-line-mode)
   (setq case-fold-search nil))
 
-(defun --kite-kill-console ()
+(defun kite--kill-console ()
   (ignore-errors
     (kite-send "Console.disable" nil
-               (lambda (response) (--kite-log "Console disabled.")))))
+               (lambda (response) (kite--log "Console disabled.")))))
 
-(defun --kite-console-Console-messageAdded (websocket-url packet)
+(defun kite--console-Console-messageAdded (websocket-url packet)
   (let ((buf (get-buffer (format "*kite console %s*" websocket-url))))
     (when buf
       (with-current-buffer buf
@@ -59,7 +59,7 @@
                               'log-message packet
                               'face (intern (format "kite-log-%s" (plist-get packet :level)))))
           (goto-char (point-max))
-          (--kite-log "message added, url is %s, packet is %s" websocket-url packet))))))
+          (kite--log "message added, url is %s, packet is %s" websocket-url packet))))))
 
 (defun kite-clear-console ()
   (interactive)
@@ -67,7 +67,7 @@
     (let ((inhibit-read-only t))
       (erase-buffer))
     (kite-send "Console.clearMessages" nil
-               (lambda (response) (--kite-log "Console cleared.")))))
+               (lambda (response) (kite--log "Console cleared.")))))
 
 (defun kite-show-log-entry ()
   (interactive)
@@ -89,17 +89,17 @@
                        (plist-get log-message :level)
                        (plist-get log-message :repeatCount)
                        (plist-get log-message :text)
-                       (--kite-format-stacktrace (plist-get log-message :stackTrace))
+                       (kite--format-stacktrace (plist-get log-message :stackTrace))
                        ))))))
 
-(defun --kite-log (format-string &rest args)
+(defun kite--log (format-string &rest args)
   (with-current-buffer
       (get-buffer-create (format "*kite log*"))
     (insert (concat (apply 'format format-string args) "\n"))))
 
 (defun kite-console ()
   (interactive)
-  (--kite-log "opening console")
+  (kite--log "opening console")
   (lexical-let*
       ((kite-session kite-session)
        (buf (get-buffer-create (format "*kite console %s*" (cdr (assq 'webSocketDebuggerUrl kite-tab-alist))))))
@@ -110,10 +110,10 @@
     (erase-buffer)
     (save-excursion
       (with-current-buffer kite-connection
-        (--kite-log "sending in buffer %s" (current-buffer))
+        (kite--log "sending in buffer %s" (current-buffer))
         (kite-send "Console.enable" nil
-                   (lambda (response) (--kite-log "Console enabled.")))))))
+                   (lambda (response) (kite--log "Console enabled.")))))))
 
-(add-hook 'kite-Console-messageAdded-hooks '--kite-console-Console-messageAdded)
+(add-hook 'kite-Console-messageAdded-hooks 'kite--console-Console-messageAdded)
 
 (provide 'kite-console)

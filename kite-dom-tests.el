@@ -1,11 +1,11 @@
-(defun --kite-equal-wildcard (o1 o2)
+(defun kite--equal-wildcard (o1 o2)
   (or (eq '* o1)
       (eq '* o2)
       (eq o1 o2)
       (and (listp o1)
            (listp o2)
-           (--kite-equal-wildcard (car o1) (car o2))
-           (--kite-equal-wildcard (cdr o1) (cdr o2)))
+           (kite--equal-wildcard (car o1) (car o2))
+           (kite--equal-wildcard (cdr o1) (cdr o2)))
       (and (stringp o1)
            (stringp o2)
            (string= o1 o2))
@@ -54,7 +54,7 @@
     (kite-dom-mode)
 
     (let ((inhibit-read-only t))
-      (--kite-dom-insert-element simple-element 0 nil)
+      (kite--dom-insert-element simple-element 0 nil)
 
       (should (string= (buffer-substring-no-properties (point-min)
                                                        (point-max))
@@ -77,7 +77,7 @@
     (kite-dom-mode)
 
     (let ((inhibit-read-only t))
-      (--kite-dom-insert-element
+      (kite--dom-insert-element
        '(:attributes
          []
          :childNodeCount 2
@@ -139,7 +139,7 @@
                       (should (equal params '((nodeId . 2))))))
 
       (let ((inhibit-read-only t))
-        (--kite-dom-insert-element
+        (kite--dom-insert-element
          '(:attributes []
                        :childNodeCount 2
                        :nodeValue nil
@@ -153,8 +153,8 @@
                                                        (point-max))
                        "<empty>...</empty>\n"))
 
-      (flet ((--kite-dom-buffer (websocket-url) (current-buffer)))
-        (--kite-dom-DOM-setChildNodes nil
+      (flet ((kite--dom-buffer (websocket-url) (current-buffer)))
+        (kite--dom-DOM-setChildNodes nil
                                       '(:parentId
                                         2
                                         :nodes [(:attributes
@@ -181,11 +181,11 @@
     (kite-dom-mode)
     (let ((inhibit-read-only t))
 
-      (--kite-dom-insert-element simple-element 0 nil)
+      (kite--dom-insert-element simple-element 0 nil)
 
-      (flet ((--kite-dom-buffer (websocket-url) (current-buffer)))
+      (flet ((kite--dom-buffer (websocket-url) (current-buffer)))
 
-        (--kite-dom-DOM-childNodeInserted "dummy"
+        (kite--dom-DOM-childNodeInserted "dummy"
                                           '(:node
                                             (:attributes
                                              []
@@ -219,11 +219,11 @@
     (kite-dom-mode)
     (let ((inhibit-read-only t))
 
-      (--kite-dom-insert-element simple-element 0 nil)
+      (kite--dom-insert-element simple-element 0 nil)
 
-      (flet ((--kite-dom-buffer (websocket-url) (current-buffer)))
+      (flet ((kite--dom-buffer (websocket-url) (current-buffer)))
 
-        (--kite-dom-DOM-childNodeInserted "dummy"
+        (kite--dom-DOM-childNodeInserted "dummy"
                                           '(:node
                                             (:attributes
                                              []
@@ -257,11 +257,11 @@
     (kite-dom-mode)
     (let ((inhibit-read-only t))
 
-      (--kite-dom-insert-element simple-element 0 nil)
+      (kite--dom-insert-element simple-element 0 nil)
 
-      (flet ((--kite-dom-buffer (websocket-url) (current-buffer)))
+      (flet ((kite--dom-buffer (websocket-url) (current-buffer)))
 
-        (--kite-dom-DOM-childNodeInserted "dummy"
+        (kite--dom-DOM-childNodeInserted "dummy"
                                           '(:node
                                             (:attributes
                                              []
@@ -295,11 +295,11 @@
     (kite-dom-mode)
     (let ((inhibit-read-only t))
 
-      (--kite-dom-insert-element simple-element 0 nil)
+      (kite--dom-insert-element simple-element 0 nil)
 
-      (flet ((--kite-dom-buffer (websocket-url) (current-buffer)))
+      (flet ((kite--dom-buffer (websocket-url) (current-buffer)))
 
-        (--kite-dom-DOM-childNodeRemoved "dummy"
+        (kite--dom-DOM-childNodeRemoved "dummy"
                                          '(:nodeId 89 :parentNodeId 88))))
 
     (should (string= (buffer-substring-no-properties (point-min)
@@ -317,11 +317,11 @@
     (kite-dom-mode)
     (let ((inhibit-read-only t))
 
-      (--kite-dom-insert-element simple-element 0 nil)
+      (kite--dom-insert-element simple-element 0 nil)
 
-      (flet ((--kite-dom-buffer (websocket-url) (current-buffer)))
+      (flet ((kite--dom-buffer (websocket-url) (current-buffer)))
 
-        (--kite-dom-DOM-attributeModified "dummy"
+        (kite--dom-DOM-attributeModified "dummy"
                                           '(:value "frobnicate" :name "href" :nodeId 87))))
 
     (should (string= (buffer-substring-no-properties (point-min)
@@ -349,11 +349,11 @@
     (kite-dom-mode)
     (let ((inhibit-read-only t))
 
-      (--kite-dom-insert-element simple-element 0 nil)
+      (kite--dom-insert-element simple-element 0 nil)
 
-      (flet ((--kite-dom-buffer (websocket-url) (current-buffer)))
+      (flet ((kite--dom-buffer (websocket-url) (current-buffer)))
 
-        (--kite-dom-DOM-attributeModified "dummy"
+        (kite--dom-DOM-attributeModified "dummy"
                                           '(:value "bar" :name "baz" :nodeId 87))))
 
     (should (string= (buffer-substring-no-properties (point-min)
@@ -379,11 +379,11 @@
     (kite-dom-mode)
     (let ((inhibit-read-only t))
 
-      (--kite-dom-insert-element simple-element 0 nil)
+      (kite--dom-insert-element simple-element 0 nil)
 
-      (flet ((--kite-dom-buffer (websocket-url) (current-buffer)))
+      (flet ((kite--dom-buffer (websocket-url) (current-buffer)))
 
-        (--kite-dom-DOM-attributeRemoved "dummy"
+        (kite--dom-DOM-attributeRemoved "dummy"
                                          '(:name "href" :nodeId 87))))
 
     (should (string= (buffer-substring-no-properties (point-min)
@@ -403,22 +403,22 @@
       (should (null attr-info)))))
 
 (ert-deftest kite-test-rgba ()
-  "--kite-rgba works as intended"
+  "kite--rgba works as intended"
 
-  (should (equal (--kite-rgba 1 2 3 4)
+  (should (equal (kite--rgba 1 2 3 4)
                  '((r . 1)
                    (g . 2)
                    (b . 3)
                    (a . 4))))
 
-  (should (equal (--kite-rgba 4 3 2 1)
+  (should (equal (kite--rgba 4 3 2 1)
                  '((r . 4)
                    (g . 3)
                    (b . 2)
                    (a . 1)))))
 
 (ert-deftest kite-dimmed-face-foreground ()
-  "--kite-dimmed-face-foreground works as intended"
+  "kite--dimmed-face-foreground works as intended"
   (unwind-protect
       (progn
         (defface ert-kite-test-face
@@ -428,7 +428,7 @@
 
         (should (equal
                  (color-name-to-rgb
-                  (--kite-dimmed-face-foreground
+                  (kite--dimmed-face-foreground
                    'ert-kite-test-face
                    0.5))
 
@@ -452,10 +452,10 @@
     (let (kite-session)
     (kite-dom-mode)
     (let ((inhibit-read-only t))
-      (--kite-dom-insert-element simple-element 0 nil))
+      (kite--dom-insert-element simple-element 0 nil))
     (flet ((kite-send (command params callback)
                       (should (string= command "DOM.highlightNode"))
-                      (should (--kite-equal-wildcard
+                      (should (kite--equal-wildcard
                                params
                                '((nodeId . 88)
                                  (highlightConfig
@@ -470,13 +470,13 @@
 (ert-deftest kite-test-dom-inspect ()
   (let (sent-packets kite-session)
     (with-temp-buffer
-      (flet ((--kite-dom-buffer (websocket-url) (current-buffer))
-             (--kite-websocket-url () t)
+      (flet ((kite--dom-buffer (websocket-url) (current-buffer))
+             (kite--websocket-url () t)
              (kite-send (command params callback)
                         (setq sent-packets (cons (list command params callback)
                                                  sent-packets))))
         (kite-dom-inspect)))
-    (should (--kite-equal-wildcard sent-packets
+    (should (kite--equal-wildcard sent-packets
                                    '(("DOM.getDocument" nil *)
                                      ("CSS.enable" nil *))))))
 

@@ -9,7 +9,7 @@
 
 (define-derived-mode kite-memory-mode special-mode "kite-memory"
   "Toggle kite memory mode."
-  (set (make-local-variable 'kill-buffer-hook) '--kite-kill-buffer)
+  (set (make-local-variable 'kill-buffer-hook) 'kite--kill-buffer)
   (setq case-fold-search nil))
 
 (defun kite--memory-render-graph (node indent)
@@ -34,7 +34,7 @@
                   (plist-get (plist-get response :result) :distribution) 0))))
   (kite-send "Memory.getDOMNodeCount" nil
              (lambda (response)
-               (--kite-log "Memory.getDOMNodeCount got response %s" response))))
+               (kite--log "Memory.getDOMNodeCount got response %s" response))))
 
 
 

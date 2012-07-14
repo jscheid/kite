@@ -1,7 +1,7 @@
 
 (defun kite-repl ()
   (interactive)
-  (--kite-log "opening repl")
+  (kite--log "opening repl")
   (lexical-let*
       ((kite-connection (current-buffer))
        (buf (get-buffer-create (format "*kite repl %s*" (cdr (assq 'webSocketDebuggerUrl kite-tab-alist))))))
@@ -68,7 +68,7 @@
                    (code (buffer-substring-no-properties begin end)))
 
       (with-current-buffer kite-connection
-        (--kite-send "Runtime.evaluate" (list (cons 'expression code))
+        (kite--send "Runtime.evaluate" (list (cons 'expression code))
                      (lambda (response)
                        (let ((result (cdr (assq 'result response))))
                          (message "result %s" result)
@@ -79,11 +79,11 @@
                                  (insert (format "/// -> %S\n" (or (cdr (assq 'value (cdr (assq 'result result))))
                                                                    (intern (cdr (assq 'type (cdr (assq 'result result))))))))))
 
-                           (--kite-send "Runtime.getProperties" (list (cons 'objectId (cdr (assq 'objectId (cdr (assq 'result result))))))
+                           (kite--send "Runtime.getProperties" (list (cons 'objectId (cdr (assq 'objectId (cdr (assq 'result result))))))
                                         (lambda (response)
                                           (mapcar (lambda (x)
                                                     (when (string= "stack" (cdr (assq 'name x)))
-                                                      (--kite-send "Runtime.getProperties" (list (cons 'objectId (cdr (assq 'objectId (cdr (assq 'get x))))))
+                                                      (kite--send "Runtime.getProperties" (list (cons 'objectId (cdr (assq 'objectId (cdr (assq 'get x))))))
                                                                    (lambda (response)
                                                                      (message "got stack %s" response)))))
                                                   (cdr (assq 'result (cdr (assq 'result response)))))

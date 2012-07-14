@@ -58,7 +58,7 @@
 
 (define-derived-mode kite-network-mode special-mode "kite-network"
   "Toggle kite network mode."
-  (set (make-local-variable 'kill-buffer-hook) '--kite-kill-network)
+  (set (make-local-variable 'kill-buffer-hook) 'kite--kill-network)
   (set (make-local-variable 'kite-min-time) nil)
   (set (make-local-variable 'kite-max-time) nil)
   (set (make-local-variable 'kite-header-width) 0)
@@ -67,30 +67,30 @@
   (setq case-fold-search nil)
   (setq line-spacing (max (or line-spacing 0) 2)))
 
-(defun --kite-net-Network-loadingFinished (websocket-url packet)
-  (--kite-log "--kite-Network-loadingFinished"))
+(defun kite--net-Network-loadingFinished (websocket-url packet)
+  (kite--log "kite--Network-loadingFinished"))
 
-(defun --kite-network-barchart-width ()
+(defun kite--network-barchart-width ()
   (/ (* (frame-pixel-width)
         (- (frame-width) kite-header-width 10))
      (frame-width)))
 
 (defun --ekwd-render-network-entry (request-response)
-  (--kite-log "ewoc called with request-response %s" request-response)
+  (kite--log "ewoc called with request-response %s" request-response)
   (let ((request-method (cdr (assq 'method (cdr (assq 'request (cdr (assq 'will-be-sent request-response)))))))
         (request-url (cdr (assq 'url (cdr (assq 'request (cdr (assq 'will-be-sent request-response)))))))
         (status-code (cdr (assq 'status (cdr (assq 'response (cdr (assq 'response-received request-response)))))))
         (response-size
          (let ((result 0) (iter request-response))
            (while iter
-             (--kite-log "dolist, packet is " (car iter))
+             (kite--log "dolist, packet is " (car iter))
              (when (eq 'data-received (car (car iter)))
                (setq result (+ result (cdr (assq 'dataLength (cdr (car iter)))))))
              (setq iter (cdr iter)))
            result))
         (inhibit-read-only t))
 
-    (let ((barchart-width (--kite-network-barchart-width))
+    (let ((barchart-width (kite--network-barchart-width))
           barchart
           times
           (packets request-response))
@@ -150,14 +150,14 @@
 
       (insert
        (concat
-        (--kite-fill-overflow (concat request-method " " request-url) 50)
+        (kite--fill-overflow (concat request-method " " request-url) 50)
         "  "
-        (--kite-fill-overflow 
+        (kite--fill-overflow 
          (if status-code
              (number-to-string status-code)
            "---") 3)
         "  "
-        (--kite-fill-overflow 
+        (kite--fill-overflow 
          (if (not (null response-size))
              (file-size-human-readable response-size)
            "") 10)
@@ -165,27 +165,27 @@
         barchart
         "\n")))))
 
-(defun --kite-frame-inner-width ()
+(defun kite--frame-inner-width ()
   (if (fboundp 'window-inside-pixel-edges)
       (- (nth 2 (window-inside-pixel-edges))
          (nth 0 (window-inside-pixel-edges)))
     (frame-pixel-width)))
 
-(defun --kite-network-update-header ()
+(defun kite--network-update-header ()
   (let ((header-string (propertize
                         (concat
-                         (--kite-fill-overflow "Method+URL" 50)
+                         (kite--fill-overflow "Method+URL" 50)
                          "  "
-                         (--kite-fill-overflow "Sta" 3)
+                         (kite--fill-overflow "Sta" 3)
                          "  "
-                         (--kite-fill-overflow "Size" 10)
+                         (kite--fill-overflow "Size" 10)
                          "  ")
                         'face 'kite-table-head)))
 
     (setq kite-header-width (string-width header-string))
 
-    (let* ((barchart-width (--kite-network-barchart-width))
-           (hpos (/ (* (--kite-frame-inner-width)
+    (let* ((barchart-width (kite--network-barchart-width))
+           (hpos (/ (* (kite--frame-inner-width)
                        kite-header-width)
                     (frame-width)))
            (total-time (- kite-max-time kite-min-time))
@@ -270,7 +270,7 @@
 
 (defun kite-network ()
   (interactive)
-  (--kite-log "opening network")
+  (kite--log "opening network")
   (lexical-let*
       ((kite-session kite-session)
        (buf (get-buffer-create (format "*kite network %s*" (cdr (assq 'webSocketDebuggerUrl kite-tab-alist))))))
@@ -288,9 +288,9 @@
       (set (make-local-variable 'kite-requests) (make-hash-table :test 'equal)))
     (switch-to-buffer buf)
     (kite-send "Network.enable" nil
-               (lambda (response) (--kite-log "Network enabled.")))))
+               (lambda (response) (kite--log "Network enabled.")))))
 
-(defun --kite-network-update-min-max-time ()
+(defun kite--network-update-min-max-time ()
   (with-current-buffer (format "*kite network %s*" websocket-url)
     (let (min-time)
       (maphash (lambda (key value)
@@ -302,10 +302,10 @@
             (relative-times '(receiveHeadersEnd sendStart sendEnd sslStart sslEnd connectStart connectEnd dnsStart dnsEnd proxyStart proxyEnd)))
         (maphash (lambda (key value)
                    (let ((packets (ewoc-data (car value))))
-                     (--kite-log "packet cars: %s" (mapcar (symbol-function 'car) packets))
+                     (kite--log "packet cars: %s" (mapcar (symbol-function 'car) packets))
                      (while packets
-                       (--kite-log "packets car: %s" (car packets))
-                       (--kite-log "data-received cdr: %s" (cdr (assq 'data-received (car packets))))
+                       (kite--log "packets car: %s" (car packets))
+                       (kite--log "data-received cdr: %s" (cdr (assq 'data-received (car packets))))
                        (let* ((data-timestamp (and (eq 'data-received (car (car packets)))
                                                    (cdr (assq 'timestamp (cdr (car packets))))))
                               (timing (and (eq 'response-received (car (car packets)))
@@ -328,7 +328,7 @@
           (setq kite-max-time max-time)
           t)))))
 
-(defun --kite-net-Network-requestWillBeSent (websocket-url packet)
+(defun kite--net-Network-requestWillBeSent (websocket-url packet)
   (with-current-buffer (format "*kite network %s*" websocket-url)
     (let ((inhibit-read-only t))
       (when (string= (cdr (assq 'url (plist-get packet :request)))
@@ -340,44 +340,44 @@
         (puthash (plist-get packet :requestId) (list ewoc-node) kite-requests)
         (ewoc-set-data ewoc-node
                        (list (cons 'will-be-sent packet))))
-      (if (--kite-network-update-min-max-time)
+      (if (kite--network-update-min-max-time)
           (progn
-            (--kite-network-update-header)
+            (kite--network-update-header)
             (ewoc-refresh kite-ewoc))
         (ewoc-invalidate kite-ewoc (car request-data))))))
 
-(defun --kite-net-Network-responseReceived (websocket-url packet)
+(defun kite--net-Network-responseReceived (websocket-url packet)
   (with-current-buffer (format "*kite network %s*" websocket-url)
     (let ((inhibit-read-only t)
           (request-data (gethash (plist-get packet :requestId) kite-requests)))
       (ewoc-set-data (car request-data)
                      (cons (cons 'response-received packet)
                            (ewoc-data (car request-data))))
-      (if (--kite-network-update-min-max-time)
+      (if (kite--network-update-min-max-time)
           (progn
-            (--kite-network-update-header)
+            (kite--network-update-header)
             (ewoc-refresh kite-ewoc))
         (ewoc-invalidate kite-ewoc (car request-data))))))
 
-(defun --kite-net-Network-dataReceived (websocket-url packet)
+(defun kite--net-Network-dataReceived (websocket-url packet)
   (with-current-buffer (format "*kite network %s*" websocket-url)
     (let ((inhibit-read-only t)
           (request-data (gethash (plist-get packet :requestId) kite-requests)))
       (ewoc-set-data (car request-data)
                      (cons (cons 'data-received packet)
                            (ewoc-data (car request-data))))
-      (if (--kite-network-update-min-max-time)
+      (if (kite--network-update-min-max-time)
           (progn
-            (--kite-network-update-header)
+            (kite--network-update-header)
             (ewoc-refresh kite-ewoc))
         (ewoc-invalidate kite-ewoc (car request-data))))))
 
-(defun --kite-kill-network ()
+(defun kite--kill-network ()
   (ignore-errors
     (kite-send "Network.disable" nil
-               (lambda (response) (--kite-log "Network disabled.")))))
+               (lambda (response) (kite--log "Network disabled.")))))
 
-(defun --kite-net-Page-domContentEventFired (websocket-url packet)
+(defun kite--net-Page-domContentEventFired (websocket-url packet)
   (let ((network-buffer (get-buffer (format "*kite network %s*" websocket-url))))
     (when network-buffer
       (with-current-buffer network-buffer
@@ -388,10 +388,10 @@
           (setq kite-max-time kite-dom-content-fired-timestamp)
           (ewoc-refresh kite-ewoc))))))
 
-(add-hook 'kite-Page-domContentEventFired-hooks '--kite-net-Page-domContentEventFired)
-(add-hook 'kite-Network-dataReceived-hooks '--kite-net-Network-dataReceived)
-(add-hook 'kite-Network-loadingFinished-hooks '--kite-net-Network-loadingFinished)
-(add-hook 'kite-Network-responseReceived-hooks '--kite-net-Network-responseReceived)
-(add-hook 'kite-Network-requestWillBeSent-hooks '--kite-net-Network-requestWillBeSent)
+(add-hook 'kite-Page-domContentEventFired-hooks 'kite--net-Page-domContentEventFired)
+(add-hook 'kite-Network-dataReceived-hooks 'kite--net-Network-dataReceived)
+(add-hook 'kite-Network-loadingFinished-hooks 'kite--net-Network-loadingFinished)
+(add-hook 'kite-Network-responseReceived-hooks 'kite--net-Network-responseReceived)
+(add-hook 'kite-Network-requestWillBeSent-hooks 'kite--net-Network-requestWillBeSent)
 
 (provide 'kite-net)

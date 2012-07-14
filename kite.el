@@ -69,7 +69,7 @@
 (defvar kite-active-sessions
   (make-hash-table :test 'equal :weakness 'value))
 
-(defun --kite-format-stacktrace (stacktrace)
+(defun kite--format-stacktrace (stacktrace)
   (let ((formatted "") (index 0))
     (while (< index (length stacktrace))
       (let ((stackframe (elt stacktrace index)))
@@ -120,10 +120,10 @@
   (interactive)
   (kite-send "Debugger.pause" nil
              (lambda (response)
-               (--kite-log "Response to Debugger.pause is %s" response)
+               (kite--log "Response to Debugger.pause is %s" response)
                (kite-send "Debugger.stepInto" nil
                           (lambda (response)
-                            (--kite-log "Response to Debugger.stepInto is %s" response))))))
+                            (kite--log "Response to Debugger.stepInto is %s" response))))))
 
 (defun kite-step-over ()
   (interactive)
@@ -140,19 +140,19 @@
 
 (define-derived-mode kite-connection-mode special-mode "kite-connection"
   "Toggle kite connection mode."
-  (set (make-local-variable 'kill-buffer-hook) '--kite-kill-buffer)
+  (set (make-local-variable 'kill-buffer-hook) 'kite--kill-buffer)
   (make-local-variable 'kite-tab-alist)
   (setq case-fold-search nil))
 
 (defun kite-debug-pause ()
   (interactive)
   (kite-send "Debugger.pause" nil
-             (lambda (response) (--kite-log "Execution paused."))))
+             (lambda (response) (kite--log "Execution paused."))))
 
 (defun kite-debug-continue ()
   (interactive)
   (kite-send "Debugger.resume" nil
-             (lambda (response) (--kite-log "Execution resumed."))))
+             (lambda (response) (kite--log "Execution resumed."))))
 
 (defun kite-debug-reload ()
   (interactive)
@@ -161,7 +161,7 @@
                            kite-connection
                          (current-buffer))
     (kite-send "Page.reload" nil
-               (lambda (response) (--kite-log "Page reloaded.")))))
+               (lambda (response) (kite--log "Page reloaded.")))))
 
 (defun kite-send (method &optional params callback callback-args)
   (let ((callback-buffer (current-buffer))
@@ -178,7 +178,7 @@
                            (cons :params params)
                            (cons :id request-id))))))
 
-(defun --kite-session-remove-current-buffer ()
+(defun kite--session-remove-current-buffer ()
   (setf (kite-session-buffers kite-session)
         (delete (current-buffer) (kite-session-buffers kite-session)))
   (when (null (kite-session-buffers kite-session))
@@ -186,15 +186,15 @@
     (remhash (websocket-url (kite-session-websocket kite-session))
              kite-active-sessions)))
 
-(defun --kite-kill-buffer ()
+(defun kite--kill-buffer ()
   (ignore-errors
-    (--kite-session-remove-current-buffer)))
+    (kite--session-remove-current-buffer)))
 
-(defun --kite-connect-webservice (tab-alist)
+(defun kite--connect-webservice (tab-alist)
   (lexical-let* ((websocket-url (plist-get tab-alist :webSocketDebuggerUrl))
                  (faviconUrl (plist-get tab-alist :faviconUrl))
                  (thumbnailUrl (plist-get tab-alist :thumbnailUrl)))
-    (--kite-log "connecting to %s" websocket-url)
+    (kite--log "connecting to %s" websocket-url)
     (lexical-let ((buf (get-buffer-create (format "*kite %s*" websocket-url)))
                   (favicon-marker nil))
       (save-excursion
@@ -205,7 +205,7 @@
           (setq kite-websocket
                 (websocket-open websocket-url
                                 :on-message (lambda (websocket frame)
-                                              (--kite-log "received frame: %s" frame)
+                                              (kite--log "received frame: %s" frame)
                                               (let ((kite-session (gethash (websocket-url websocket)
                                                                            kite-active-sessions)))
                                                 (when (and (eq (aref frame 0) 'cl-struct-websocket-frame)
@@ -213,7 +213,7 @@
                                                   (let* ((json-object-type 'plist)
                                                          (response (json-read-from-string (aref frame 2))))
 
-                                                    (--kite-log "received response: %s (type %s)" response (type-of response))
+                                                    (kite--log "received response: %s (type %s)" response (type-of response))
                                                     (when (listp response)
                                                       (with-current-buffer buf
                                                         (let ((response-id (plist-get response :id)))
@@ -236,7 +236,7 @@
                                                              (plist-get response :params))))))))))
 
                                 :on-close (lambda (websocket)
-                                            (--kite-log "websocket connection closed"))))
+                                            (kite--log "websocket connection closed"))))
 
 
           (set (make-local-variable 'kite-session)
@@ -292,18 +292,18 @@
                   (kite--make-breakpoint-ewoc))
 
             (kite-send "Page.enable" nil
-                       (lambda (response) (--kite-log "Page notifications enabled.")))
+                       (lambda (response) (kite--log "Page notifications enabled.")))
             (kite-send "Inspector.enable" nil
-                       (lambda (response) (--kite-log "Inspector enabled.")))
+                       (lambda (response) (kite--log "Inspector enabled.")))
             (kite-send "Debugger.enable" nil
-                       (lambda (response) (--kite-log "Debugger enabled.")))
+                       (lambda (response) (kite--log "Debugger enabled.")))
             (kite-send "CSS.enable" nil
-                       (lambda (response) (--kite-log "CSS enabled.")))
+                       (lambda (response) (kite--log "CSS enabled.")))
             (kite-send "Debugger.canSetScriptSource" nil
-                       (lambda (response) (--kite-log "got response: %s" response)))
+                       (lambda (response) (kite--log "got response: %s" response)))
             ))))))
 
-(defun --kite-longest-prefix (strings)
+(defun kite--longest-prefix (strings)
   "Return the longest prefix common to all the given STRINGS,
 which should be a sequence of strings.  Naive implementation."
   (if (null strings)
@@ -378,7 +378,7 @@ which should be a sequence of strings.  Naive implementation."
                                  (let ((existing (gethash string available-strings)))
                                    (if (<= (car existing) 1)
                                        string
-                                     (concat string " (" (substring websocket-url (length (--kite-longest-prefix (cdr existing))))  ")")))))
+                                     (concat string " (" (substring websocket-url (length (kite--longest-prefix (cdr existing))))  ")")))))
 
               (maphash (lambda (key value)
                          (let ((url (plist-get (car value) :url))
@@ -403,13 +403,13 @@ which should be a sequence of strings.  Naive implementation."
               (if (cdr (gethash selection completion-strings))
                   (switch-to-buffer (car (kite-session-buffers
                                           (cdr (gethash selection completion-strings)))))
-                (--kite-connect-webservice (car (gethash selection completion-strings))))))
+                (kite--connect-webservice (car (gethash selection completion-strings))))))
         (error "Could not contact remote debugger at %s:%s, check host and port%s" use-host use-port
                (if (> (length (buffer-string)) 0)
                    (concat ": " (buffer-string)) ""))))))
 
 
-(defun* --kite-fill-overflow (string width &key (align 'left) (trim 'right))
+(defun* kite--fill-overflow (string width &key (align 'left) (trim 'right))
   (let ((string-length (length string)))
     (if (> string-length width)
         (if (eq 'right trim)
@@ -428,15 +428,15 @@ which should be a sequence of strings.  Naive implementation."
                     string
                     (make-string left-fill 32)))))))))
 
-(defun --kite-connection-buffer (websocket-url)
+(defun kite--connection-buffer (websocket-url)
   (format "*kite %s*" websocket-url))
 
 (defun kite--Debugger-resumed (websocket-url packet)
-  (with-current-buffer (--kite-connection-buffer websocket-url)
+  (with-current-buffer (kite--connection-buffer websocket-url)
     (setf (kite-session-debugger-state kite-session) kite--debugger-state-resumed)))
 
 (defun kite--Debugger-paused (websocket-url packet)
-  (with-current-buffer (--kite-connection-buffer websocket-url)
+  (with-current-buffer (kite--connection-buffer websocket-url)
     (setf (kite-session-debugger-state kite-session) kite--debugger-state-paused)
     (ewoc-refresh kite-connection-ewoc)
     (let* ((call-frames (plist-get packet :callFrames))
