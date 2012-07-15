@@ -120,5 +120,67 @@ but not when buffer is empty"
     ;; Point still at start of buffer
     (should (eq (point) (point-min)))))
 
+(ert-deftest kite-console-repeat-count ()
+  "Repeat count is included in message display"
+
+  (with-temp-buffer
+    (let (kite-session (inhibit-read-only t))
+      (kite-console-mode)
+      (flet ((kite--console-buffer (websocket-url) (current-buffer)))
+        (kite--console-messageAdded
+         nil
+         (list :message
+               (list :type "log"
+                     :level "log"
+                     :text "foo"
+                     :repeatCount 1)))
+
+        (kite--console-messageAdded
+         nil
+         (list :message
+               (list :type "log"
+                     :level "log"
+                     :text "bar"
+                     :repeatCount 3)))))
+
+    ;; Text in buffer
+    (should (string= (buffer-substring-no-properties
+                      (point-min) (point-max))
+                     (concat
+                      "foo\n"
+                      "bar [message repeated 3 times]\n")))))
+
+(ert-deftest kite-console-repeat-update ()
+  "Repeat count in message display can be updated"
+
+  (with-temp-buffer
+    (let (kite-session)
+      (kite-console-mode)
+      (flet ((kite--console-buffer (websocket-url) (current-buffer)))
+
+        (kite--console-messageAdded
+         nil
+         (list :message
+               (list :type "log"
+                     :level "log"
+                     :text "test")))
+
+        (kite--console-messageRepeatCountUpdated
+         nil
+         (list :count 4))
+
+        (should (string= (buffer-substring-no-properties
+                          (point-min) (point-max))
+                         "test [message repeated 4 times]\n"))
+
+        (kite--console-messageRepeatCountUpdated
+         nil
+         (list :count 5))
+
+        (should (string= (buffer-substring-no-properties
+                          (point-min) (point-max))
+                         "test [message repeated 5 times]\n"))))))
+
+
 
 (provide 'kite-console-tests)

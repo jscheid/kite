@@ -53,6 +53,13 @@
 (defun kite--console-buffer (websocket-url)
   (get-buffer (format "*kite console %s*" websocket-url)))
 
+(defun kite--message-repeat-text (repeat-count)
+  (and repeat-count
+       (> repeat-count 1)
+       (propertize
+        (format " [message repeated %d times]" repeat-count)
+        'kite-repeat-count t)))
+
 (defun kite--console-messageAdded (websocket-url packet)
   (let* ((buf (kite--console-buffer websocket-url))
          (message (plist-get packet :message))
@@ -75,6 +82,9 @@
             (insert (propertize (concat
                                  (make-string (* 2 kite-message-group-level) 32)
                                  (plist-get message :text)
+                                 (when (plist-get message :repeatCount)
+                                   (kite--message-repeat-text
+                                    (plist-get message :repeatCount)))
                                  "\n")
                                 'log-message message
                                 'face (intern (format "kite-log-%s" (plist-get message :level))))))
@@ -157,7 +167,31 @@
             (kite--log "kite--console-Debugger-globalObjectCleared called")
             (funcall kite-console-on-reload-function)))))))
 
+(defun kite--console-messageRepeatCountUpdated (websocket-url packet)
+  (let ((buf (kite--console-buffer websocket-url)))
+    (when buf
+      (save-excursion
+        (with-current-buffer buf
+          (goto-char (point-max))
+          (previous-line)
+          (let ((inhibit-read-only t)
+                (text-prop-start (text-property-any
+                                  (point)
+                                  (point-max)
+                                  'kite-repeat-count
+                                  t)))
+            (if text-prop-start
+                (let ((text-prop-end (next-single-property-change
+                                      text-prop-start
+                                      'kite-repeat-count)))
+                  (delete-region text-prop-start text-prop-end)
+                  (goto-char text-prop-start))
+              (end-of-line))
+            (insert (kite--message-repeat-text
+                     (plist-get packet :count)))))))))
+
 (add-hook 'kite-Console-messageAdded-hooks 'kite--console-messageAdded)
+(add-hook 'kite-Console-messageRepeatCountUpdated-hooks 'kite--console-messageRepeatCountUpdated)
 (add-hook 'kite-Debugger-globalObjectCleared-hooks 'kite--console-globalObjectCleared)
 
 (provide 'kite-console)
