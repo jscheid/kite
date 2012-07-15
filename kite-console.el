@@ -130,6 +130,30 @@
     (kite-send "Console.enable" nil
                (lambda (response) (kite--log "Console enabled.")))))
 
+(defun kite-insert-page-break ()
+  (kite--log "kite-insert-page-break called")
+  (insert "\f\n"))
+
+(defcustom kite-console-on-reload-function
+  (function kite-insert-page-break)
+  "A function called with no arguments when the page is reloaded,
+  with the message buffer as the current buffer, point placed at
+  the end of the buffer, and read-only-ness inhibited.  The
+  default value `kite-insert-page-break' does just that, insert a
+  page break.  To mimic the behaviour of the WebKit debugger
+  frontend, set this function to `kite-clear-console'." )
+
+(defun kite--console-Debugger-globalObjectCleared (websocket-url packet)
+  (let ((buf (get-buffer (format "*kite console %s*" websocket-url))))
+    (when buf
+      (save-excursion
+        (with-current-buffer buf
+          (goto-char (point-max))
+          (let ((inhibit-read-only t))
+            (kite--log "kite--console-Debugger-globalObjectCleared called")
+            (funcall kite-console-on-reload-function)))))))
+
 (add-hook 'kite-Console-messageAdded-hooks 'kite--console-Console-messageAdded)
+(add-hook 'kite-Debugger-globalObjectCleared-hooks 'kite--console-Debugger-globalObjectCleared)
 
 (provide 'kite-console)
