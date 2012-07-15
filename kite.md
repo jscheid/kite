@@ -54,6 +54,37 @@ work:
   release so you will have to fetch trunk via version control.
 
 
+# Views
+
+## Console View
+
+The console view shows the messages emitted by scripts on the page
+using the [console](https://developer.mozilla.org/en/DOM/console)
+object.
+
+The console view can be opened using `kite-console' or by typing `C'
+in most other kite views.
+
+### Message Details
+
+In the console view, you can hit RET to bring up the message detail
+view for the message under point (`kite-console-details').  Some of
+the text in the message detail view may be hyperlinked to other views.
+
+### Tail Follow
+
+### Narrowing to Groups
+
+### Collapsing Groups
+
+### Filtering Levels
+
+### Clearing Messages
+
+## Network View
+## DOM View
+## Memory View
+## Connection View
 
 
 #### Test1
