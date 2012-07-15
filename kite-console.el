@@ -50,14 +50,15 @@
                (lambda (response) (kite--log "Console disabled.")))))
 
 (defun kite--console-Console-messageAdded (websocket-url packet)
-  (let ((buf (get-buffer (format "*kite console %s*" websocket-url))))
+  (let ((buf (get-buffer (format "*kite console %s*" websocket-url)))
+        (message (plist-get packet :message)))
     (when buf
       (with-current-buffer buf
         (let ((inhibit-read-only t))
           (goto-char (point-max))
-          (insert (propertize (concat (plist-get packet :text) "\n")
-                              'log-message packet
-                              'face (intern (format "kite-log-%s" (plist-get packet :level)))))
+          (insert (propertize (concat (plist-get message :text) "\n")
+                              'log-message message
+                              'face (intern (format "kite-log-%s" (plist-get message :level)))))
           (goto-char (point-max))
           (kite--log "message added, url is %s, packet is %s" websocket-url packet))))))
 
@@ -95,24 +96,23 @@
 (defun kite--log (format-string &rest args)
   (with-current-buffer
       (get-buffer-create (format "*kite log*"))
-    (insert (concat (apply 'format format-string args) "\n"))))
+    (save-excursion
+      (goto-char (point-max))
+      (insert (concat (apply 'format format-string args) "\n")))))
 
 (defun kite-console ()
   (interactive)
   (kite--log "opening console")
   (lexical-let*
-      ((kite-session kite-session)
-       (buf (get-buffer-create (format "*kite console %s*" (cdr (assq 'webSocketDebuggerUrl kite-tab-alist))))))
-    (with-current-buffer buf
-      (kite-console-mode)
-      (set (make-local-variable 'kite-session) kite-session))
-    (switch-to-buffer buf)
+      ((kite-session kite-session))
+    (switch-to-buffer
+     (get-buffer-create (format "*kite console %s*"
+                                (websocket-url (kite-session-websocket kite-session)))))
+    (kite-console-mode)
+    (set (make-local-variable 'kite-session) kite-session)
     (erase-buffer)
-    (save-excursion
-      (with-current-buffer kite-connection
-        (kite--log "sending in buffer %s" (current-buffer))
-        (kite-send "Console.enable" nil
-                   (lambda (response) (kite--log "Console enabled.")))))))
+    (kite-send "Console.enable" nil
+               (lambda (response) (kite--log "Console enabled.")))))
 
 (add-hook 'kite-Console-messageAdded-hooks 'kite--console-Console-messageAdded)
 
