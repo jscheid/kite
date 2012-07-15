@@ -67,7 +67,9 @@
     (when (and buf
                (> (length (plist-get message :text)) 0))
       (with-current-buffer buf
-        (let ((inhibit-read-only t))
+        (let ((inhibit-read-only t)
+              (keep-at-end (and (eq (point) (point-max))
+                                (not (eq (point) (point-min))))))
           (save-excursion
             (goto-char (point-max))
             (insert (propertize (concat
@@ -76,7 +78,9 @@
                                  "\n")
                                 'log-message message
                                 'face (intern (format "kite-log-%s" (plist-get message :level))))))
-          (kite--log "message added, url is %s, packet is %s" websocket-url packet))))))
+          (when keep-at-end
+            (goto-char (point-max))))
+        (kite--log "message added, url is %s, packet is %s" websocket-url packet)))))
 
 (defun kite-clear-console ()
   (interactive)

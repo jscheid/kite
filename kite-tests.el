@@ -5,5 +5,6 @@
 (require 'kite)
 (require 'kite-dom-tests)
 (require 'kite-breakpoint-tests)
+(require 'kite-console-tests)
 
 (provide 'kite-tests)
