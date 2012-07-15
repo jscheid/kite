@@ -53,7 +53,7 @@
 (defun kite--console-buffer (websocket-url)
   (get-buffer (format "*kite console %s*" websocket-url)))
 
-(defun kite--console-Console-messageAdded (websocket-url packet)
+(defun kite--console-messageAdded (websocket-url packet)
   (let* ((buf (kite--console-buffer websocket-url))
          (message (plist-get packet :message))
          (message-type (plist-get message :type)))
@@ -141,9 +141,9 @@
   the end of the buffer, and read-only-ness inhibited.  The
   default value `kite-insert-page-break' does just that, insert a
   page break.  To mimic the behaviour of the WebKit debugger
-  frontend, set this function to `kite-clear-console'." )
+  frontend, set this function to `erase-buffer'." )
 
-(defun kite--console-Debugger-globalObjectCleared (websocket-url packet)
+(defun kite--console-globalObjectCleared (websocket-url packet)
   (let ((buf (get-buffer (format "*kite console %s*" websocket-url))))
     (when buf
       (save-excursion
@@ -153,7 +153,7 @@
             (kite--log "kite--console-Debugger-globalObjectCleared called")
             (funcall kite-console-on-reload-function)))))))
 
-(add-hook 'kite-Console-messageAdded-hooks 'kite--console-Console-messageAdded)
-(add-hook 'kite-Debugger-globalObjectCleared-hooks 'kite--console-Debugger-globalObjectCleared)
+(add-hook 'kite-Console-messageAdded-hooks 'kite--console-messageAdded)
+(add-hook 'kite-Debugger-globalObjectCleared-hooks 'kite--console-globalObjectCleared)
 
 (provide 'kite-console)
