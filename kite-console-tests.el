@@ -83,5 +83,42 @@ but not when buffer is empty"
         ;; Point still at end of buffer
         (should (eq (point) (point-max)))))))
 
+(ert-deftest kite-console-group-nesting ()
+  "Nested messages are indented"
+
+  (with-temp-buffer
+    (let (kite-session (inhibit-read-only t))
+      (kite-console-mode)
+      (flet ((kite--console-buffer (websocket-url) (current-buffer)))
+
+        (kite--console-messageAdded
+         nil
+         kite--console-test-simple-message-1)
+
+        (kite--console-messageAdded
+         nil
+         (list :message
+               (list :type "startGroup")))
+
+        (kite--console-messageAdded
+         nil
+         kite--console-test-simple-message-2)
+
+        (kite--console-messageAdded
+         nil
+         (list :message
+               (list :type "endGroup")))
+
+        (kite--console-messageAdded
+         nil
+         kite--console-test-simple-message-1)))
+
+    ;; Text in buffer
+    (should (string= (buffer-substring-no-properties
+                      (point-min) (point-max))
+                     "test1\n  test2\ntest1\n"))
+    ;; Point still at start of buffer
+    (should (eq (point) (point-min)))))
+
 
 (provide 'kite-console-tests)
