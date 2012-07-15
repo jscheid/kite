@@ -50,8 +50,11 @@
     (kite-send "Console.disable" nil
                (lambda (response) (kite--log "Console disabled.")))))
 
+(defun kite--console-buffer (websocket-url)
+  (get-buffer (format "*kite console %s*" websocket-url)))
+
 (defun kite--console-Console-messageAdded (websocket-url packet)
-  (let* ((buf (get-buffer (format "*kite console %s*" websocket-url)))
+  (let* ((buf (kite--console-buffer websocket-url))
          (message (plist-get packet :message))
          (message-type (plist-get message :type)))
     (cond
