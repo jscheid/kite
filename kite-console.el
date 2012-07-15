@@ -41,6 +41,7 @@
 (define-derived-mode kite-console-mode special-mode "kite-console"
   "Toggle kite console mode."
   (set (make-local-variable 'kill-buffer-hook) 'kite--kill-console)
+  (set (make-local-variable 'kite-message-group-level) 0)
   (hl-line-mode)
   (setq case-fold-search nil))
 
@@ -50,16 +51,28 @@
                (lambda (response) (kite--log "Console disabled.")))))
 
 (defun kite--console-Console-messageAdded (websocket-url packet)
-  (let ((buf (get-buffer (format "*kite console %s*" websocket-url)))
-        (message (plist-get packet :message)))
-    (when buf
+  (let* ((buf (get-buffer (format "*kite console %s*" websocket-url)))
+         (message (plist-get packet :message))
+         (message-type (plist-get message :type)))
+    (cond
+     ((string= message-type "startGroup")
+      (setq kite-message-group-level
+            (+ kite-message-group-level 1)))
+     ((string= message-type "endGroup")
+      (setq kite-message-group-level
+            (- kite-message-group-level 1))))
+    (when (and buf
+               (> (length (plist-get message :text)) 0))
       (with-current-buffer buf
         (let ((inhibit-read-only t))
-          (goto-char (point-max))
-          (insert (propertize (concat (plist-get message :text) "\n")
-                              'log-message message
-                              'face (intern (format "kite-log-%s" (plist-get message :level)))))
-          (goto-char (point-max))
+          (save-excursion
+            (goto-char (point-max))
+            (insert (propertize (concat
+                                 (make-string (* 2 kite-message-group-level) 32)
+                                 (plist-get message :text)
+                                 "\n")
+                                'log-message message
+                                'face (intern (format "kite-log-%s" (plist-get message :level))))))
           (kite--log "message added, url is %s, packet is %s" websocket-url packet))))))
 
 (defun kite-clear-console ()
