@@ -1,3 +1,4 @@
+(require 'font-lock)
 
 (defface kite-log-warning
   '((t :inherit warning))
@@ -28,6 +29,41 @@
   "Basic face used to highlight warnings."
   :version "24.1"
   :group 'ekwd-faces)
+
+(defface kite-object
+  '((t :inherit font-lock-variable-name))
+  "Face used to highlight object references."
+  :version "24.1"
+  :group 'ekwd-faces)
+
+(defface kite-number
+  '((t :inherit nxml-char-ref-number))
+  "Face used to highlight numbers."
+  :version "24.1"
+  :group 'ekwd-faces)
+
+(defface kite-string
+  '((t :inherit font-lock-string))
+  "Face used to highlight strings."
+  :version "24.1"
+  :group 'ekwd-faces)
+
+(defface kite-quote
+  '((t :inherit font-lock-keyword))
+  "Face used to highlight quotes around strings."
+  :version "24.1"
+  :group 'ekwd-faces)
+
+(defface kite-loading
+  '((t :inherit font-lock-comment))
+  "Face used to highlight loading indicator."
+  :version "24.1"
+  :group 'ekwd-faces)
+
+(defcustom kite-console-log-max 1000
+  "Maximum number of lines to keep in the kite console log buffer.
+If nil, disable console logging.  If t, log messages but don't truncate
+the buffer when it becomes large.")
 
 (defvar kite-console-mode-map
   (let ((map (make-keymap))
@@ -60,6 +96,102 @@
         (format " [message repeated %d times]" repeat-count)
         'kite-repeat-count t)))
 
+(defun kite--insert-object-async (response object buffer-point)
+  (let* ((text-prop-start (text-property-any
+                           buffer-point
+                           (point-max)
+                           'kite-loading-object-id
+                           (plist-get object :objectId)))
+         (text-prop-end (next-single-property-change
+                         text-prop-start
+                         'kite-loading-object-id)))
+
+    (kite--log "Got runtime props: %s start %s end %s" response text-prop-start text-prop-end)
+    (when (and text-prop-start text-prop-end)
+      (let ((inhibit-read-only t))
+        (save-excursion
+          (delete-region text-prop-start text-prop-end)
+          (goto-char text-prop-start)
+          (cond
+           ((string= (plist-get object :subtype) "array")
+            (insert "[")
+            (let ((array-index 0)
+                  (is-first t)
+                  (array-elements (plist-get (plist-get response :result) :result)))
+              (while (< array-index (length array-elements))
+                (let ((array-element (elt array-elements array-index)))
+                  (when (eq t (plist-get array-element :enumerable))
+                    (if is-first
+                        (setq is-first nil)
+                      (insert ", "))
+                    (insert (kite--format-object (plist-get array-element :value)))))
+                (setq array-index (1+ array-index))))
+            (insert "]"))
+           (t
+            (insert "LOADED"))))))))
+
+(defun kite--format-object (object)
+  (let ((type (plist-get object :type)))
+    (cond
+     ((string= type "number")
+      (propertize
+       (plist-get object :description)
+       'face 'kite-number))
+     ((string= type "string")
+      (concat
+       (propertize
+        "\""
+        'face 'kite-quote)
+       (propertize
+        (plist-get object :value)
+        'face 'kite-string)
+       (propertize
+        "\""
+        'face 'kite-quote)))
+     ((and (not (plist-member object :result))
+           (plist-member object :objectId))
+      (lexical-let ((object object)
+                    (buffer-point (point)))
+        (kite-send "Runtime.getProperties"
+                   (list (cons 'objectId (plist-get object :objectId))
+                         (cons 'ownProperties t))
+                   (lambda (response)
+                     (kite--insert-object-async response object buffer-point))))
+      (propertize
+       (format "(Loading...)" (plist-get object :value))
+       'kite-loading-object-id (plist-get object :objectId)
+       'face 'kite-loading))
+     (t
+      (propertize "(unknown)" 'face 'error)))))
+
+(defun kite--console-insert-message (message)
+  (insert
+   (propertize
+    (concat
+     (make-string (* 2 kite-message-group-level) 32)
+     (let ((arg-index 1)
+           (parameters (plist-get message :parameters)))
+       (replace-regexp-in-string
+        "\\([^%]\\|^\\)\\(%[osd]\\)"
+        (lambda (string)
+          (prog1
+              (let ((object (elt parameters arg-index)))
+                (if object
+                    (kite--format-object object)
+                  string))
+            (setq arg-index (1+ arg-index))))
+        (propertize
+         (plist-get message :text)
+         'face (intern (format "kite-log-%s" (plist-get message :level))))
+        t   ; fixed-case
+        t   ; literal
+        2)) ; subexp
+     (when (plist-get message :repeatCount)
+       (kite--message-repeat-text
+        (plist-get message :repeatCount)))
+     "\n")
+    'log-message message)))
+
 (defun kite--console-messageAdded (websocket-url packet)
   (let* ((buf (kite--console-buffer websocket-url))
          (message (plist-get packet :message))
@@ -79,15 +211,7 @@
                                 (not (eq (point) (point-min))))))
           (save-excursion
             (goto-char (point-max))
-            (insert (propertize (concat
-                                 (make-string (* 2 kite-message-group-level) 32)
-                                 (plist-get message :text)
-                                 (when (plist-get message :repeatCount)
-                                   (kite--message-repeat-text
-                                    (plist-get message :repeatCount)))
-                                 "\n")
-                                'log-message message
-                                'face (intern (format "kite-log-%s" (plist-get message :level))))))
+            (kite--console-insert-message message))
           (when keep-at-end
             (goto-char (point-max))))
         (kite--log "message added, url is %s, packet is %s" websocket-url packet)))))

@@ -213,10 +213,11 @@
                                    kite-session))))
                     (remhash response-id (kite-session-pending-requests
                                           kite-session))
-                    (with-current-buffer (nth 1 callback-info)
-                      (apply (nth 0 callback-info)
-                             response
-                             (nth 2 callback-info))))
+                    (when (buffer-live-p (nth 1 callback-info))
+                      (with-current-buffer (nth 1 callback-info)
+                        (apply (nth 0 callback-info)
+                               response
+                               (nth 2 callback-info)))))
 
                 (run-hook-with-args
                  (intern
