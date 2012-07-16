@@ -4,61 +4,61 @@
   '((t :inherit warning))
   "Basic face used to highlight warnings."
   :version "24.1"
-  :group 'ekwd-faces)
+  :group 'kite-faces)
 
 (defface kite-log-error
   '((t :inherit error))
   "Basic face used to highlight warnings."
   :version "24.1"
-  :group 'ekwd-faces)
+  :group 'kite-faces)
 
 (defface kite-log-debug
   '((t :inherit font-lock-comment))
   "Basic face used to highlight warnings."
   :version "24.1"
-  :group 'ekwd-faces)
+  :group 'kite-faces)
 
 (defface kite-log-log
   '((t :inherit default))
   "Basic face used to highlight warnings."
   :version "24.1"
-  :group 'ekwd-faces)
+  :group 'kite-faces)
 
 (defface kite-log-tip
   '((t :inherit underline))
   "Basic face used to highlight warnings."
   :version "24.1"
-  :group 'ekwd-faces)
+  :group 'kite-faces)
 
 (defface kite-object
   '((t :inherit font-lock-variable-name))
   "Face used to highlight object references."
   :version "24.1"
-  :group 'ekwd-faces)
+  :group 'kite-faces)
 
 (defface kite-number
   '((t :inherit nxml-char-ref-number))
   "Face used to highlight numbers."
   :version "24.1"
-  :group 'ekwd-faces)
+  :group 'kite-faces)
 
 (defface kite-string
   '((t :inherit font-lock-string))
   "Face used to highlight strings."
   :version "24.1"
-  :group 'ekwd-faces)
+  :group 'kite-faces)
 
 (defface kite-quote
   '((t :inherit font-lock-keyword))
   "Face used to highlight quotes around strings."
   :version "24.1"
-  :group 'ekwd-faces)
+  :group 'kite-faces)
 
 (defface kite-loading
   '((t :inherit font-lock-comment))
   "Face used to highlight loading indicator."
   :version "24.1"
-  :group 'ekwd-faces)
+  :group 'kite-faces)
 
 (defcustom kite-console-log-max 1000
   "Maximum number of lines to keep in the kite console log buffer.
