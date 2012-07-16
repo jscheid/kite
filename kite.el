@@ -174,13 +174,15 @@
                               callback-buffer
                               callback-args)
              (kite-session-pending-requests kite-session))
-    (websocket-send-text (kite-session-websocket kite-session)
-                         (json-encode
-                          (list
-                           (cons :jsonrpc "2.0")
-                           (cons :method method)
-                           (cons :params params)
-                           (cons :id request-id))))))
+    (let ((json-request (json-encode
+                         (list
+                          (cons :jsonrpc "2.0")
+                          (cons :method method)
+                          (cons :params params)
+                          (cons :id request-id)))))
+      (kite--log "Sending request: %s" json-request)
+      (websocket-send-text (kite-session-websocket kite-session)
+                           json-request))))
 
 (defun kite--session-remove-current-buffer ()
   (setf (kite-session-buffers kite-session)
