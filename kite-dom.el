@@ -345,6 +345,7 @@ The delimiters are <! and >."
             (menu-map (make-sparse-keymap)))
         ;;(define-key map [remap self-insert-command] 'kite-dom-no-edit)
         (suppress-keymap map t)
+        (kite--define-global-mode-keys map)
         (define-key map (kbd "RET") 'undefined)
         (define-key map (kbd "DEL") 'kite-dom-delete-node-or-attribute)
         (define-key map "p" 'kite-dom-pick-node)

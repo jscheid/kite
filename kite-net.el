@@ -51,6 +51,7 @@
   (let ((map (make-keymap))
 	(menu-map (make-sparse-keymap)))
     (suppress-keymap map t)
+    (kite--define-global-mode-keys map)
     (define-key map "r" 'kite-debug-reload)
     (define-key map (kbd "RET") 'kite-show-network-entry)
     map)

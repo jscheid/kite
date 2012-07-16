@@ -4,6 +4,7 @@
 	(ctl-c-b-map (make-keymap))
 	(menu-map (make-sparse-keymap)))
     (suppress-keymap map t)
+    (kite--define-global-mode-keys map)
     (define-key map "g" 'kite--memory-refresh)
     map))
 

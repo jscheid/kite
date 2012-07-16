@@ -83,11 +83,15 @@
         (setq index (1+ index))))
     formatted))
 
+(defun kite--define-global-mode-keys (map)
+  (define-key map "!" 'kite-reload-page))
+
 (defvar kite-connection-mode-map
   (let ((map (make-keymap))
 	(ctl-c-b-map (make-keymap))
 	(menu-map (make-sparse-keymap)))
     (suppress-keymap map t)
+    (kite--define-global-mode-keys map)
     (define-key map "C" 'kite-console)
     (define-key map "p" 'kite-toggle-next-instruction-breakpoint)
     (define-key map "b" 'kite-toggle-exception-breakpoint)
