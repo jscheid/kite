@@ -75,7 +75,7 @@
         (- (frame-width) kite-header-width 10))
      (frame-width)))
 
-(defun --ekwd-render-network-entry (request-response)
+(defun kite--render-network-entry (request-response)
   (kite--log "ewoc called with request-response %s" request-response)
   (let ((request-method (cdr (assq 'method (cdr (assq 'request (cdr (assq 'will-be-sent request-response)))))))
         (request-url (cdr (assq 'url (cdr (assq 'request (cdr (assq 'will-be-sent request-response)))))))
@@ -280,7 +280,7 @@
       (let ((inhibit-read-only t))
         (erase-buffer)
         (set (make-local-variable 'kite-ewoc)
-             (ewoc-create (symbol-function '--ekwd-render-network-entry)
+             (ewoc-create (symbol-function 'kite--render-network-entry)
                           ""
                           "\nReload the page to show network information\n" t)))
 
