@@ -14,6 +14,39 @@ Principle"](https://vimeo.com/36579366).
 
 # Introduction
 
+## Motivation
+
+The advantages of Kite over using WebKit's default browser-based
+inspector front-end are threefold, from the perspective of an Emacs
+user:
+
+1. Access to Emacs facilities
+
+Apart from the obvious benefits (such as the ability to step through
+JavaScript code right in your buffer), here is a small selection of
+other things that are hard to do in the browser-based front-end, yet
+trivial with Kite:
+
+* Incremental search (or search for regular expressions) in console
+  messages, the DOM, profiler output, etc.
+
+* Copy-and-paste using only the keyboard
+
+* Dumping two JavaScript objects and taking a diff between them
+
+2. Scripting
+
+While the WebKit inspector is open source, it is currently not easy to
+extend with custom functionality.  Kite aims to be easy to extend.
+Say, if you wanted to add a specialized inspector that renders
+Backbone.js collection objects in a table view, this wouldn't take
+more than a few dozen lines with Kite.
+
+3. Live Coding
+
+Although not yet implemented, Kite aims to provide you with tools that
+enable an experience similar to that provided by swank-js.
+
 ## Supported Browsers
 
 _kite_ currently only works with Web pages running in a browser supporting the
