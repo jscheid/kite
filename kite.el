@@ -536,6 +536,18 @@ which should be a sequence of strings.  Naive implementation."
   "Returns a string to be displayed in the mode line"
   (concat " (" (kite-session-debugger-state kite-session) ")"))
 
+(defun kite-reload-page (&optional arg)
+  "Reload the page associated with the current buffer.  With a
+prefix argument ARG, ignore (force-refresh) the browser cache."
+  (interactive "P")
+  (lexical-let ((bool-prefix (not (null arg))))
+    (kite-send "Page.reload"
+               `((ignoreCache . ,(if bool-prefix t :json-false)))
+               (lambda (response)
+                 (if bool-prefix
+                     (message "Page reloaded (with cache ignored)")
+                   (message "Page reloaded"))))))
+
 (add-hook 'kite-Debugger-paused-hooks 'kite--Debugger-paused)
 (add-hook 'kite-Debugger-resumed-hooks 'kite--Debugger-resumed)
 (add-hook 'kite-Debugger-scriptParsed-hooks 'kite--Debugger-scriptParsed)
