@@ -79,6 +79,7 @@ the buffer when it becomes large.")
   "Toggle kite console mode."
   (set (make-local-variable 'kill-buffer-hook) 'kite--kill-console)
   (set (make-local-variable 'kite-message-group-level) 0)
+  (set (make-local-variable 'kite-console-line-count) 0)
   (hl-line-mode)
   (setq case-fold-search nil))
 
@@ -204,15 +205,23 @@ the buffer when it becomes large.")
      ((string= message-type "endGroup")
       (setq kite-message-group-level
             (- kite-message-group-level 1))))
-    (when (and buf
+    (when (and kite-console-log-max
+               buf
                (> (length (plist-get message :text)) 0))
       (with-current-buffer buf
         (let ((inhibit-read-only t)
               (keep-at-end (and (eq (point) (point-max))
                                 (not (eq (point) (point-min))))))
           (save-excursion
+            (when (numberp kite-console-log-max)
+              (while (>= kite-console-line-count kite-console-log-max)
+                (goto-char (point-min))
+                (forward-line)
+                (delete-region (point-min) (point))
+                (setq kite-console-line-count (- kite-console-line-count 1))))
             (goto-char (point-max))
-            (kite--console-insert-message message))
+            (kite--console-insert-message message)
+            (setq kite-console-line-count (1+ kite-console-line-count)))
           (when keep-at-end
             (goto-char (point-max))))
         (kite--log "message added, url is %s, packet is %s" websocket-url packet)))))
