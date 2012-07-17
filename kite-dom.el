@@ -781,6 +781,15 @@ The delimiters are <! and >."
     (message "style-to-rule-map is %s" style-to-rule-map)
     style-to-rule-map))
 
+(defun kite--dom-insert-computed-style-value (value)
+  (let ((color (kite-parse-color value)))
+    (if color
+        (let ((inhibit-read-only t))
+          (insert-image (kite--make-color-image (kite--rgba-value color)))
+          (insert " ")
+          (insert value))
+      (insert value))))
+
 (defun kite--dom-render-computed-css (computed-styles-response matched-styles-response)
   (message "kite--dom-render-computed-css have matched styles %s" matched-styles-response)
 
@@ -809,20 +818,21 @@ The delimiters are <! and >."
             (save-excursion
               (while sorted-styles
                 (let* ((style (car sorted-styles))
-                       (matched-styles (gethash (intern (car style)) style-to-rule-map))
-                       (line (concat (propertize (car style)
-                                                 'face
-                                                 (if (null (string-match "^-" (car style)))
-                                                     (if matched-styles
-                                                         'kite-css-property
-                                                       'kite-css-computed-unused-property)
-                                                   (if matched-styles
-                                                       'kite-css-proprietary-property
-                                                     'kite-css-computed-proprietary-unused-property)))
-                                     ": "
-                                     (cdr style))))
-                  (setq max-width (max max-width (length line)))
-                  (insert (concat line "\n"))
+                       (matched-styles (gethash (intern (car style)) style-to-rule-map)))
+                  (insert (propertize (car style)
+                                      'face
+                                      (if (null (string-match "^-" (car style)))
+                                          (if matched-styles
+                                              'kite-css-property
+                                            'kite-css-computed-unused-property)
+                                        (if matched-styles
+                                            'kite-css-proprietary-property
+                                          'kite-css-computed-proprietary-unused-property))))
+                  (insert ": ")
+                  (kite--dom-insert-computed-style-value (cdr style))
+                  (setq max-width (max max-width (current-column)))
+                  (insert "\n")
+
                   (while matched-styles
                     (let ((match-info (car matched-styles)))
                       (insert (concat "  "

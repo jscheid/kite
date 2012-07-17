@@ -487,6 +487,14 @@ a 'raw' color value."
                         string))
     (kite-parse-color-match string)))
 
+(defun kite--rgba-value (color)
+  "If COLOR is an RGB triplet, turn it into an RGBA quadruplet by
+appending an alpha value of 1.  Otherwise, return the value
+as-is"
+  (if (eq 3 (length color))
+      (append color (list 1))
+    color))
+
 (provide 'kite-color)
 
 ;;; kite-color.el ends here
