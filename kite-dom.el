@@ -242,6 +242,11 @@ This includes ths `x' in hex references."
   "Face used for the local name of elements."
   :group 'kite-highlighting-faces)
 
+(defface kite-modified-element-local-name-face
+  '((t :inherit kite-element-local-name-face :background "#555"))
+  "Face used for the local name of attributes."
+  :group 'kite-highlighting-faces)
+
 (defface kite-attribute-prefix-face
   '((t (:inherit kite-name-face)))
   "Face used for the prefix of attributes."
@@ -254,6 +259,11 @@ This includes ths `x' in hex references."
 
 (defface kite-attribute-local-name-face
   '((t (:inherit kite-name-face)))
+  "Face used for the local name of attributes."
+  :group 'kite-highlighting-faces)
+
+(defface kite-modified-attribute-local-name-face
+  '((t :inherit kite-attribute-local-name-face :background "#555"))
   "Face used for the local name of attributes."
   :group 'kite-highlighting-faces)
 
@@ -278,7 +288,7 @@ This includes ths `x' in hex references."
   :group 'kite-highlighting-faces)
 
 (defface kite-modified-attribute-value-face
-  '((t :inherit kite-delimited-data-face :background "#555"))
+  '((t :inherit kite-attribute-value-face :background "#555"))
   "Face used for the value of attributes."
   :group 'kite-highlighting-faces)
 
@@ -430,28 +440,49 @@ Transitions Module Level 3 section 2.3"
                  'kite--dom-attr-value-left))
     (message "kite--dom-attr-value-left %s %s" old-point new-point)))
 
+(defun kite--notify-widget (widget &rest ignore)
+  (let ((modified-face (widget-get widget :modified-value-face)))
+    (unless (eq (widget-get widget :value-face)
+                modified-face)
+      (widget-put widget :value-face modified-face)
+      (overlay-put (widget-get widget :field-overlay)
+                   'face modified-face))))
+
+(defun kite--validate-widget (widget)
+  (let ((val (widget-apply widget :value-get)))
+    (message "validate, widget value %s" val)
+    (unless (> (length val) 0)
+      (widget-put widget :error "too short!")
+      widget)))
+
 (defun kite--insert-attribute (node-id attr-name attr-value)
   (let ((attr-begin (point-marker))
         (attr-region (make-attr-region)))
 
     (setf (attr-region-outer-begin attr-region) (point-marker))
-    (widget-insert (concat " "
-                    (propertize attr-name
-                                'kite-node-id node-id
-                                'face 'kite-attribute-local-name-face)
-                    "="))
+
+    (widget-insert " ")
+
+    (widget-create 'editable-field
+                   :size 1
+                   :value-face 'kite-attribute-local-name-face
+                   :modified-value-face 'kite-modified-attribute-local-name-face
+                   :notify (function kite--notify-widget)
+                   :validate (function kite--validate-widget)
+                   :match (lambda (x) (> (length (widget-value x)) 0))
+                   attr-name)
+
+    (widget-insert "=")
+
     (setf (attr-region-value-begin attr-region) (point-marker))
     (widget-insert (propertize "\""
                         'kite-node-id node-id
                         'face 'kite-attribute-value-delimiter-face))
     (widget-create 'editable-field
-                   :size 1
+                   :size 0
                    :value-face 'kite-attribute-value-face
-                   :notify (lambda (widget &rest b c)
-                             (unless (eq (widget-get widget :value-face)
-                                         'kite-modified-attribute-value-face)
-                               (widget-put widget :value-face 'kite-modified-attribute-value-face)
-                               (overlay-put (widget-get widget :field-overlay) 'face 'kite-modified-attribute-value-face)))
+                   :modified-value-face 'kite-modified-attribute-value-face
+                   :notify (function kite--notify-widget)
                    attr-value)
     (widget-insert (propertize "\""
                         'kite-node-id node-id
@@ -501,11 +532,17 @@ Transitions Module Level 3 section 2.3"
         (widget-insert (concat (indent-prefix indent node-id)
                         (propertize "<"
                                     'kite-node-id node-id
-                                    'read-only t
-                                    'face 'kite-tag-delimiter-face)
-                        (propertize localName
-                                    'kite-node-id node-id
-                                    'face 'kite-element-local-name-face)))
+                                    'face 'kite-tag-delimiter-face)))
+
+        (widget-create 'editable-field
+                       :size 1
+                       :value-face 'kite-element-local-name-face
+                       :modified-value-face 'kite-modified-element-local-name-face
+                       :notify (function kite--notify-widget)
+                       :validate (function kite--validate-widget)
+                       :match (lambda (x) (> (length (widget-value x)) 0))
+                       localName)
+
         (setq attributes (render-attribute-regions element))
         (widget-insert (concat (propertize ">"
                                     'kite-node-id node-id
@@ -521,18 +558,15 @@ Transitions Module Level 3 section 2.3"
         (widget-insert (concat (indent-prefix indent node-id)
                         (propertize "<"
                                     'kite-node-id node-id
-                                    'read-only t
                                     'face 'kite-tag-delimiter-face)
                         (propertize "/"
                                     'kite-node-id node-id
-                                    'read-only t
                                     'face 'kite-tag-slash-face)
                         (propertize localName
                                     'kite-node-id node-id
                                     'face 'kite-element-local-name-face)
                         (propertize ">"
                                     'kite-node-id node-id
-                                    'read-only t
                                     'face 'kite-tag-delimiter-face)
                         "\n")))
 
@@ -540,11 +574,16 @@ Transitions Module Level 3 section 2.3"
         (widget-insert (concat (indent-prefix indent node-id)
                         (propertize "<"
                                     'kite-node-id node-id
-                                    'read-only t
-                                    'face 'kite-tag-delimiter-face)
-                        (propertize localName
-                                    'kite-node-id node-id
-                                    'face 'kite-element-local-name-face)))
+                                    'face 'kite-tag-delimiter-face)))
+
+        (widget-create 'editable-field
+                       :size 1
+                       :value-face 'kite-element-local-name-face
+                       :modified-value-face 'kite-modified-element-local-name-face
+                       :notify (function kite--notify-widget)
+                       :validate (function kite--validate-widget)
+                       :match (lambda (x) (> (length (widget-value x)) 0))
+                       localName)
         (setq attributes (render-attribute-regions element))
         (widget-insert (propertize ">"
                             'face 'kite-tag-delimiter-face))
@@ -553,18 +592,15 @@ Transitions Module Level 3 section 2.3"
         (setf (node-region-inner-end node-region) (point-marker))
         (widget-insert (concat (propertize "<"
                                     'kite-node-id node-id
-                                    'read-only t
                                     'face 'kite-tag-delimiter-face)
                         (propertize "/"
                                     'kite-node-id node-id
-                                    'read-only t
                                     'face 'kite-tag-slash-face)
                         (propertize localName
                                     'kite-node-id node-id
                                     'face 'kite-element-local-name-face)
                         (propertize ">"
                                     'kite-node-id node-id
-                                    'read-only t
                                     'face 'kite-tag-delimiter-face)
                         "\n"))
         (when loadp
