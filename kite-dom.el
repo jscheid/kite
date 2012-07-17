@@ -387,6 +387,36 @@ The delimiters are <! and >."
 
 (defconst kite-dom-offset 2)
 
+(defun kite--dom-timing-function-image (width height args)
+  "Create an image that visualizes the timing function as a cubic
+bezier curve.  WIDTH and HEIGHT are the image dimensions in
+pixels.  ARGS are four floating point numbers as per CSS
+Transitions Module Level 3 section 2.3"
+  (create-image
+   (format
+    (concat
+     "<?xml version='1.0'?>\n"
+     "<!DOCTYPE svg PUBLIC '-//W3C//DTD SVG 1.1//EN'\n"
+     "  'http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd'>\n"
+     "<svg xmlns='http://www.w3.org/2000/svg'\n"
+     "     width='%spx'\n"
+     "     height='%spx'>\n"
+     " <g transform='translate(0, %s)'>\n"
+     "  <g transform='scale(1, -1)'>\n"
+     "   <path d='M0,0 C%s,%s %s,%s %s,%s' style='fill: none; stroke: red; stroke-width: 1px'/>\n"
+     "  </g>"
+     " </g>"
+     "</svg>")
+    width height height
+    (* width (nth 0 args))
+    (* height (nth 1 args))
+    (* width (nth 2 args))
+    (* height (nth 3 args))
+    width height
+    )
+   'svg
+   t))
+
 (defun kite--dom-attr-value-left (old-point new-point)
   (when (not (eq (get-text-property new-point 'point-left)
                  'kite--dom-attr-value-left))
