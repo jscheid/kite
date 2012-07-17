@@ -1,6 +1,9 @@
-(eval-when-compile (require 'cl))
-
 (require 'kite-color)
+(require 'widget)
+
+(eval-when-compile
+  (require 'cl)
+  (require 'wid-edit))
 
 (defstruct (node-region)
   line-begin
@@ -274,6 +277,11 @@ This includes ths `x' in hex references."
   "Face used for the value of attributes."
   :group 'kite-highlighting-faces)
 
+(defface kite-modified-attribute-value-face
+  '((t :inherit kite-delimited-data-face :background "#555"))
+  "Face used for the value of attributes."
+  :group 'kite-highlighting-faces)
+
 (defface kite-attribute-value-delimiter-face
   '((t (:inherit kite-delimiter-face)))
   "Face used for the delimiters of attribute values."
@@ -427,31 +435,27 @@ Transitions Module Level 3 section 2.3"
         (attr-region (make-attr-region)))
 
     (setf (attr-region-outer-begin attr-region) (point-marker))
-    (insert (concat " "
+    (widget-insert (concat " "
                     (propertize attr-name
                                 'kite-node-id node-id
-                                'read-only t
                                 'face 'kite-attribute-local-name-face)
                     "="))
     (setf (attr-region-value-begin attr-region) (point-marker))
-    (insert (propertize "\""
+    (widget-insert (propertize "\""
                         'kite-node-id node-id
-                        'read-only t
-                        'face 'kite-attribute-value-delimiter-face
-                        'rear-nonsticky '(read-only point-left)))
-    (insert (propertize attr-value
+                        'face 'kite-attribute-value-delimiter-face))
+    (widget-create 'editable-field
+                   :size 1
+                   :value-face 'kite-attribute-value-face
+                   :notify (lambda (widget &rest b c)
+                             (unless (eq (widget-get widget :value-face)
+                                         'kite-modified-attribute-value-face)
+                               (widget-put widget :value-face 'kite-modified-attribute-value-face)
+                               (overlay-put (widget-get widget :field-overlay) 'face 'kite-modified-attribute-value-face)))
+                   attr-value)
+    (widget-insert (propertize "\""
                         'kite-node-id node-id
-                        'face 'kite-attribute-value-face
-                        'point-left 'kite--dom-attr-value-left
-                        'keymap kite-dom-attr-value-keymap
-                        'field 'kite-dom-attribute))
-    (insert (propertize "\""
-                        'kite-node-id node-id
-                        'read-only t
-                        'keymap kite-dom-attr-value-keymap
-                        'face 'kite-attribute-value-delimiter-face
-                        'front-sticky '(keymap)
-                        'rear-nonsticky '(keymap)))
+                        'face 'kite-attribute-value-delimiter-face))
     (setf (attr-region-value-end attr-region) (point-marker))
     (setf (attr-region-outer-end attr-region) (point-marker))
 
@@ -494,7 +498,7 @@ Transitions Module Level 3 section 2.3"
        ((and (eq nodeType 1)
              (or (eq 0 (plist-get element :childNodeCount))
                  (plist-member element :children)))
-        (insert (concat (indent-prefix indent node-id)
+        (widget-insert (concat (indent-prefix indent node-id)
                         (propertize "<"
                                     'kite-node-id node-id
                                     'read-only t
@@ -503,7 +507,7 @@ Transitions Module Level 3 section 2.3"
                                     'kite-node-id node-id
                                     'face 'kite-element-local-name-face)))
         (setq attributes (render-attribute-regions element))
-        (insert (concat (propertize ">"
+        (widget-insert (concat (propertize ">"
                                     'kite-node-id node-id
                                     'read-only t
                                     'face 'kite-tag-delimiter-face)
@@ -514,7 +518,7 @@ Transitions Module Level 3 section 2.3"
                 (plist-get element :children))
         (setf (node-region-inner-end node-region) (point-marker))
 
-        (insert (concat (indent-prefix indent node-id)
+        (widget-insert (concat (indent-prefix indent node-id)
                         (propertize "<"
                                     'kite-node-id node-id
                                     'read-only t
@@ -533,7 +537,7 @@ Transitions Module Level 3 section 2.3"
                         "\n")))
 
        ((eq nodeType 1)
-        (insert (concat (indent-prefix indent node-id)
+        (widget-insert (concat (indent-prefix indent node-id)
                         (propertize "<"
                                     'kite-node-id node-id
                                     'read-only t
@@ -542,12 +546,12 @@ Transitions Module Level 3 section 2.3"
                                     'kite-node-id node-id
                                     'face 'kite-element-local-name-face)))
         (setq attributes (render-attribute-regions element))
-        (insert (propertize ">"
+        (widget-insert (propertize ">"
                             'face 'kite-tag-delimiter-face))
         (setf (node-region-inner-begin node-region) (point-marker))
-        (insert "...")
+        (widget-insert "...")
         (setf (node-region-inner-end node-region) (point-marker))
-        (insert (concat (propertize "<"
+        (widget-insert (concat (propertize "<"
                                     'kite-node-id node-id
                                     'read-only t
                                     'face 'kite-tag-delimiter-face)
@@ -568,7 +572,7 @@ Transitions Module Level 3 section 2.3"
                      (lambda (response) nil))))
 
        ((eq nodeType 3)
-        (insert (concat (indent-prefix indent node-id)
+        (widget-insert (concat (indent-prefix indent node-id)
                         (propertize (replace-regexp-in-string "\\(^\\(\\s \\|\n\\)+\\|\\(\\s \\|\n\\)+$\\)" ""
                                                               (plist-get element :nodeValue))
                                     'kite-node-id node-id
@@ -599,6 +603,9 @@ Transitions Module Level 3 section 2.3"
       (kite-dom-mode)
       (let ((inhibit-read-only t))
         (erase-buffer))
+      (remove-overlays)
+      (use-local-map widget-keymap)
+      (widget-setup)
       (set (make-local-variable 'kite-session) kite-session))
     (switch-to-buffer buf)
     (kite-send "CSS.enable" nil
@@ -613,7 +620,8 @@ Transitions Module Level 3 section 2.3"
                  (with-current-buffer buf
                    (save-excursion
                      (kite--dom-insert-element (elt (plist-get (plist-get (plist-get response :result) :root) :children) 0)
-                                                0 t)))))))
+                                                0 t)
+                     (widget-setup)))))))
 
 (defun kite--dom-buffer (websocket-url)
   (format "*kite dom %s*" websocket-url))
@@ -629,14 +637,15 @@ Transitions Module Level 3 section 2.3"
                        (node-region-inner-end node-region))
         (goto-char (node-region-inner-begin node-region))
         (atomic-change-group
-          (insert "\n")
+          (widget-insert "\n")
           (mapcar (lambda (node)
                     (kite--dom-insert-element node (1+ (node-region-indent node-region)) t))
                   (plist-get packet :nodes))
-          (insert (propertize
+          (widget-insert (propertize
                    (make-string (* kite-dom-offset (node-region-indent node-region)) 32)
                    'kite-node-id (plist-get packet :parentId)
-                   'read-only t)))))))
+                   'read-only t))))
+      (widget-setup))))
 
 (defun kite--dom-DOM-childNodeInserted (websocket-url packet)
   (kite--log "kite--DOM-childNodeInserted got packet %s" packet)
@@ -655,7 +664,8 @@ Transitions Module Level 3 section 2.3"
             (goto-char (node-region-line-end node-region))
             (kite--dom-insert-element (plist-get packet :node)
                                        (node-region-indent node-region)
-                                       t)))))))
+                                       t))))
+      (widget-setup))))
 
 (defun kite--dom-DOM-childNodeCountUpdated (websocket-url packet)
   (kite--log "kite--DOM-childNodeCountUpdated got packet %s" packet))
@@ -687,7 +697,7 @@ Transitions Module Level 3 section 2.3"
               (goto-char (1+ (attr-region-value-begin attr-region)))
               (delete-region (1+ (attr-region-value-begin attr-region))
                              (- (attr-region-value-end attr-region) 1))
-              (insert (propertize (plist-get packet :value)
+              (widget-insert (propertize (plist-get packet :value)
                                   'keymap kite-dom-attr-value-keymap
                                   'field 'kite-dom-attribute
                                   'point-left 'kite--dom-attr-value-left
