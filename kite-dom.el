@@ -324,7 +324,7 @@ The delimiters are <! and >."
       :foreground
       "black"
       :weight
-      normal 
+      normal
       :slant
       normal))
     (t
@@ -333,7 +333,7 @@ The delimiters are <! and >."
       :foreground
       "black"
       :weight
-      normal 
+      normal
       :slant
       normal)))
   "Face used for glyph for char references."
