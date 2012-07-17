@@ -1,5 +1,7 @@
 (eval-when-compile (require 'cl))
 
+(require 'kite-color)
+
 (defstruct (node-region)
   line-begin
   line-end
