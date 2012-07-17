@@ -33,6 +33,9 @@
 (defvar kite-Page-frameNavigated-hooks nil)
 (defvar kite-Page-loadEventFired-hooks nil)
 
+(defun kite--define-global-mode-keys (map)
+  (define-key map "!" 'kite-reload-page))
+
 (require 'kite-dom)
 (require 'kite-memory)
 (require 'kite-net)
@@ -82,9 +85,6 @@
                               (cdr (assq 'functionName stackframe)))))
         (setq index (1+ index))))
     formatted))
-
-(defun kite--define-global-mode-keys (map)
-  (define-key map "!" 'kite-reload-page))
 
 (defvar kite-connection-mode-map
   (let ((map (make-keymap))
