@@ -470,6 +470,7 @@ Transitions Module Level 3 section 2.3"
                    :notify (function kite--notify-widget)
                    :validate (function kite--validate-widget)
                    :match (lambda (x) (> (length (widget-value x)) 0))
+                   :kite-node-id node-id
                    attr-name)
 
     (widget-insert "=")
@@ -483,6 +484,7 @@ Transitions Module Level 3 section 2.3"
                    :value-face 'kite-attribute-value-face
                    :modified-value-face 'kite-modified-attribute-value-face
                    :notify (function kite--notify-widget)
+                   :kite-node-id node-id
                    attr-value)
     (widget-insert (propertize "\""
                         'kite-node-id node-id
@@ -541,6 +543,7 @@ Transitions Module Level 3 section 2.3"
                        :notify (function kite--notify-widget)
                        :validate (function kite--validate-widget)
                        :match (lambda (x) (> (length (widget-value x)) 0))
+                       :kite-node-id node-id
                        localName)
 
         (setq attributes (render-attribute-regions element))
@@ -588,6 +591,7 @@ Transitions Module Level 3 section 2.3"
                        :notify (function kite--notify-widget)
                        :validate (function kite--validate-widget)
                        :match (lambda (x) (> (length (widget-value x)) 0))
+                       :kite-node-id node-id
                        localName)
         (setq attributes (render-attribute-regions element))
         (widget-insert (propertize ">"
@@ -993,8 +997,13 @@ Transitions Module Level 3 section 2.3"
                    (kite-dom-goto-node
                     (plist-get (plist-get response :result) :nodeId)))))))
 
-(defun kite--dom-node-at-point ()
-  (get-text-property (point) 'kite-node-id))
+(defun kite--dom-node-at-point (&optional arg)
+  (interactive)
+  (let ((point-arg (or arg (point))))
+    (or (get-text-property point-arg 'kite-node-id)
+        (let ((widget (widget-at point-arg)))
+          (when widget
+            (widget-get widget :kite-node-id))))))
 
 (defun kite-dom-delete-node-or-attribute ()
   (interactive)
