@@ -551,29 +551,34 @@ Transitions Module Level 3 section 2.3"
                         "\n"))
         (setf (node-region-inner-begin node-region) (point-marker))
 
+        (put-text-property (node-region-line-begin node-region)
+                           (node-region-inner-begin node-region)
+                           'kite-node-id
+                           node-id)
+
         (mapcar (lambda (child) (kite--dom-insert-element child (1+ indent) loadp))
                 (plist-get element :children))
         (setf (node-region-inner-end node-region) (point-marker))
 
         (widget-insert (concat (indent-prefix indent node-id)
                         (propertize "<"
-                                    'kite-node-id node-id
                                     'face 'kite-tag-delimiter-face)
                         (propertize "/"
-                                    'kite-node-id node-id
                                     'face 'kite-tag-slash-face)
                         (propertize localName
-                                    'kite-node-id node-id
                                     'face 'kite-element-local-name-face)
-                        (propertize ">"
-                                    'kite-node-id node-id
-                                    'face 'kite-tag-delimiter-face)
-                        "\n")))
+                        (propertize ">\n"
+                                    'face 'kite-tag-delimiter-face)))
+
+        (put-text-property (node-region-inner-end node-region)
+                           (point)
+                           'kite-node-id
+                           node-id))
+
 
        ((eq nodeType 1)
         (widget-insert (concat (indent-prefix indent node-id)
                         (propertize "<"
-                                    'kite-node-id node-id
                                     'face 'kite-tag-delimiter-face)))
 
         (widget-create 'editable-field
@@ -591,18 +596,20 @@ Transitions Module Level 3 section 2.3"
         (widget-insert "...")
         (setf (node-region-inner-end node-region) (point-marker))
         (widget-insert (concat (propertize "<"
-                                    'kite-node-id node-id
                                     'face 'kite-tag-delimiter-face)
                         (propertize "/"
-                                    'kite-node-id node-id
                                     'face 'kite-tag-slash-face)
                         (propertize localName
-                                    'kite-node-id node-id
                                     'face 'kite-element-local-name-face)
                         (propertize ">"
-                                    'kite-node-id node-id
                                     'face 'kite-tag-delimiter-face)
                         "\n"))
+
+        (put-text-property (node-region-line-begin node-region)
+                           (point)
+                           'kite-node-id
+                           node-id)
+
         (when loadp
           (kite-send "DOM.requestChildNodes" (list (cons 'nodeId (plist-get element :nodeId)))
                      (lambda (response) nil))))
@@ -611,9 +618,14 @@ Transitions Module Level 3 section 2.3"
         (widget-insert (concat (indent-prefix indent node-id)
                         (propertize (replace-regexp-in-string "\\(^\\(\\s \\|\n\\)+\\|\\(\\s \\|\n\\)+$\\)" ""
                                                               (plist-get element :nodeValue))
-                                    'kite-node-id node-id
                                     'face 'kite-text-face)
-                        "\n"))))
+                        "\n"))
+
+        (put-text-property (node-region-line-begin node-region)
+                           (point)
+                           'kite-node-id
+                           node-id)))
+
       (setf (node-region-line-end node-region) (point-marker))
       (setf (node-region-indent node-region) indent)
       (setf (node-region-attribute-regions node-region) attributes)
@@ -673,7 +685,7 @@ Transitions Module Level 3 section 2.3"
                        (node-region-inner-end node-region))
         (goto-char (node-region-inner-begin node-region))
         (atomic-change-group
-          (widget-insert "\n")
+          (widget-insert (propertize "\n" 'kite-node-id (plist-get packet :parentId)))
           (mapcar (lambda (node)
                     (kite--dom-insert-element node (1+ (node-region-indent node-region)) t))
                   (plist-get packet :nodes))

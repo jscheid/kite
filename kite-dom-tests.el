@@ -53,21 +53,36 @@
   (with-temp-buffer
     (kite-dom-mode)
 
-    (let ((inhibit-read-only t))
-      (kite--dom-insert-element simple-element 0 nil)
+    (kite--dom-insert-element simple-element 0 nil)
 
-      (should (string= (buffer-substring-no-properties (point-min)
-                                                       (point-max))
-                       (concat
-                        "<html>\n"
-                        "  <head>\n"
-                        "    <link href=\"foo\">\n"
-                        "    </link>\n"
-                        "  </head>\n"
-                        "  <body>\n"
-                        "  </body>\n"
-                        "</html>\n"))))))
+    (should (string= (buffer-substring-no-properties (point-min)
+                                                     (point-max))
+                     (concat
+                      "<html>\n"
+                      "  <head>\n"
+                      "    <link href=\"foo\">\n"
+                      "    </link>\n"
+                      "  </head>\n"
+                      "  <body>\n"
+                      "  </body>\n"
+                      "</html>\n")))))
 
+(ert-deftest kite-test-dom-node-id ()
+  "A node ID is associated with each character in the buffer"
+
+  (with-temp-buffer
+    (kite-dom-mode)
+
+    (kite--dom-insert-element simple-element 0 nil)
+
+    (message "buffer-string is >>%s<< and size %s" (buffer-string) (point-max))
+
+    (let ((index (point-min))
+          (size (point-max)))
+      (while (< index size)
+        (should-not (equal (cons index nil)
+                           (cons index (get-text-property index 'kite-node-id))))
+        (setq index (1+ index))))))
 
 
 (ert-deftest kite-test-dom-textnodes ()
