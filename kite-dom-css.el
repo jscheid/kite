@@ -1,3 +1,4 @@
+(require 'kite-util)
 
 ;; Try loading css-mode so we can steal their faces
 (require 'css-mode nil t)

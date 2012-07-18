@@ -1,6 +1,5 @@
 (require 'kite-color)
 (require 'kite-dom-css)
-(require 'kite-util)
 (require 'widget)
 
 (eval-when-compile
