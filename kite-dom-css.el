@@ -1,4 +1,40 @@
 
+;; Try loading css-mode so we can steal their faces
+(require 'css-mode nil t)
+
+(defface kite-css-selector
+  (if (facep 'css-selector)
+      '((t (:inherit css-selector)))
+    '((t :inherit font-lock-function-name-face)))
+  "Face to use for selectors."
+  :group 'kite)
+
+(defface kite-css-property
+  (if (facep 'css-property)
+      '((t (:inherit css-property)))
+    '((t :inherit font-lock-variable-name-face)))
+  "Face to use for properties."
+  :group 'kite)
+
+(defface kite-css-computed-unused-property
+  `((t :inherit kite-css-property
+       :foreground ,(kite--dimmed-face-foreground 'kite-css-property 0.5)))
+  "Face to use for computed properties that are unused."
+  :group 'kite)
+
+(defface kite-css-proprietary-property
+  (if (facep 'css-proprietary-property)
+      '((t (:inherit css-proprietary-property)))
+    '((t :inherit (css-property italic))))
+  "Face to use for vendor-specific properties."
+  :group 'kite)
+
+(defface kite-css-computed-proprietary-unused-property
+  `((t :inherit kite-css-proprietary-property
+       :foreground ,(kite--dimmed-face-foreground 'kite-css-property 0.5)))
+  "Face to use for computed vendore-specific properties that are unused."
+  :group 'kite)
+
 (defun kite-dom--render-property (property indent)
   (insert (make-string (* 2 indent) 32))
   (insert (plist-get property :name))
