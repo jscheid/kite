@@ -298,30 +298,6 @@ The delimiters are <! and >."
   "Face used for # before a name in the prolog."
   :group 'kite-highlighting-faces)
 
-(defface kite-glyph-face
-  '((((type x))
-     (:family
-      "misc-fixed"
-      :background
-      "light grey"
-      :foreground
-      "black"
-      :weight
-      normal
-      :slant
-      normal))
-    (t
-     (:background
-      "light grey"
-      :foreground
-      "black"
-      :weight
-      normal
-      :slant
-      normal)))
-  "Face used for glyph for char references."
-  :group 'kite-highlighting-faces)
-
 (defvar kite-dom-mode-map nil
   "Local keymap for `kite-dom-mode' buffers.")
 
@@ -342,27 +318,6 @@ The delimiters are <! and >."
         (define-key map "\C-xnd" 'kite-dom-narrow-to-node)
 
         (define-key map [mouse-movement] 'kite-mouse-movement)
-
-        map))
-
-(defvar kite-dom-attr-value-keymap nil
-  "Keymap used inside editable fields in customization buffers.")
-
-(setq kite-dom-attr-value-keymap
-      (let ((map (make-sparse-keymap)))
-        (define-key map [remap self-insert-command] 'kite-dom-insert-attr-value)
-        (substitute-key-definition 'self-insert-command 'kite-dom-insert-attr-value map (current-global-map))
-        (define-key map (kbd "DEL") 'backward-delete-char-untabify)
-        (define-key map "\C-c\C-c" 'kite-dom-attr-value-set)
-        (define-key map "\C-x\C-s" 'kite-dom-attr-value-save)
-
-        (define-key map "\M-\C-u" 'kite-backward-up-element)
-        (define-key map "\M-\C-d" 'kite-down-element)
-        (define-key map "\M-\C-n" 'kite-forward-element)
-        (define-key map "\M-\C-p" 'kite-backward-element)
-        (define-key map "\M-{" 'kite-backward-paragraph)
-        (define-key map "\M-}" 'kite-forward-paragraph)
-        (define-key map "\M-h" 'kite-mark-paragraph)
 
         map))
 
@@ -433,11 +388,6 @@ Transitions Module Level 3 section 2.3"
     )
    'svg
    t))
-
-(defun kite--dom-attr-value-left (old-point new-point)
-  (when (not (eq (get-text-property new-point 'point-left)
-                 'kite--dom-attr-value-left))
-    (message "kite--dom-attr-value-left %s %s" old-point new-point)))
 
 (defun kite--notify-widget (widget &rest ignore)
   (let ((modified-face (widget-get widget :modified-value-face)))
@@ -748,10 +698,7 @@ Transitions Module Level 3 section 2.3"
               (delete-region (1+ (attr-region-value-begin attr-region))
                              (- (attr-region-value-end attr-region) 1))
               (widget-insert (propertize (plist-get packet :value)
-                                  'keymap kite-dom-attr-value-keymap
-                                  'field 'kite-dom-attribute
-                                  'point-left 'kite--dom-attr-value-left
-                                  'face 'kite-attribute-value-face)))
+                                         'face 'kite-attribute-value-face)))
           ;; Insert new attribute
           (goto-char (attr-region-value-end (cdar (node-region-attribute-regions node-region))))
           (setf (node-region-attribute-regions node-region)
@@ -770,15 +717,6 @@ Transitions Module Level 3 section 2.3"
                        (attr-region-outer-end attr-region))
         (setf (node-region-attribute-regions node-region)
               (assq-delete-all attr-name (node-region-attribute-regions node-region)))))))
-
-(defun kite-dom-insert-attr-value (arg)
-  (interactive "p")
-  (let ((begin (point)))
-    (self-insert-command arg)
-    (add-text-properties begin (point)
-                         (list 'face 'kite-attribute-value-face
-                               'keymap kite-dom-attr-value-keymap
-                               'field 'kite-dom-attribute))))
 
 
 (defun kite-backward-up-element (&optional arg)
