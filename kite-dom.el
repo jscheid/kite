@@ -870,14 +870,80 @@ Transitions Module Level 3 section 2.3"
   (interactive)
   (kite-send "DOM.hideHighlight"))
 
+(defun kite-dom--render-property (property indent)
+  (insert (make-string (* 2 indent) 32))
+  (insert (plist-get property :name))
+  (insert ": ")
+  (insert (plist-get property :value))
+  (insert ";\n"))
+
+(defun kite-dom--render-css-rule (css-rule)
+  (insert (format "%s {\n" (plist-get css-rule :selectorText)))
+  (let* ((style (plist-get css-rule :style))
+         (shorthand-entries
+          (let* ((hashtable (make-hash-table :test 'equal))
+                 (entries (plist-get style :shorthandEntries))
+                 (index 0)
+                 (count (length entries)))
+            (while (< index count)
+              (let ((element (elt entries index)))
+                (puthash (plist-get element :name)
+                         element
+                         hashtable))
+              (setq index (1+ index)))
+            hashtable))
+         (properties (plist-get style :cssProperties))
+         (property-index 0)
+         (property-count (length properties)))
+
+    (kite--log "shorthand-entries %s" shorthand-entries)
+    (while (< property-index property-count)
+      (let* ((property (elt properties property-index))
+             (shorthand-name (plist-get property :shorthandName))
+             (shorthand-property
+              (and shorthand-name
+                   (gethash shorthand-name
+                            shorthand-entries))))
+        (when shorthand-property
+          (kite-dom--render-property shorthand-property 1)
+          (remhash shorthand-name shorthand-entries))
+        (kite-dom--render-property property (if shorthand-name 2 1)))
+      (setq property-index (1+ property-index))))
+  (insert "}\n\n"))
+
+(defun kite--dom-create-css-buffer (matched-css-rules)
+  (kite--log
+   (concat "kite--dom-create-css-buffer called with rules:\n"
+           (pp-to-string matched-css-rules)))
+  (let* ((node-region-buffer (get-buffer-create "*kite css*"))
+         (max-width 0)
+         (window (display-buffer
+                  node-region-buffer
+                  '((display-buffer-pop-up-window . nil)))))
+    (with-current-buffer node-region-buffer
+      (special-mode)
+      (let ((inhibit-read-only t))
+        (erase-buffer)
+        (save-excursion
+          (insert "element.style {\n}\n\n")
+          (let ((rule-index (- (length matched-css-rules) 1)))
+            (while (>= rule-index 0)
+              (kite-dom--render-css-rule
+               (elt matched-css-rules rule-index))
+              (setq rule-index (- rule-index 1)))))))))
+
 (defun kite-dom-show-matched-css ()
   (interactive)
 
-  (kite-send "CSS.getMatchedStylesForNode"
-             (list (cons 'nodeId
-                         (get-char-property (point) 'kite-node-id)))
-             (lambda (response)
-               (message "CSS.getMatchedStylesForNode got response %s" response))))
+  (kite-send
+   "CSS.getMatchedStylesForNode"
+   (list (cons 'nodeId
+               (get-char-property (point) 'kite-node-id)))
+   (lambda (response)
+     (kite--log (pp-to-string response))
+     (kite--dom-create-css-buffer
+      (plist-get (plist-get response :result)
+                 :matchedCSSRules)))))
 
 (defun kite--dom-make-style-to-rule-map (matched-styles-response)
 
