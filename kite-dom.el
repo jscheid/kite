@@ -375,6 +375,9 @@ The delimiters are <! and >."
         (define-key map "c" 'kite-dom-show-matched-css)
         (define-key map "C" 'kite-dom-show-computed-css)
         (define-key map "\C-xnd" 'kite-dom-narrow-to-node)
+
+        (define-key map [mouse-movement] 'kite-mouse-movement)
+
         map))
 
 (defvar kite-dom-attr-value-keymap nil
@@ -398,11 +401,41 @@ The delimiters are <! and >."
 
         map))
 
+(defun kite-mouse-movement (event)
+  "Called on mouse movement in a kite-dom buffer.  Highlights the
+line under mouse and the corresponding DOM node in the browser."
+  (interactive "e")
+  (let ((mouse-point (nth 1 (nth 1 event))))
+    (when (numberp mouse-point)
+      (let ((node-id (kite--dom-node-at-point mouse-point)))
+        (when (not (eq node-id kite--dom-highlighted-node-id))
+          (setq kite--dom-highlighted-node-id node-id)
+          (remove-overlays nil nil 'kite-dom-node-highlight t)
+          (if (null node-id)
+              (kite-send "DOM.hideHighlight")
+            (let* ((node-region (gethash node-id kite-dom-nodes))
+                   (overlay (make-overlay
+                             (node-region-line-begin node-region)
+                             (node-region-line-end node-region))))
+              (overlay-put overlay 'kite-dom-node-highlight t)
+              (overlay-put overlay 'priority 10)
+              (overlay-put overlay 'face '(:background "#444")))
+            (kite-send "DOM.highlightNode"
+                       (list (cons 'nodeId node-id)
+                             (cons 'highlightConfig
+                                   `((showInfo . nil)
+                                     (contentColor . ,(kite--rgba 255 0 0 0.5))
+                                     (paddingColor . ,(kite--rgba 0 255 0 0.5))
+                                     (borderColor . ,(kite--rgba 0 0 255 0.5))
+                                     (marginColor . ,(kite--rgba 255 255 0 0.5))))))))))))
+
 (define-derived-mode kite-dom-mode special-mode "kite-dom"
   "Toggle kite dom mode."
   (set (make-local-variable 'kill-buffer-hook) 'kite--kill-dom)
   (setq buffer-read-only nil)
-  (set (make-local-variable 'kite-dom-nodes) (make-hash-table)))
+  (set (make-local-variable 'kite-dom-nodes) (make-hash-table))
+  (set (make-local-variable 'kite--dom-highlighted-node-id) nil)
+  (set (make-local-variable 'track-mouse) t))
 
 (defconst kite-dom-offset 2)
 
