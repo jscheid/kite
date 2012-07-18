@@ -316,14 +316,15 @@ line under mouse and the corresponding DOM node in the browser."
               (overlay-put overlay 'kite-dom-node-highlight t)
               (overlay-put overlay 'priority 10)
               (overlay-put overlay 'face '(:background "#444")))
-            (kite-send "DOM.highlightNode"
-                       (list (cons 'nodeId node-id)
-                             (cons 'highlightConfig
-                                   `((showInfo . nil)
-                                     (contentColor . ,(kite--rgba 255 0 0 0.5))
-                                     (paddingColor . ,(kite--rgba 0 255 0 0.5))
-                                     (borderColor . ,(kite--rgba 0 0 255 0.5))
-                                     (marginColor . ,(kite--rgba 255 255 0 0.5))))))))))))
+            (kite-send
+             "DOM.highlightNode"
+             `((nodeId . node-id)
+               (highlightConfig
+                . `((showInfo . nil)
+                    (contentColor . ,(kite--rgba 255 0 0 0.5))
+                    (paddingColor . ,(kite--rgba 0 255 0 0.5))
+                    (borderColor . ,(kite--rgba 0 0 255 0.5))
+                    (marginColor . ,(kite--rgba 255 255 0 0.5))))))))))))
 
 (define-derived-mode kite-dom-mode special-mode "kite-dom"
   "Toggle kite dom mode."
@@ -355,9 +356,7 @@ line under mouse and the corresponding DOM node in the browser."
         (attr-region (make-attr-region)))
 
     (setf (attr-region-outer-begin attr-region) (point-marker))
-
     (widget-insert " ")
-
     (widget-create 'editable-field
                    :size 1
                    :value-face 'kite-attribute-local-name-face
@@ -367,9 +366,7 @@ line under mouse and the corresponding DOM node in the browser."
                    :match (lambda (x) (> (length (widget-value x)) 0))
                    :kite-node-id node-id
                    attr-name)
-
     (widget-insert "=")
-
     (setf (attr-region-value-begin attr-region) (point-marker))
     (widget-insert (propertize "\""
                         'kite-node-id node-id
@@ -389,28 +386,30 @@ line under mouse and the corresponding DOM node in the browser."
 
     (cons (intern attr-name) attr-region)))
 
+(defun kite--dom-render-attribute-regions (element)
+  (let* (attribute-info-list
+         (node-id (plist-get element :nodeId))
+         (attributes (plist-get element :attributes))
+         (attr-index 0)
+         (num-attrs (length attributes))
+         (inhibit-read-only t))
+    (while (< attr-index num-attrs)
+      (setq attribute-info-list
+            (cons
+             (kite--insert-attribute
+              node-id
+              (elt attributes attr-index)
+              (elt attributes (1+ attr-index)))
+             attribute-info-list))
+      (setq attr-index (+ 2 attr-index)))
+    attribute-info-list))
+
 (defun kite--dom-insert-element (element indent loadp)
   (flet ((indent-prefix (indent node-id)
                         (propertize
                          (make-string (* kite-dom-offset indent) 32)
                          'kite-node-id node-id
-                         'read-only t))
-         (render-attribute-regions (element)
-                                   (let* (attribute-info-list
-                                          (node-id (plist-get element :nodeId))
-                                          (attributes (plist-get element :attributes))
-                                          (attr-index 0)
-                                          (num-attrs (length attributes))
-                                          (inhibit-read-only t))
-                                     (while (< attr-index num-attrs)
-                                       (setq attribute-info-list
-                                             (cons
-                                              (kite--insert-attribute node-id
-                                                                       (elt attributes attr-index)
-                                                                       (elt attributes (1+ attr-index)))
-                                              attribute-info-list))
-                                       (setq attr-index (+ 2 attr-index)))
-                                     attribute-info-list)))
+                         'read-only t)))
 
     (let ((nodeType (plist-get element :nodeType))
           (node-id (plist-get element :nodeId))
@@ -422,52 +421,44 @@ line under mouse and the corresponding DOM node in the browser."
       (setf (node-region-line-begin node-region) (point-marker))
 
       (cond
-
        ((and (eq nodeType 1)
              (or (eq 0 (plist-get element :childNodeCount))
                  (plist-member element :children)))
         (widget-insert (concat (indent-prefix indent node-id)
-                        (propertize "<"
-                                    'kite-node-id node-id
-                                    'face 'kite-tag-delimiter-face)))
-
-        (widget-create 'editable-field
-                       :size 1
-                       :value-face 'kite-element-local-name-face
-                       :modified-value-face 'kite-modified-element-local-name-face
-                       :notify (function kite--notify-widget)
-                       :validate (function kite--validate-widget)
-                       :match (lambda (x) (> (length (widget-value x)) 0))
-                       :kite-node-id node-id
-                       localName)
-
-        (setq attributes (render-attribute-regions element))
+                               (propertize "<"
+                                           'kite-node-id node-id
+                                           'face 'kite-tag-delimiter-face)))
+        (widget-create
+         'editable-field
+         :size 1
+         :value-face 'kite-element-local-name-face
+         :modified-value-face 'kite-modified-element-local-name-face
+         :notify (function kite--notify-widget)
+         :validate (function kite--validate-widget)
+         :match (lambda (x) (> (length (widget-value x)) 0))
+         :kite-node-id node-id
+         localName)
+        (setq attributes (kite--dom-render-attribute-regions element))
         (widget-insert (concat (propertize ">"
-                                    'kite-node-id node-id
-                                    'read-only t
-                                    'face 'kite-tag-delimiter-face)
-                        "\n"))
+                                           'kite-node-id node-id
+                                           'read-only t
+                                           'face 'kite-tag-delimiter-face)
+                               "\n"))
         (setf (node-region-inner-begin node-region) (point-marker))
-
         (put-text-property (node-region-line-begin node-region)
                            (node-region-inner-begin node-region)
                            'kite-node-id
                            node-id)
-
         (mapcar (lambda (child) (kite--dom-insert-element child (1+ indent) loadp))
                 (plist-get element :children))
         (setf (node-region-inner-end node-region) (point-marker))
-
-        (widget-insert (concat (indent-prefix indent node-id)
-                        (propertize "<"
-                                    'face 'kite-tag-delimiter-face)
-                        (propertize "/"
-                                    'face 'kite-tag-slash-face)
-                        (propertize localName
-                                    'face 'kite-element-local-name-face)
-                        (propertize ">\n"
-                                    'face 'kite-tag-delimiter-face)))
-
+        (widget-insert
+         (concat
+          (indent-prefix indent node-id)
+          (propertize "<" 'face 'kite-tag-delimiter-face)
+          (propertize "/" 'face 'kite-tag-slash-face)
+          (propertize localName 'face 'kite-element-local-name-face)
+          (propertize ">\n" 'face 'kite-tag-delimiter-face)))
         (put-text-property (node-region-inner-end node-region)
                            (point)
                            'kite-node-id
@@ -476,9 +467,8 @@ line under mouse and the corresponding DOM node in the browser."
 
        ((eq nodeType 1)
         (widget-insert (concat (indent-prefix indent node-id)
-                        (propertize "<"
-                                    'face 'kite-tag-delimiter-face)))
-
+                               (propertize "<"
+                                           'face 'kite-tag-delimiter-face)))
         (widget-create 'editable-field
                        :size 1
                        :value-face 'kite-element-local-name-face
@@ -488,38 +478,37 @@ line under mouse and the corresponding DOM node in the browser."
                        :match (lambda (x) (> (length (widget-value x)) 0))
                        :kite-node-id node-id
                        localName)
-        (setq attributes (render-attribute-regions element))
+        (setq attributes (kite--dom-render-attribute-regions element))
         (widget-insert (propertize ">"
-                            'face 'kite-tag-delimiter-face))
+                                   'face 'kite-tag-delimiter-face))
         (setf (node-region-inner-begin node-region) (point-marker))
         (widget-insert "...")
         (setf (node-region-inner-end node-region) (point-marker))
-        (widget-insert (concat (propertize "<"
-                                    'face 'kite-tag-delimiter-face)
-                        (propertize "/"
-                                    'face 'kite-tag-slash-face)
-                        (propertize localName
-                                    'face 'kite-element-local-name-face)
-                        (propertize ">"
-                                    'face 'kite-tag-delimiter-face)
-                        "\n"))
-
+        (widget-insert
+         (concat
+          (propertize "<" 'face 'kite-tag-delimiter-face)
+          (propertize "/" 'face 'kite-tag-slash-face)
+          (propertize localName 'face 'kite-element-local-name-face)
+          (propertize ">" 'face 'kite-tag-delimiter-face)
+          "\n"))
         (put-text-property (node-region-line-begin node-region)
                            (point)
                            'kite-node-id
                            node-id)
-
         (when loadp
-          (kite-send "DOM.requestChildNodes" (list (cons 'nodeId (plist-get element :nodeId)))
+          (kite-send "DOM.requestChildNodes"
+                     (list (cons 'nodeId (plist-get element :nodeId)))
                      (lambda (response) nil))))
 
        ((eq nodeType 3)
-        (widget-insert (concat (indent-prefix indent node-id)
-                        (propertize (replace-regexp-in-string "\\(^\\(\\s \\|\n\\)+\\|\\(\\s \\|\n\\)+$\\)" ""
-                                                              (plist-get element :nodeValue))
-                                    'face 'kite-text-face)
-                        "\n"))
-
+        (widget-insert
+         (concat
+          (indent-prefix indent node-id)
+          (propertize (replace-regexp-in-string
+                       "\\(^\\(\\s \\|\n\\)+\\|\\(\\s \\|\n\\)+$\\)" ""
+                       (plist-get element :nodeValue))
+                      'face 'kite-text-face)
+          "\n"))
         (put-text-property (node-region-line-begin node-region)
                            (point)
                            'kite-node-id
@@ -554,19 +543,30 @@ line under mouse and the corresponding DOM node in the browser."
       (widget-setup)
       (set (make-local-variable 'kite-session) kite-session))
     (switch-to-buffer buf)
-    (kite-send "CSS.enable" nil
-               (lambda (response)
-                 (message "CSS.enable got response %s" response)
-                 (kite-send "CSS.getAllStyleSheets" nil
-                            (lambda (response)
-                              (message "CSS.getAllStyleSheets got response %s" response)))))
+    (kite-send
+     "CSS.enable"
+     nil
+     (lambda (response)
+       (message "CSS.enable got response %s" response)
+       (kite-send
+        "CSS.getAllStyleSheets"
+        nil
+        (lambda (response)
+          (message "CSS.getAllStyleSheets got response %s" response)))))
     (kite-send "DOM.getDocument" nil
                (lambda (response)
                  (kite--log "DOM.getDocument got response %s" response)
                  (with-current-buffer buf
                    (save-excursion
-                     (kite--dom-insert-element (elt (plist-get (plist-get (plist-get response :result) :root) :children) 0)
-                                                0 t)
+                     (kite--dom-insert-element
+                      (elt (plist-get
+                            (plist-get
+                             (plist-get
+                              response
+                              :result)
+                             :root)
+                            :children) 0)
+                      0 t)
                      (widget-setup)))))))
 
 (defun kite--dom-buffer (websocket-url)
@@ -663,7 +663,6 @@ line under mouse and the corresponding DOM node in the browser."
                        (attr-region-outer-end attr-region))
         (setf (node-region-attribute-regions node-region)
               (assq-delete-all attr-name (node-region-attribute-regions node-region)))))))
-
 
 (defun kite-backward-up-element (&optional arg)
   (interactive "p")
