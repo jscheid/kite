@@ -175,29 +175,39 @@ the buffer when it becomes large.")
 (defun kite--console-insert-message (message)
   (insert
    (propertize
-    (concat
-     (make-string (* 2 kite-message-group-level) 32)
-     (let ((arg-index 1)
-           (parameters (plist-get message :parameters)))
-       (replace-regexp-in-string
-        "\\([^%]\\|^\\)\\(%[osd]\\)"
-        (lambda (string)
-          (prog1
-              (let ((object (elt parameters arg-index)))
-                (if object
-                    (kite--format-object object)
-                  string))
-            (setq arg-index (1+ arg-index))))
-        (propertize
-         (plist-get message :text)
-         'face (intern (format "kite-log-%s" (plist-get message :level))))
-        t   ; fixed-case
-        t   ; literal
-        2)) ; subexp
-     (when (plist-get message :repeatCount)
-       (kite--message-repeat-text
-        (plist-get message :repeatCount)))
-     "\n")
+    (let* ((parameters (plist-get message :parameters))
+           (arg-index (if (string= (plist-get (elt parameters 0) :type) "string")
+                          1 0)))
+      (concat
+       (make-string (* 2 kite-message-group-level) 32)
+       (when (> arg-index 0)
+         (replace-regexp-in-string
+          "\\([^%]\\|^\\)\\(%[osd]\\)"
+          (lambda (string)
+            (prog1
+                (let ((object (elt parameters arg-index)))
+                  (if object
+                      (kite--format-object object)
+                    string))
+              (setq arg-index (1+ arg-index))))
+          (propertize
+           (plist-get message :text)
+           'face (intern (format "kite-log-%s" (plist-get message :level))))
+          t   ; fixed-case
+          t   ; literal
+          2)) ; subexp
+       (let (extra-args)
+         (while (< arg-index (length parameters))
+           (setq extra-args
+                 (concat extra-args
+                         (when (> arg-index 0) " ")
+                         (kite--format-object (elt parameters arg-index))))
+           (setq arg-index (1+ arg-index)))
+         extra-args)
+       (when (plist-get message :repeatCount)
+         (kite--message-repeat-text
+          (plist-get message :repeatCount)))
+       "\n"))
     'log-message message)))
 
 (defun kite--console-messageAdded (websocket-url packet)
