@@ -36,6 +36,12 @@
 (defun kite--define-global-mode-keys (map)
   (define-key map "!" 'kite-reload-page))
 
+(make-variable-buffer-local 'kite-buffer-type)
+(set-default 'kite-buffer-type nil)
+
+(make-variable-buffer-local 'kite-session)
+(set-default 'kite-session nil)
+
 (require 'kite-dom)
 (require 'kite-memory)
 (require 'kite-net)
@@ -56,6 +62,7 @@
   page-url
   page-title
   breakpoint-ewoc
+  unique-name
   (script-infos (make-hash-table :test 'equal))
   (debugger-state kite--debugger-state-resumed)
   (next-request-id 0)
@@ -301,7 +308,9 @@
           :page-favicon-url (plist-get tab-alist :faviconUrl)
           :page-thumbnail-url (plist-get tab-alist :thumbnailUrl)
           :page-url (plist-get tab-alist :url)
-          :page-title (plist-get tab-alist :title)))
+          :page-title (plist-get tab-alist :title)
+          :unique-name (kite--unique-session-name
+                        (plist-get tab-alist :title))))
 
     (puthash websocket-url kite-session kite-active-sessions)
 
@@ -553,6 +562,10 @@ prefix argument ARG, ignore (force-refresh) the browser cache."
                  (if bool-prefix
                      (message "Page reloaded (with cache ignored)")
                    (message "Page reloaded"))))))
+
+(defun kite--unique-session-name (title)
+  ;; FIXME
+  title)
 
 (add-hook 'kite-Debugger-paused-hooks 'kite--Debugger-paused)
 (add-hook 'kite-Debugger-resumed-hooks 'kite--Debugger-resumed)

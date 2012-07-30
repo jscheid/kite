@@ -328,6 +328,7 @@ line under mouse and the corresponding DOM node in the browser."
 
 (define-derived-mode kite-dom-mode special-mode "kite-dom"
   "Toggle kite dom mode."
+  (setq kite-buffer-type 'dom)
   (set (make-local-variable 'kill-buffer-hook) 'kite--kill-dom)
   (setq buffer-read-only nil)
   (set (make-local-variable 'kite-dom-nodes) (make-hash-table))
@@ -533,44 +534,60 @@ line under mouse and the corresponding DOM node in the browser."
   (kite--log "opening dom")
   (lexical-let*
       ((kite-session kite-session)
-       (buf (get-buffer-create
-             (kite--dom-buffer (kite--websocket-url)))))
-    (with-current-buffer buf
-      (kite-dom-mode)
-      (let ((inhibit-read-only t))
-        (erase-buffer))
-      (remove-overlays)
-      (widget-setup)
-      (set (make-local-variable 'kite-session) kite-session))
-    (switch-to-buffer buf)
-    (kite-send
-     "CSS.enable"
-     nil
-     (lambda (response)
-       (message "CSS.enable got response %s" response)
-       (kite-send
-        "CSS.getAllStyleSheets"
-        nil
-        (lambda (response)
-          (message "CSS.getAllStyleSheets got response %s" response)))))
-    (kite-send "DOM.getDocument" nil
-               (lambda (response)
-                 (kite--log "DOM.getDocument got response %s" response)
-                 (with-current-buffer buf
-                   (save-excursion
-                     (kite--dom-insert-element
-                      (elt (plist-get
-                            (plist-get
-                             (plist-get
-                              response
-                              :result)
-                             :root)
-                            :children) 0)
-                      0 t)
-                     (widget-setup)))))))
+       (buf (kite--dom-buffer (kite--websocket-url))))
+    (if buf
+        (switch-to-buffer buf)
+      (setq buf (generate-new-buffer
+                 (format "*kite dom %s*"
+                         (kite-session-unique-name kite-session))))
+      (with-current-buffer buf
+        (kite-dom-mode)
+        (let ((inhibit-read-only t))
+          (erase-buffer))
+        (remove-overlays)
+        (widget-setup)
+        (set (make-local-variable 'kite-session) kite-session))
+      (switch-to-buffer buf)
+      (kite-send
+       "CSS.enable"
+       nil
+       (lambda (response)
+         (message "CSS.enable got response %s" response)
+         (kite-send
+          "CSS.getAllStyleSheets"
+          nil
+          (lambda (response)
+            (message "CSS.getAllStyleSheets got response %s" response)))))
+      (kite-send "DOM.getDocument" nil
+                 (lambda (response)
+                   (kite--log "DOM.getDocument got response %s" response)
+                   (with-current-buffer buf
+                     (save-excursion
+                       (kite--dom-insert-element
+                        (elt (plist-get
+                              (plist-get
+                               (plist-get
+                                response
+                                :result)
+                               :root)
+                              :children) 0)
+                        0 t)
+                       (widget-setup))))))))
 
 (defun kite--dom-buffer (websocket-url)
-  (format "*kite dom %s*" websocket-url))
+  (let ((buffer-iterator (buffer-list))
+        found)
+    (while (and buffer-iterator (not found))
+      (let ((buffer-kite-session (buffer-local-value
+                                  'kite-session
+                                  (car buffer-iterator))))
+        (when (and buffer-kite-session
+                   (string= (websocket-url (kite-session-websocket buffer-kite-session))
+                            websocket-url)
+                   (eq 'dom (buffer-local-value 'kite-buffer-type (car buffer-iterator))))
+          (setq found (car buffer-iterator))))
+      (setq buffer-iterator (cdr buffer-iterator)))
+    found))
 
 (defun kite--dom-DOM-setChildNodes (websocket-url packet)
   (kite--log "kite--DOM-setChildNodes got packet %s" packet)
