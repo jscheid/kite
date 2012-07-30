@@ -86,25 +86,69 @@ work:
   time of this writing, the required features are not part of any
   release so you will have to fetch trunk via version control.
 
-
 # Views
+
+## Session View
 
 ## Console View
 
-The console view shows the messages emitted by scripts on the page
-using the [console](https://developer.mozilla.org/en/DOM/console)
-object.
+The console view shows any messages which scripts on the page have
+emitted using the
+[console](https://developer.mozilla.org/en/DOM/console) object.
 
-The console view can be opened using `kite-console' or by typing `C'
-in most other kite views.
+The console view can be opened using `M-x kite-console' or by typing
+`C-c C' in another kite view.
+
+### Special items in messages
+
+Some parts of console messages have special key bindings:
+
+Object representations are rendered with `kite-object-face' and show
+an abbreviated representation of a JavaScript object.  Typing RET
+(`kite-inspect') with point over the object representation brings up
+an Object Inspector view for that object.
+
+DOM node representation are rendered with `kite-node-face' and show an
+abbreviated representation of a DOM node.  Typing RET (`kite-inspect')
+with point over the DOM node representation brings up the
+corresponding DOM view and moves point to the beginning of the node in
+question.
 
 ### Message Details
 
-In the console view, you can hit RET to bring up the message detail
-view for the message under point (`kite-console-details').  Some of
-the text in the message detail view may be hyperlinked to other views.
+In the console view, type `i' to bring up an detail view for the
+message under point (`kite-console-details').  The detail view show
+all available information on the log message, some of which is elided
+from the console view for brevity's sake.
+
+### Message Source
+
+In the console view, type `g' to go to the source location at which
+the message was emitted.  See *going to source locations*.
 
 ### Tail Follow
+
+If point is at the end of the console view buffer when a new message
+arrives, it will be moved to the end again.  In other words, if point
+is at the end of the buffer it will stay at the end of the buffer.
+This allows you to always see the most recent messages, but at the
+same time leaves point alone when you examine other parts of the
+buffer.
+
+### Page Reloads
+
+When the browser page is reloaded (either via `kite-reload-page' or by
+any other means, such as using the browser UI or by JavaScript code),
+`kite-console-page-reloaded-function' is executed with the console
+buffer current and point at the end of the buffer.  By default, this
+function only inserts a page break followed by a line feed.  In other
+words, messages from previous incarnations of the page are not cleared
+by default.
+
+This default behaviour is useful because it gives convenient access to
+past messages.  You can bind `kite-console-page-reloaded-function' to
+`erase-buffer' if you prefer the behaviour of the default Webkit
+Inspector Frontend, which clears past messages on page reload.
 
 ### Narrowing to Groups
 
@@ -117,21 +161,45 @@ the text in the message detail view may be hyperlinked to other views.
 ## Network View
 ## DOM View
 ## Memory View
-## Connection View
 
+# Global Key Bindings
 
-#### Test1
+The following key bindings can be used in any Kite buffer, or in any
+buffer that is associated with a Kite session by one of Kite's minor
+modes.
 
-##### Test2
+  C-c s     switch to the session view buffer
 
-## Header Level 2
+  C-c c     switch to the console view buffer
 
-Blah blah
+  C-c d     switch to the DOM view buffer
 
-### Header Level 3
+  C-c m     switch to the memory view buffer
 
-Blah
+  C-c n     switch to the network view buffer
 
-# Header Level 1 - B
+  C-c p     switch to the profiler view buffer
 
-Blah blah blah
+  C-c r     switch to the resource view buffer
+
+  C-c e     switch to the REPL view buffer
+
+  C-!       reload the page in the browser.  With prefix arg, ignore the browser cache when reloading the page.
+
+  C-c C-e   evaluate some JavaScript code in the page context
+
+  C-c C-p   go to the source location of the previous error message
+
+  C-c C-p   go to the source location of the next error message
+
+  C-c C-u   navigate to a different URL
+
+  C-c C-r   toggle showing paint rects
+
+  C-c C-x   clear console messages
+
+  C-c C-i   enable DOM inspect mode in the browser (pick a node with the mouse)
+
+# Source views
+
+  C-c C-s   "save" a modified resource by pushing it to the browser
