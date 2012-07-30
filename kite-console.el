@@ -129,8 +129,14 @@ the buffer when it becomes large.")
                     (insert (kite--format-object (plist-get array-element :value)))))
                 (setq array-index (1+ array-index))))
             (insert "]"))
+           ((string= (plist-get object :subtype) "node")
+            (insert "DOM-NODE"))
+           ((null (plist-get object :subtype))
+            (insert (propertize
+                     (plist-get object :description)
+                     'face 'kite-object)))
            (t
-            (insert "LOADED"))))))))
+            (insert "UNKNOWN"))))))))
 
 (defun kite--format-object (object)
   (let ((type (plist-get object :type)))
