@@ -153,7 +153,7 @@ the buffer when it becomes large.")
      ((and (not (plist-member object :result))
            (plist-member object :objectId))
       (lexical-let ((object object)
-                    (buffer-point (point)))
+                    (buffer-point (point-marker)))
         (kite-send "Runtime.getProperties"
                    (list (cons 'objectId (plist-get object :objectId))
                          (cons 'ownProperties t))
