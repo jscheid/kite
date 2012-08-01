@@ -42,6 +42,18 @@
   :version "24.1"
   :group 'kite-faces)
 
+(defface kite-boolean
+  '((t :inherit nxml-char-ref-number))
+  "Face used to highlight boolean values."
+  :version "24.1"
+  :group 'kite-faces)
+
+(defface kite-null
+  '((t :inherit nxml-char-ref-number))
+  "Face used to highlight null values."
+  :version "24.1"
+  :group 'kite-faces)
+
 (defface kite-string
   '((t :inherit font-lock-string))
   "Face used to highlight strings."
@@ -60,18 +72,31 @@
   :version "24.1"
   :group 'kite-faces)
 
+(defface kite-property-name
+  '((t :inherit default))
+  "Face used to highlight null values."
+  :version "24.1"
+  :group 'kite-faces)
+
+(defface kite-proto-property-name
+  `((t :inherit default
+       :foreground ,(kite--dimmed-face-foreground 'default 0.5)))
+  "Face used to highlight null values."
+  :version "24.1"
+  :group 'kite-faces)
+
 (defcustom kite-console-log-max 1000
   "Maximum number of lines to keep in the kite console log buffer.
 If nil, disable console logging.  If t, log messages but don't truncate
 the buffer when it becomes large.")
 
 (defvar kite-console-mode-map
-  (let ((map (make-keymap))
+  (let ((map (make-composed-keymap widget-keymap special-mode-map))
 	(menu-map (make-sparse-keymap)))
     (suppress-keymap map t)
     (kite--define-global-mode-keys map)
     (define-key map "X" 'kite-clear-console)
-    (define-key map (kbd "RET") 'kite-show-log-entry)
+    ;(define-key map (kbd "RET") 'kite-show-log-entry)
     map)
   "Local keymap for `kite-console-mode' buffers.")
 
@@ -81,7 +106,9 @@ the buffer when it becomes large.")
   (set (make-local-variable 'kite-message-group-level) 0)
   (set (make-local-variable 'kite-console-line-count) 0)
   (hl-line-mode)
-  (setq case-fold-search nil))
+  (setq case-fold-search nil)
+  (set (make-local-variable 'widget-link-prefix) "")
+  (set (make-local-variable 'widget-link-suffix) ""))
 
 (defun kite--kill-console ()
   (ignore-errors
@@ -132,11 +159,19 @@ the buffer when it becomes large.")
            ((string= (plist-get object :subtype) "node")
             (insert "DOM-NODE"))
            ((null (plist-get object :subtype))
-            (insert (propertize
-                     (plist-get object :description)
-                     'face 'kite-object)))
+            (widget-create 'link
+                           :kite-object-id (plist-get object :objectId)
+                           :kite-object-description (plist-get object :description)
+                           :button-face 'kite-object
+                           :notify (lambda (widget &rest ignore)
+                                     (kite-inspect-object
+                                      (widget-get widget :kite-object-id)
+                                      (widget-get widget :kite-object-description)))
+                           (plist-get object :description)))
            (t
-            (insert "UNKNOWN"))))))))
+            (insert "UNKNOWN")))))))
+  (widget-setup))
+
 
 (defun kite--format-object (object)
   (let ((type (plist-get object :type)))

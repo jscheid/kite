@@ -46,6 +46,7 @@
 (require 'kite-memory)
 (require 'kite-net)
 (require 'kite-repl)
+(require 'kite-object)
 (require 'kite-console)
 (require 'kite-breakpoint)
 
