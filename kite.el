@@ -70,6 +70,7 @@
 (make-variable-buffer-local 'kite-session)
 (set-default 'kite-session nil)
 
+(require 'kite-debug)
 (require 'kite-dom)
 (require 'kite-memory)
 (require 'kite-net)
@@ -77,12 +78,6 @@
 (require 'kite-object)
 (require 'kite-console)
 (require 'kite-breakpoint)
-
-(defconst kite--debugger-state-resumed
-  (propertize "Resumed" 'face 'success))
-
-(defconst kite--debugger-state-paused
-  (propertize "Paused" 'face 'warning))
 
 (defstruct (kite-session)
   websocket
@@ -124,31 +119,6 @@
         (setq index (1+ index))))
     formatted))
 
-(defvar kite-connection-mode-map
-  (let ((map (make-keymap))
-	(ctl-c-b-map (make-keymap))
-	(menu-map (make-sparse-keymap)))
-    (suppress-keymap map t)
-    (kite--define-global-mode-keys map)
-    (define-key map "C" 'kite-console)
-    (define-key map "p" 'kite-toggle-next-instruction-breakpoint)
-    (define-key map "b" 'kite-toggle-exception-breakpoint)
-    (define-key map "c" 'kite-debug-continue)
-    (define-key map "r" 'kite-debug-reload)
-    (define-key map "R" 'kite-repl)
-    (define-key map "D" 'kite-dom-inspect)
-    (define-key map "N" 'kite-network)
-    (define-key map "T" 'kite-timeline)
-    (define-key map "M" 'kite-memory)
-    (define-key mode-specific-map "b" ctl-c-b-map)
-    (define-key ctl-c-b-map "x" 'kite-set-xhr-breakpoint)
-    (define-key ctl-c-b-map "d" 'kite-set-dom-event-breakpoint)
-    (define-key ctl-c-b-map "i" 'kite-set-instrumentation-breakpoint)
-    (define-key ctl-c-b-map "b" 'kite-toggle-exception-breakpoint)
-    (define-key ctl-c-b-map "p" 'kite-toggle-next-instruction-breakpoint)
-    map)
-  "Local keymap for `kite-connection-mode' buffers.")
-
 (defvar kite-debugging-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map "\C-ci" 'kite-step-into)
@@ -179,30 +149,6 @@
   "Toggle kite JavaScript debugging in this buffer."
   :lighter (:eval (kite--debug-stats-mode-line-indicator))
   :keymap 'kite-debugging-mode-map)
-
-(define-derived-mode kite-connection-mode special-mode "kite-connection"
-  "Toggle kite connection mode."
-  (make-local-variable 'kite-tab-alist)
-  (setq case-fold-search nil))
-
-(defun kite-debug-pause ()
-  (interactive)
-  (kite-send "Debugger.pause" nil
-             (lambda (response) (kite--log "Execution paused."))))
-
-(defun kite-debug-continue ()
-  (interactive)
-  (kite-send "Debugger.resume" nil
-             (lambda (response) (kite--log "Execution resumed."))))
-
-(defun kite-debug-reload ()
-  (interactive)
-
-  (with-current-buffer (if (boundp 'kite-connection)
-                           kite-connection
-                         (current-buffer))
-    (kite-send "Page.reload" nil
-               (lambda (response) (kite--log "Page reloaded.")))))
 
 (defun kite-send (method &optional params callback callback-args)
   (let ((callback-buffer (current-buffer))
@@ -278,51 +224,6 @@
 
 (defun kite--on-close (websocket)
   (kite--log "websocket connection closed"))
-
-(defun kite--insert-favicon-async (favicon-url)
-  (let ((favicon-marker (point-marker)))
-    (url-retrieve
-     favicon-url
-     (lambda (status)
-       (goto-char 0)
-       (when (and (looking-at "HTTP/1\\.. 200")
-                  (re-search-forward "\n\n" nil t))
-         (ignore-errors
-           (let* ((favicon-image
-                   (create-image (buffer-substring (point) (buffer-size)) nil t)))
-             (save-excursion
-               (with-current-buffer buf
-                 (goto-char (marker-position favicon-marker))
-                 (let ((inhibit-read-only t))
-                   (insert-image favicon-image)))))))))))
-
-(defun kite--connect-buffer-insert ()
-
-  (let ((favicon-url (kite-session-page-favicon-url kite-session)))
-    (when (and favicon-url
-               (not (string= favicon-url "")))
-      (kite--insert-favicon-async favicon-url))
-
-    (let* ((inhibit-read-only t)
-           (ewoc (ewoc-create
-                  (lambda (session)
-                    (insert (concat (propertize (concat " " (kite-session-page-title kite-session) "\n\n")
-                                                'face 'info-title-1))
-                            (propertize "URL: " 'face 'bold)
-                            (kite-session-page-url kite-session)
-                            "\n"
-                            (propertize "Status: " 'face 'bold)
-                            (kite-session-debugger-state session)
-                            "\n\n"
-                            "Press ? for help\n")))))
-
-      (set (make-local-variable 'kite-connection-ewoc) ewoc)
-
-      (ewoc-enter-last ewoc kite-session)
-
-      (goto-char (point-max))
-      (setf (kite-session-breakpoint-ewoc kite-session)
-            (kite--make-breakpoint-ewoc)))))
 
 (defun kite--connect-webservice (tab-alist)
   (let ((websocket-url (plist-get tab-alist :webSocketDebuggerUrl)))
@@ -537,35 +438,6 @@ which should be a sequence of strings.  Naive implementation."
                     string
                     (make-string left-fill 32)))))))))
 
-(defun kite--connection-buffer (websocket-url)
-  (format "*kite %s*" websocket-url))
-
-(defun kite--Debugger-resumed (websocket-url packet)
-  (with-current-buffer (kite--connection-buffer websocket-url)
-    (setf (kite-session-debugger-state kite-session) kite--debugger-state-resumed)))
-
-(defun kite--Debugger-paused (websocket-url packet)
-  (with-current-buffer (kite--connection-buffer websocket-url)
-    (setf (kite-session-debugger-state kite-session) kite--debugger-state-paused)
-    (ewoc-refresh kite-connection-ewoc)
-    (let* ((call-frames (plist-get packet :callFrames))
-           (first-call-frame (elt call-frames 0))
-           (location (plist-get first-call-frame :location))
-           (script-info (gethash (plist-get location :scriptId)
-                                 (kite-session-script-infos kite-session))))
-      (lexical-let ((line-number (- (plist-get location :lineNumber)))
-                    (column-number (plist-get location :columnNumber))
-                    (kite-session kite-session))
-        (kite-visit-script
-         script-info
-         (lambda ()
-           (kite-debugging-mode)
-           (set (make-local-variable 'kite-session) kite-session)
-           (goto-line line-number)
-           (beginning-of-line)
-           (forward-char column-number))))
-      (message "Debugger paused"))))
-
 (defun kite--create-remote-script-buffer (script-info after-load-function)
   (lexical-let* ((url (kite-script-info-url script-info))
                  (url-parts (url-generic-parse-url url))
@@ -595,17 +467,6 @@ which should be a sequence of strings.  Naive implementation."
                             (kite--create-remote-script-buffer
                              script-info after-load-function)))))))
 
-(defun kite--Debugger-scriptParsed (websocket-url packet)
-  (puthash
-   (plist-get packet :scriptId)
-   (make-kite-script-info
-    :url (plist-get packet :url)
-    :start-line (plist-get packet :startLine)
-    :start-column (plist-get packet :startColumn)
-    :end-line (plist-get packet :endLine)
-    :end-column (plist-get packet :endColumn))
-   (kite-session-script-infos kite-session)))
-
 (defun kite--debug-stats-mode-line-indicator ()
   "Returns a string to be displayed in the mode line"
   (concat " (" (kite-session-debugger-state kite-session) ")"))
@@ -629,10 +490,6 @@ prefix argument ARG, ignore (force-refresh) the browser cache."
   ;; FIXME
   title)
 
-(add-hook 'kite-Debugger-paused-hooks 'kite--Debugger-paused)
-(add-hook 'kite-Debugger-resumed-hooks 'kite--Debugger-resumed)
-(add-hook 'kite-Debugger-scriptParsed-hooks 'kite--Debugger-scriptParsed)
-
 (defvar kite-profiler-keymap
   (let ((map (make-sparse-keymap)))
     (define-key map "j" 'kite-javascript-profiler)
@@ -643,7 +500,7 @@ prefix argument ARG, ignore (force-refresh) the browser cache."
 (defvar kite-global-keymap
   (let ((map (make-sparse-keymap)))
     (define-key map "c" 'kite-console)
-    (define-key map "d" 'kite-debugger)
+    (define-key map "d" 'kite-debug)
     (define-key map "h" 'kite-heap)
     (define-key map "m" 'kite-dom)
     (define-key map "n" 'kite-network)
@@ -697,7 +554,7 @@ prefix argument ARG, ignore (force-refresh) the browser cache."
   (interactive "P")
   (kite-maybe-goto-buffer prefix 'console))
 
-(defun kite-debugger (prefix)
+(defun kite-debug (prefix)
   (interactive "P")
   (kite-maybe-goto-buffer prefix 'debug))
 
