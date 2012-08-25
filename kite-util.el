@@ -50,4 +50,34 @@
        (lerp (nth 1 bg) (nth 1 fg) darkness)
        (lerp (nth 2 bg) (nth 2 fg) darkness)))))
 
+(defun kite--longest-prefix (strings)
+  "Return the longest prefix common to all the given STRINGS,
+which should be a sequence of strings.  Naive implementation."
+  (if (null strings)
+      ""
+    (let ((max-length (length (car strings))))
+      (while (let ((prefix-candidate (substring (car strings) 0 max-length)))
+               (not (every (apply-partially 'string-prefix-p prefix-candidate) strings)))
+        (setq max-length (- max-length 1)))
+      (substring (car strings) 0 max-length))))
+
+(defun* kite--fill-overflow (string width &key (align 'left) (trim 'right))
+  (let ((string-length (length string)))
+    (if (> string-length width)
+        (if (eq 'right trim)
+            (concat (substring string 0 (- width 3)) "...")
+          (concat "..." (substring string (- string-length (- width 3)))))
+      (let ((fill (- width string-length)))
+        (cond
+         ((eq 'left align)
+          (concat string (make-string fill 32)))
+         ((eq 'right align)
+          (concat (make-string fill 32) string))
+         (t
+          (let* ((left-fill (/ fill 2))
+                 (right-fill (- fill left-fill)))
+            (concat (make-string left-fill 32)
+                    string
+                    (make-string left-fill 32)))))))))
+
 (provide 'kite-util)
