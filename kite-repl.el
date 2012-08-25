@@ -116,7 +116,7 @@
                     (progn
                       (if (re-search-backward "^///" nil t)
                           (progn
-                            (next-line)
+                            (forward-line)
                             (beginning-of-line))
                         (goto-char (point-min)))
                       (point)))

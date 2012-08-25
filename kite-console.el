@@ -391,7 +391,7 @@ the buffer when it becomes large.")
       (save-excursion
         (with-current-buffer buf
           (goto-char (point-max))
-          (previous-line)
+          (forward-line -1)
           (let ((inhibit-read-only t)
                 (text-prop-start (text-property-any
                                   (point)
