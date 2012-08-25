@@ -1,9 +1,3 @@
-(eval-when-compile
-  (let ((current-dir (file-name-directory (buffer-file-name))))
-    (add-to-list 'load-path current-dir)
-    (add-to-list 'load-path (expand-file-name "misc" current-dir))
-    (add-to-list 'load-path (expand-file-name "misc/emacs-websocket" current-dir))))
-
 (require 'json)
 (require 'websocket)
 (require 'url-parse)
