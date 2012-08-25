@@ -315,7 +315,6 @@
       (let ((inhibit-read-only t))
         (delete-region begin end)))))
 
-
 (provide 'kite-object)
 
 ;;; kite-object.el ends here

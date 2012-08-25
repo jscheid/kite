@@ -117,7 +117,6 @@
                          (lambda (response) (kite--log "Network enabled.")))))
   (run-mode-hooks 'kite-network-mode-hook))
 
-
 (defun kite--net-Network-loadingFinished (websocket-url packet)
   (kite--log "kite--Network-loadingFinished"))
 

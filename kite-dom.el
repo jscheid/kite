@@ -479,7 +479,6 @@ line under mouse and the corresponding DOM node in the browser."
                          (make-string (* kite-dom-offset indent) 32)
                          'kite-node-id node-id
                          'read-only t)))
-
     (let ((nodeType (plist-get element :nodeType))
           (node-id (plist-get element :nodeId))
           (localName (plist-get element :localName))
@@ -532,7 +531,6 @@ line under mouse and the corresponding DOM node in the browser."
                            (point)
                            'kite-node-id
                            node-id))
-
 
        ((eq nodeType 1)
         (widget-insert (concat (indent-prefix indent node-id)
@@ -783,7 +781,6 @@ line under mouse and the corresponding DOM node in the browser."
 
 (defun kite-dom-highlight-node ()
   (interactive)
-
   (kite-send "DOM.highlightNode"
              (list (cons 'nodeId
                          (get-char-property (point) 'kite-node-id))
@@ -795,7 +792,6 @@ line under mouse and the corresponding DOM node in the browser."
                            (marginColor . ,(kite--rgba 255 255 0 0.5)))))
              (lambda (response)
                (kite--log "DOM.highlightNode got response %s" response))))
-
 
 (defun kite-dom-hide-highlight ()
   (interactive)

@@ -72,8 +72,6 @@
              (lambda (response)
                (kite--log "Memory.getDOMNodeCount got response %s" response))))
 
-
-
 (defun kite-memory ()
   (interactive)
 

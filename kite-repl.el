@@ -138,7 +138,7 @@
                          (save-excursion
                            (goto-char end)
                            (insert (format "\n/// -> %S\n" (or (plist-get (plist-get result :result) :value)
-                                                             (intern (plist-get (plist-get result :result) :type))))))
+                                                               (intern (plist-get (plist-get result :result) :type))))))
                        (kite--log "got thrown exception response: %s" (pp-to-string response))
                        (lexical-let ((error-object-id (plist-get (plist-get result :result) :objectId)))
 
