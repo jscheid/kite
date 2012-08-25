@@ -400,7 +400,8 @@ line under mouse and the corresponding DOM node in the browser."
                               :root)
                              :children) 0)
                        0 t)
-                      (widget-setup))))))))
+                      (widget-setup)))))))
+  (run-mode-hooks 'kite-dom-mode-hook))
 
 (defconst kite-dom-offset 2)
 

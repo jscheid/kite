@@ -146,7 +146,8 @@ the buffer when it becomes large.")
   (add-hook (make-local-variable 'kite-after-mode-hooks)
             (lambda ()
               (kite-send "Console.enable" nil
-                         (lambda (response) (kite--log "Console enabled."))))))
+                         (lambda (response) (kite--log "Console enabled.")))))
+  (run-mode-hooks 'kite-console-mode-hook))
 
 (defun kite--kill-console ()
   (ignore-errors

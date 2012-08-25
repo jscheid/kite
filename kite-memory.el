@@ -45,7 +45,8 @@
 (define-derived-mode kite-memory-mode special-mode "kite-memory"
   "Toggle kite memory mode."
   (set (make-local-variable 'kill-buffer-hook) 'kite--kill-buffer)
-  (setq case-fold-search nil))
+  (setq case-fold-search nil)
+  (run-mode-hooks 'kite-memory-mode-hook))
 
 (defun kite--memory-render-graph (node indent)
   (insert (concat (make-string (* 2 indent) 32)

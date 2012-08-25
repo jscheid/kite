@@ -65,7 +65,7 @@
 (define-derived-mode kite-repl-mode javascript-mode "kite-repl"
   "Toggle kite repl mode."
   (set (make-local-variable 'font-lock-extra-managed-props) '(keymap))
-  t)
+  (run-mode-hooks 'kite-repl-mode-hook))
 
 (defun kite-eval-defun ()
   (save-excursion
