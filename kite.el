@@ -423,34 +423,42 @@ prefix argument ARG, ignore (force-refresh) the browser cache."
       (kite--get-buffer-create session type
                                (intern (format "kite-%s-mode" type))))))
 
+;;;###autoload
 (defun kite-console (prefix)
   (interactive "P")
   (kite-maybe-goto-buffer prefix 'console))
 
+;;;###autoload
 (defun kite-debug (prefix)
   (interactive "P")
   (kite-maybe-goto-buffer prefix 'debug))
 
+;;;###autoload
 (defun kite-dom (prefix)
   (interactive "P")
   (kite-maybe-goto-buffer prefix 'dom))
 
+;;;###autoload
 (defun kite-network (prefix)
   (interactive "P")
   (kite-maybe-goto-buffer prefix 'network))
 
+;;;###autoload
 (defun kite-repl (prefix)
   (interactive "P")
   (kite-maybe-goto-buffer prefix 'repl))
 
+;;;###autoload
 (defun kite-javascript-profiler (prefix)
   (interactive "P")
   (error "kite-javascript-profiler not yet implemented"))
 
+;;;###autoload
 (defun kite-css-profiler (prefix)
   (interactive "P")
   (error "kite-css-profiler not yet implemented"))
 
+;;;###autoload
 (defun kite-heap-profiler (prefix)
   (interactive "P")
   (error "kite-heap-profiler not yet implemented"))
