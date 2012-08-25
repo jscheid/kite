@@ -43,6 +43,7 @@
 
 (define-derived-mode kite-object-mode special-mode "kite-object"
   "Toggle kite console mode."
+  :group 'kite
   (set (make-local-variable 'widget-link-prefix) "")
   (set (make-local-variable 'widget-link-suffix) "")
   (setq buffer-read-only nil)

@@ -44,6 +44,7 @@
 
 (define-derived-mode kite-memory-mode special-mode "kite-memory"
   "Toggle kite memory mode."
+  :group 'kite
   (set (make-local-variable 'kill-buffer-hook) 'kite--kill-buffer)
   (setq case-fold-search nil)
   (run-mode-hooks 'kite-memory-mode-hook))

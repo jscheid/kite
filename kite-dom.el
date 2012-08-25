@@ -362,6 +362,7 @@ line under mouse and the corresponding DOM node in the browser."
 
 (define-derived-mode kite-dom-mode special-mode "kite-dom"
   "Toggle kite dom mode."
+  :group 'kite
   (setq kite-buffer-type 'dom)
   (set (make-local-variable 'kill-buffer-hook) 'kite--kill-dom)
   (setq buffer-read-only nil)

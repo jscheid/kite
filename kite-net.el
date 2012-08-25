@@ -95,6 +95,7 @@
 
 (define-derived-mode kite-network-mode special-mode "kite-network"
   "Toggle kite network mode."
+  :group 'kite
   (set (make-local-variable 'kill-buffer-hook) 'kite--kill-network)
   (set (make-local-variable 'kite-min-time) nil)
   (set (make-local-variable 'kite-max-time) nil)

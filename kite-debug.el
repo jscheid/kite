@@ -67,6 +67,7 @@
 
 (define-derived-mode kite-debug-mode special-mode "kite-debug"
   "Toggle kite debug mode."
+  :group 'kite
   (setq case-fold-search nil)
   (add-hook (make-local-variable 'kite-after-mode-hooks)
             (lambda ()
@@ -193,6 +194,7 @@
 
 (define-minor-mode kite-debugging-mode
   "Toggle kite JavaScript debugging in this buffer."
+  :group 'kite
   :lighter (:eval (kite--debug-stats-mode-line-indicator))
   :keymap 'kite-debugging-mode-map)
 

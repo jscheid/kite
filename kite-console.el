@@ -136,6 +136,7 @@ the buffer when it becomes large.")
 
 (define-derived-mode kite-console-mode special-mode "kite-console"
   "Toggle kite console mode."
+  :group 'kite
   (add-hook 'kill-buffer-hook 'kite--kill-console nil t)
   (set (make-local-variable 'kite-message-group-level) 0)
   (set (make-local-variable 'kite-console-line-count) 0)
