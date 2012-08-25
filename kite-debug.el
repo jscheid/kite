@@ -28,7 +28,6 @@
 
 ;;; Code:
 
-
 (defconst kite--debugger-state-resumed
   (propertize "Resumed" 'face 'success))
 
@@ -79,7 +78,6 @@
 
 (defun kite-debug-reload ()
   (interactive)
-
   (with-current-buffer (if (boundp 'kite-connection)
                            kite-connection
                          (current-buffer))
@@ -104,7 +102,6 @@
                    (insert-image favicon-image)))))))))))
 
 (defun kite--connect-buffer-insert ()
-
   (let ((favicon-url (kite-session-page-favicon-url kite-session)))
     (when (and favicon-url
                (not (string= favicon-url "")))
@@ -174,5 +171,72 @@
 (add-hook 'kite-Debugger-paused-hooks 'kite--Debugger-paused)
 (add-hook 'kite-Debugger-resumed-hooks 'kite--Debugger-resumed)
 (add-hook 'kite-Debugger-scriptParsed-hooks 'kite--Debugger-scriptParsed)
+
+
+;;; Augmented javascript-mode; loading of remote .js files
+
+(defvar kite-debugging-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map "\C-ci" 'kite-step-into)
+    (define-key map "\C-co" 'kite-step-over)
+    (define-key map "\C-cu" 'kite-step-out)
+    (define-key map "\C-cp" 'kite-debug-pause)
+    map)
+  "Local keymap for the `kite-debugging-mode' minor mode")
+
+(define-minor-mode kite-debugging-mode
+  "Toggle kite JavaScript debugging in this buffer."
+  :lighter (:eval (kite--debug-stats-mode-line-indicator))
+  :keymap 'kite-debugging-mode-map)
+
+(defun kite-step-into ()
+  (interactive)
+  (kite-send "Debugger.pause" nil
+             (lambda (response)
+               (kite--log "Response to Debugger.pause is %s" response)
+               (kite-send "Debugger.stepInto" nil
+                          (lambda (response)
+                            (kite--log "Response to Debugger.stepInto is %s" response))))))
+
+(defun kite-step-over ()
+  (interactive)
+  (kite-send "Debugger.stepOver"))
+
+(defun kite-step-out ()
+  (interactive)
+  (kite-send "Debugger.stepOut"))
+
+(defun kite--create-remote-script-buffer (script-info after-load-function)
+  (lexical-let* ((url (kite-script-info-url script-info))
+                 (url-parts (url-generic-parse-url url))
+                 (after-load-function after-load-function)
+                 (new-buffer (generate-new-buffer url)))
+    (kite-send "Debugger.getScriptSource" (list (cons 'scriptId (plist-get location :scriptId)))
+               (lambda (response)
+                 (with-current-buffer new-buffer
+                   (setq buffer-file-name (url-filename url-parts))
+                   (insert (plist-get (plist-get response :result) :scriptSource))
+                   (setq buffer-read-only t)
+                   (set-buffer-modified-p nil)
+                   (normal-mode)
+                   (funcall after-load-function))))
+    new-buffer))
+
+(defun kite-visit-script (script-info after-load-function)
+  (interactive)
+  (let* ((url (kite-script-info-url script-info))
+         (url-parts (url-generic-parse-url url)))
+    (cond
+     ((string= (url-type url-parts) "file")
+      (find-file (url-filename url-parts))
+      (funcall after-load-function))
+     (t
+      (switch-to-buffer (or (get-buffer url)
+                            (kite--create-remote-script-buffer
+                             script-info after-load-function)))))))
+
+(defun kite--debug-stats-mode-line-indicator ()
+  "Returns a string to be displayed in the mode line"
+  (concat " (" (kite-session-debugger-state kite-session) ")"))
 
 (provide 'kite-debug)
