@@ -7,6 +7,7 @@
 ;; Package: kite
 ;; Compatibility: GNU Emacs 24
 
+;; This file is not part of GNU Emacs.
 
 ;; Kite is free software: you can redistribute it and/or modify it
 ;; under the terms of the GNU General Public License as published by
