@@ -333,7 +333,40 @@ line under mouse and the corresponding DOM node in the browser."
   (setq buffer-read-only nil)
   (set (make-local-variable 'kite-dom-nodes) (make-hash-table))
   (set (make-local-variable 'kite--dom-highlighted-node-id) nil)
-  (set (make-local-variable 'track-mouse) t))
+  (set (make-local-variable 'track-mouse) t)
+
+  (let ((inhibit-read-only t))
+    (erase-buffer))
+  (remove-overlays)
+  (widget-setup)
+
+  (add-hook
+   (make-local-variable 'kite-after-mode-hooks)
+   (lambda ()
+     (kite-send
+      "CSS.enable"
+      nil
+      (lambda (response)
+        (kite-send
+         "CSS.getAllStyleSheets"
+         nil
+         (lambda (response)
+           (kite--log "CSS.getAllStyleSheets got response %s" response)))))
+     (kite-send "DOM.getDocument" nil
+                (lambda (response)
+                  (kite--log "DOM.getDocument got response %s" response)
+                  (with-current-buffer buf
+                    (save-excursion
+                      (kite--dom-insert-element
+                       (elt (plist-get
+                             (plist-get
+                              (plist-get
+                               response
+                               :result)
+                              :root)
+                             :children) 0)
+                       0 t)
+                      (widget-setup))))))))
 
 (defconst kite-dom-offset 2)
 
@@ -647,8 +680,6 @@ line under mouse and the corresponding DOM node in the browser."
   (kite--log "kite--DOM-attributeModified got packet %s" packet)
   (with-current-buffer (kite--dom-buffer websocket-url)
     (save-excursion
-      (message "packet is %s node-id is %s" packet (plist-get packet :nodeId))
-      (message "kite-dom-nodes are %s" kite-dom-nodes)
       (let* ((inhibit-read-only t)
              (node-id (plist-get packet :nodeId))
              (attr-name (intern (plist-get packet :name)))

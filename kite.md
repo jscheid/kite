@@ -12,7 +12,124 @@ the long-term vision for _kite_ is for it to be a live-editing
 environment in the spirit of [Bret Victor's "Inventing on
 Principle"](https://vimeo.com/36579366).
 
-# Introduction
+# Kite sessions
+
+## Kite buffers
+
+Kite provides a number of special buffers (major modes), each of which
+allows for interaction with one aspect of a debugging session.
+
+Accessing a Kite buffer when there is no debugging session active yet
+will prompt you to connect to one.  See *Connecting to a WebKit page*.
+
+You can access Kite buffers using global key bindings or with an M-x
+incantation.  The following buffers are available:
+
+Key Binding   Incantation        Description
+------------  -----------------  ---------------------------------------
+C-c k c       kite-console       View console messages
+C-c k d       kite-debugger      Manage breakpoints
+C-c k h       kite-heap          Analyze heap usage
+C-c k k       kite-repl          Execute JavaScript code in page context
+C-c k m       kite-dom           Inspect and manipulate the DOM
+C-c k n       kite-network       Analyze HTTP requests and responses
+C-c k r       kite-resources     View external resources, such as images
+C-c k t       kite-timeline      View page-global events
+C-c k p j     kite-profile-js    Profile JavaScript performance
+C-c k p c     kite-profile-css   Profile CSS selector performance
+C-c k p h     kite-profile-heap  Profile Heap usage
+
+There are also secondary buffer types for inspection of JavaScript
+objects, stack frames, messages, per-DOM element CSS properties, and
+more.  How such buffers are accessed depends on context, but is
+usually achieved by moving the point onto the textual representation
+of an entity and hitting RET.
+
+## Establishing a debugging session
+
+When you access a Kite buffer and there is no debugging session active
+yet, an attempt will be made to establish a connection to a WebKit
+remote debugger interface on localhost port 9222.
+
+If the connection succeeds you will be presented with a prompt that
+allows you to choose which of the pages currently open in the WebKit
+instance you want to debug.  You can enter either the page URL or its
+title, and there are completions available for both.
+
+In case that the same page is open multiple times in the WebKit
+instance, the individual instances of the page are disambiguated using
+a numeric suffix derived from an internal WebKit identifier.
+Unfortunately, there is currently no easy way to know which suffix
+corresponds to which WebKit tab.  However, pages opened later in time
+usually have higher suffix numbers.
+
+## Remote sessions and multiple debugging sessions
+
+In some situations you might want to debug more than one page
+simultaneously.  Use a prefix argument of (4) (the default when you
+use the C-u modifier key) for any of the Kite buffer commands and Kite
+will prompt you for a new session rather than using the existing one.
+
+You might also want to connect to a remote WebKit instance, i.e. one
+not running on localhost or not running on the default port 9222.  By
+giving a prefix argument of (16) (by using the C-u modifier key twice)
+you'll force Kite to ask you for the host and port to connect to.
+
+## Navigating Kite buffers with multiple sessions
+
+If you have multiple debugging sessions active, Kite will normally
+attempt to keep you within the current session.  For example, if you
+have two session active and you are currently visiting the *kite
+console* buffer for the first session, then doing `M-x kite-repl' will
+take you to the REPL buffer for the first session.
+
+If you want to switch to a Kite buffer for a different session, there
+are three ways of doing so.
+
+Firstly, you can simply use the mechanics afforded by M-x
+switch-to-buffer et.al.: when multiple sessions are active, Kite
+buffer names carry a suffix derived from the (possibly disambiguated)
+page title.
+
+Secondly, by using the Kite command to switch to a buffer while
+visiting a buffer of the same type, Kite will cycle through the
+buffers for all open debugging sessions.  For example, if you are
+currently visiting the *kite console* buffer for the first session,
+then doing `M-x kite-console' will take you to the *kite console*
+buffer for the second session.
+
+Finally, you can use a numeric prefix with the buffer access commands
+and Kite will take you straight to the buffer for the corresponding
+session, where the first session you opened is numbered 1, the second
+session 2, and so on.  For example, `M-2 C-c k c' will take you to the
+console buffer for the second session.  Note that numeric session
+designators will change as you close debugging sessions.  Use the
+`Kite Session List' if you ever lose track.
+
+## Managing Kite sessions
+
+Use `M-x kite-sessions' or `C-c k s' to access the Kite session list
+buffer.  Here you can get an overview of which debugging sessions are
+active and which numeric designator is assigned to them.  You can also
+use the following key bindings to manage sessions:
+
+g - refresh the session list
+q - bury the session list
+z - kill the session list only, leaving all session intact
+DEL - kill the session under point and all its buffers
+c - visit the console buffer for the session under point
+d - visit the session's debugger buffer
+r - visit the session's resources buffer
+n - visit the session's network buffer
+h - visit the session's heap analysis buffer
+t - visit the session's timeline buffer
+p j - visit the session's javascript profiler buffer
+p c - visit the session's CSS profiler buffer
+p h - visit the session's heap profiler buffer
+
+As with the normal kite buffer access commands, each of these key
+bindings can be prefixed in order to create new sessions and to
+connect to remote WebKit instances.
 
 ## Motivation
 

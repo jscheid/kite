@@ -1,6 +1,8 @@
 (eval-when-compile
-  (add-to-list 'load-path (file-name-directory (buffer-file-name)))
-  (add-to-list 'load-path (expand-file-name "misc" (file-name-directory (buffer-file-name)))))
+  (let ((current-dir (file-name-directory (buffer-file-name))))
+    (add-to-list 'load-path current-dir)
+    (add-to-list 'load-path (expand-file-name "misc" current-dir))
+    (add-to-list 'load-path (expand-file-name "misc/emacs-websocket" current-dir))))
 
 (require 'json)
 (require 'websocket)
@@ -8,8 +10,13 @@
 (eval-when-compile (require 'cl))
 
 (setq websocket-debug t)
+(setq websocket-callback-debug-on-error t)
 
 (defvar kite-tab-history nil)
+
+(defvar kite-most-recent-session nil)
+
+(defvar kite-after-mode-hooks nil)
 
 (defvar kite-Console-messageAdded-hooks nil)
 (defvar kite-CSS-mediaQueryResultChanged-hooks nil)
@@ -79,6 +86,8 @@
 
 (defvar kite-active-sessions
   (make-hash-table :test 'equal :weakness 'value))
+
+(defvar kite-active-session-list nil)
 
 (defun kite--format-stacktrace (stacktrace)
   (let ((formatted "") (index 0))
@@ -152,7 +161,6 @@
 
 (define-derived-mode kite-connection-mode special-mode "kite-connection"
   "Toggle kite connection mode."
-  (set (make-local-variable 'kill-buffer-hook) 'kite--kill-buffer)
   (make-local-variable 'kite-tab-alist)
   (setq case-fold-search nil))
 
@@ -196,16 +204,20 @@
   (setf (kite-session-buffers kite-session)
         (delete (current-buffer) (kite-session-buffers kite-session)))
   (when (null (kite-session-buffers kite-session))
-    (websocket-close (kite-session-websocket kite-session))
+    (when (equal kite-most-recent-session
+                 (websocket-url (kite-session-websocket kite-session)))
+      (setq kite-most-recent-session nil))
     (remhash (websocket-url (kite-session-websocket kite-session))
-             kite-active-sessions)))
-
-(defun kite--kill-buffer ()
-  (ignore-errors
-    (kite--session-remove-current-buffer)))
+             kite-active-sessions)
+    (setq kite-active-session-list
+          (remove kite-session kite-active-session-list))
+    (when t ; workaround for websocket.el bug? TODO: revisit once latest websocket is working again
+      (process-send-eof (websocket-conn (kite-session-websocket kite-session)))
+      (kill-process (websocket-conn (kite-session-websocket kite-session))))
+    (websocket-close (kite-session-websocket kite-session))))
 
 (defun kite--on-message (websocket frame)
-  (kite--log "received frame: %s" frame)
+  ;;;(kite--log "received frame: %s" frame)
   (let ((buf (current-buffer))
         (kite-session (gethash (websocket-url websocket)
                                kite-active-sessions)))
@@ -214,9 +226,8 @@
       (let* ((json-object-type 'plist)
              (response (json-read-from-string (aref frame 2))))
 
-        (kite--log "received response: %s (type %s)"
-                   response
-                   (type-of response))
+        (kite--log "received response: %s"
+                   (pp-to-string response))
         (when (listp response)
           (with-current-buffer buf
             (let ((response-id (plist-get response :id)))
@@ -294,11 +305,13 @@
 
 (defun kite--connect-webservice (tab-alist)
   (let ((websocket-url (plist-get tab-alist :webSocketDebuggerUrl)))
-    (switch-to-buffer
-     (get-buffer-create
-      (format "*kite %s*" websocket-url)))
-    (kite-connection-mode)
-    (setq kite-tab-alist tab-alist)
+    ;(switch-to-buffer
+    ; (get-buffer-create
+    ;  (format "*kite %s*" websocket-url)))
+    ;(kite-connection-mode)
+    ;(setq kite-tab-alist tab-alist)
+
+    (kite--log "Connecting to %s" websocket-url)
 
     (set (make-local-variable 'kite-session)
          (make-kite-session
@@ -314,12 +327,15 @@
                         (plist-get tab-alist :title))))
 
     (puthash websocket-url kite-session kite-active-sessions)
+    (if kite-active-session-list
+        (setcdr kite-active-session-list (cons kite-session nil))
+      (setq kite-active-session-list (cons kite-session nil)))
 
-    (setf (kite-session-buffers kite-session)
-          (cons (current-buffer)
-                (kite-session-buffers kite-session)))
+    ;;;(setf (kite-session-buffers kite-session)
+    ;;;(cons (current-buffer)
+    ;;;(kite-session-buffers kite-session)))
 
-    (kite--connect-buffer-insert)
+    ;;;(kite--connect-buffer-insert)
 
     (kite-send "Page.enable" nil
                (lambda (response) (kite--log "Page notifications enabled.")))
@@ -331,6 +347,38 @@
                (lambda (response) (kite--log "CSS enabled.")))
     (kite-send "Debugger.canSetScriptSource" nil
                (lambda (response) (kite--log "got response: %s" response)))))
+
+(defun kite--find-buffer (websocket-url type)
+  (let ((buffer-iterator (buffer-list))
+        found)
+    (while (and buffer-iterator (not found))
+      (let ((buffer-kite-session (buffer-local-value
+                                  'kite-session
+                                  (car buffer-iterator))))
+        (when (and buffer-kite-session
+                   (string= (websocket-url (kite-session-websocket buffer-kite-session))
+                            websocket-url)
+                   (eq type (buffer-local-value 'kite-buffer-type (car buffer-iterator))))
+          (setq found (car buffer-iterator))))
+      (setq buffer-iterator (cdr buffer-iterator)))
+    found))
+
+(defun kite--get-buffer-create (websocket-url type mode)
+  (lexical-let*
+      ((-kite-session (gethash websocket-url kite-active-sessions))
+       (buf (or (kite--find-buffer websocket-url type)
+                (generate-new-buffer
+                 (format "*kite %s %s*"
+                         type
+                         (kite-session-unique-name -kite-session))))))
+    (switch-to-buffer buf)
+    (with-current-buffer buf
+      (funcall mode)
+      (setq kite-session -kite-session)
+      (set (make-local-variable 'kite-buffer-type) type)
+      (add-hook 'kill-buffer-hook 'kite--kill-buffer nil t)
+      (run-hooks 'kite-after-mode-hooks))
+    buf))
 
 (defun kite--longest-prefix (strings)
   "Return the longest prefix common to all the given STRINGS,
@@ -344,12 +392,15 @@ which should be a sequence of strings.  Naive implementation."
       (substring (car strings) 0 max-length))))
 
 (defun kite-connect (&optional host port)
-  (interactive)
   (let* ((url-request-method "GET")
+         (url-package-name "kite.el")
+         (url-package-version "0.1")
+         (url-http-attempt-keepalives nil)
          (use-host (or host "127.0.0.1"))
          (use-port (or port 9222))
          (url
           (url-parse-make-urlobj "http" nil nil use-host use-port "/json")))
+    (message "using url-http-attempt-keepalives: %s" url-http-attempt-keepalives)
     (with-current-buffer (url-retrieve-synchronously url)
       (goto-char 0)
       (if (and (looking-at "HTTP/1\\.. 200")
@@ -446,13 +497,10 @@ which should be a sequence of strings.  Naive implementation."
                               "Choose tab: "
                               completion-candidates
                               nil t nil 'kite-tab-history)))
-              (when (not (eq 0 (length selection)))
-                (if (cdr (gethash selection completion-strings))
-                    (switch-to-buffer
-                     (car (kite-session-buffers
-                           (cdr (gethash selection completion-strings)))))
-                  (kite--connect-webservice
-                   (car (gethash selection completion-strings)))))))
+              (when (> (length selection) 0)
+                (kite--connect-webservice
+                 (car (gethash selection completion-strings)))
+                (plist-get (car (gethash selection completion-strings)) :webSocketDebuggerUrl))))
         (error "Could not contact remote debugger at %s:%s, check host and port%s"
                use-host
                use-port
@@ -556,7 +604,10 @@ which should be a sequence of strings.  Naive implementation."
   "Reload the page associated with the current buffer.  With a
 prefix argument ARG, ignore (force-refresh) the browser cache."
   (interactive "P")
-  (lexical-let ((bool-prefix (not (null arg))))
+  (unless kite-most-recent-session
+    (error "No kite session active"))
+  (lexical-let ((bool-prefix (not (null arg)))
+                (kite-session (gethash kite-most-recent-session kite-active-sessions)))
     (kite-send "Page.reload"
                `((ignoreCache . ,(if bool-prefix t :json-false)))
                (lambda (response)
@@ -571,5 +622,118 @@ prefix argument ARG, ignore (force-refresh) the browser cache."
 (add-hook 'kite-Debugger-paused-hooks 'kite--Debugger-paused)
 (add-hook 'kite-Debugger-resumed-hooks 'kite--Debugger-resumed)
 (add-hook 'kite-Debugger-scriptParsed-hooks 'kite--Debugger-scriptParsed)
+
+(defvar kite-profiler-keymap
+  (let ((map (make-sparse-keymap)))
+    (define-key map "j" 'kite-javascript-profiler)
+    (define-key map "c" 'kite-css-profiler)
+    (define-key map "h" 'kite-heap-profiler)
+    map))
+
+(defvar kite-global-keymap
+  (let ((map (make-sparse-keymap)))
+    (define-key map "c" 'kite-console)
+    (define-key map "d" 'kite-debugger)
+    (define-key map "h" 'kite-heap)
+    (define-key map "m" 'kite-dom)
+    (define-key map "n" 'kite-network)
+    (define-key map "p" kite-profiler-keymap)
+    (define-key map "r" 'kite-resources)
+    (define-key map "t" 'kite-timeline)
+    (define-key map "k" 'kite-repl)
+    (define-key map "!" 'kite-reload-page)
+    map))
+
+(global-set-key "\C-ck" kite-global-keymap)
+
+(defun kite--find-default-session (prefix)
+  (cond
+   ((equal '(4) prefix)
+    (kite-connect))
+   ((equal '(16) prefix)
+    (kite-connect
+     (read-from-minibuffer "Host: " "localhost" nil nil 'kite-remote-host-history "localhost")
+     (let ((port (read-from-minibuffer "Port: " "9222" nil t 'kite-remote-port-history "9222")))
+       (unless (and (numberp port)
+                    (>= port 1)
+                    (<= port 65535))
+         (error "Port must be a number between 1 and 65535"))
+       port)))
+   ((numberp prefix)
+    (unless (and (>= prefix 1)
+                 (<= prefix (length kite-active-session-list)))
+      (error "No such kite session index: %s" prefix))
+    (websocket-url
+     (kite-session-websocket
+      (nth (- prefix 1) kite-active-session-list))))
+   ((gethash kite-most-recent-session kite-active-sessions)
+    kite-most-recent-session)
+   ((> 0 (hash-table-count kite-active-sessions))
+    (let (random-session)
+      (maphash (lambda (key value)
+                 (unless random-session
+                   (setq random-session key)))
+               kite-active-sessions)))
+   (t
+    (kite-connect))))
+
+(defun kite-maybe-goto-buffer (prefix type)
+  (let ((session (kite--find-default-session prefix)))
+    (when session
+      (kite--get-buffer-create session type
+                               (intern (format "kite-%s-mode" type))))))
+
+(defun kite-console (prefix)
+  (interactive "P")
+  (kite-maybe-goto-buffer prefix 'console))
+
+(defun kite-debugger (prefix)
+  (interactive "P")
+  (kite-maybe-goto-buffer prefix 'debug))
+
+(defun kite-dom (prefix)
+  (interactive "P")
+  (kite-maybe-goto-buffer prefix 'dom))
+
+(defun kite-network (prefix)
+  (interactive "P")
+  (kite-maybe-goto-buffer prefix 'network))
+
+(defun kite-repl (prefix)
+  (interactive "P")
+  (kite-maybe-goto-buffer prefix 'repl))
+
+(defun kite-javascript-profiler (prefix)
+  (interactive "P")
+  (error "kite-javascript-profiler not yet implemented"))
+
+(defun kite-css-profiler (prefix)
+  (interactive "P")
+  (error "kite-css-profiler not yet implemented"))
+
+(defun kite-heap-profiler (prefix)
+  (interactive "P")
+  (error "kite-heap-profiler not yet implemented"))
+
+(defun kite-close-all-sessions ()
+  (interactive)
+  (dolist (process (process-list))
+    (when (string-match-p "^websocket to" (process-name process))
+      (process-send-eof process)))
+  (clrhash kite-active-sessions)
+  (setq kite-active-session-list nil)
+  (setq kite-most-recent-session nil))
+
+(defun kite--kill-buffer ()
+  (ignore-errors
+    (kite--session-remove-current-buffer)))
+
+(defun kite-remember-recent-session ()
+  (setq kite-most-recent-session
+        (or (when kite-session
+              (websocket-url (kite-session-websocket kite-session)))
+            kite-most-recent-session)))
+
+(add-hook 'post-command-hook 'kite-remember-recent-session)
 
 (provide 'kite)

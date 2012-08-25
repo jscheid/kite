@@ -102,21 +102,22 @@ the buffer when it becomes large.")
 
 (define-derived-mode kite-console-mode special-mode "kite-console"
   "Toggle kite console mode."
-  (set (make-local-variable 'kill-buffer-hook) 'kite--kill-console)
+  (add-hook 'kill-buffer-hook 'kite--kill-console nil t)
   (set (make-local-variable 'kite-message-group-level) 0)
   (set (make-local-variable 'kite-console-line-count) 0)
   (hl-line-mode)
   (setq case-fold-search nil)
   (set (make-local-variable 'widget-link-prefix) "")
-  (set (make-local-variable 'widget-link-suffix) ""))
+  (set (make-local-variable 'widget-link-suffix) "")
+  (add-hook (make-local-variable 'kite-after-mode-hooks)
+            (lambda ()
+              (kite-send "Console.enable" nil
+                         (lambda (response) (kite--log "Console enabled."))))))
 
 (defun kite--kill-console ()
   (ignore-errors
     (kite-send "Console.disable" nil
                (lambda (response) (kite--log "Console disabled.")))))
-
-(defun kite--console-buffer (websocket-url)
-  (get-buffer (format "*kite console %s*" websocket-url)))
 
 (defun kite--message-repeat-text (repeat-count)
   (and repeat-count
@@ -246,7 +247,7 @@ the buffer when it becomes large.")
     'log-message message)))
 
 (defun kite--console-messageAdded (websocket-url packet)
-  (let* ((buf (kite--console-buffer websocket-url))
+  (let* ((buf (kite--find-buffer websocket-url 'console))
          (message (plist-get packet :message))
          (message-type (plist-get message :type)))
     (cond
@@ -315,14 +316,11 @@ the buffer when it becomes large.")
       (goto-char (point-max))
       (insert (concat (apply 'format format-string args) "\n")))))
 
-(defun kite-console ()
-  (interactive)
-  (kite--log "opening console")
+(defun kite-console (websocket-url)
   (lexical-let*
-      ((kite-session kite-session))
+      ((kite-session (gethash websocket-url kite-active-sessions)))
     (switch-to-buffer
-     (get-buffer-create (format "*kite console %s*"
-                                (websocket-url (kite-session-websocket kite-session)))))
+     (get-buffer-create (format "*kite console %s*" websocket-url)))
     (kite-console-mode)
     (set (make-local-variable 'kite-session) kite-session)
     (erase-buffer)
@@ -353,7 +351,7 @@ the buffer when it becomes large.")
             (funcall kite-console-on-reload-function)))))))
 
 (defun kite--console-messageRepeatCountUpdated (websocket-url packet)
-  (let ((buf (kite--console-buffer websocket-url)))
+  (let ((buf (kite--find-buffer websocket-url 'console)))
     (when buf
       (save-excursion
         (with-current-buffer buf

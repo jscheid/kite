@@ -1,14 +1,13 @@
 
+(defface kite-link-face
+  '((t (:inherit change-log-file)))
+  "Face used for links to source code locations."
+  :group 'kite-highlighting-faces)
+
 (defun kite-repl ()
   (interactive)
   (kite--log "opening repl")
-  (lexical-let*
-      ((kite-connection (current-buffer))
-       (buf (get-buffer-create (format "*kite repl %s*" (cdr (assq 'webSocketDebuggerUrl kite-tab-alist))))))
-    (with-current-buffer buf
-      (kite-repl-mode)
-      (set (make-local-variable 'kite-connection) kite-connection))
-    (switch-to-buffer buf)))
+  (kite--get-buffer-create 'repl 'kite-repl-mode))
 
 (defvar kite-repl-mode-map
   (let ((map (make-keymap))
@@ -18,10 +17,20 @@
     map)
   "Local keymap for `kite-repl-mode' buffers.")
 
+(defvar kite-repl-mode-link-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map [mouse-2] 'kite-goto-link)
+    (define-key map (kbd "RET") 'kite-goto-link)
+    map))
+
+(defun kite-goto-link ()
+  (interactive)
+  (message "kite-goto-link"))
+
 (define-derived-mode kite-repl-mode javascript-mode "kite-repl"
   "Toggle kite repl mode."
+  (set (make-local-variable 'font-lock-extra-managed-props) '(keymap))
   t)
-
 
 (defun kite-eval-defun ()
   (save-excursion
@@ -43,13 +52,32 @@
 
       (message "defun-info=%s   defun-body: %s"))))
 
+(defun kite--insert-stack-line (line)
+  (insert (format "/// %s" line))
+  (when (string-match "(\\(.*?\\):\\([0-9]+\\):\\([0-9]+\\))$" line)
+    (let* ((error-offset (match-beginning 0))
+           (error-url-string (match-string 1 line))
+           (error-line (match-string 2 line))
+           (error-column (match-string 3 line))
+           (error-url (url-generic-parse-url error-url-string)))
+      (when (url-type error-url)
+        (add-text-properties
+         (save-excursion
+           (beginning-of-line)
+           (forward-char error-offset)
+           (point))
+         (save-excursion
+           (end-of-line)
+           (point))
+         '(face error))
+        )))
+  (insert "\n"))
 
 (defun kite-repl-eval ()
   (interactive)
   (save-excursion
 
-    (lexical-let* ((buf (current-buffer))
-                   (begin
+    (lexical-let* ((begin
                     (progn
                       (if (re-search-backward "^///" nil t)
                           (progn
@@ -67,28 +95,35 @@
 
                    (code (buffer-substring-no-properties begin end)))
 
-      (with-current-buffer kite-connection
-        (kite--send "Runtime.evaluate" (list (cons 'expression code))
-                     (lambda (response)
-                       (let ((result (cdr (assq 'result response))))
-                         (message "result %s" result)
-                         (if (eq :json-false (cdr (assq 'wasThrown result)))
-                             (with-current-buffer buf
-                               (save-excursion
-                                 (goto-char end)
-                                 (insert (format "/// -> %S\n" (or (cdr (assq 'value (cdr (assq 'result result))))
-                                                                   (intern (cdr (assq 'type (cdr (assq 'result result))))))))))
+      (kite-send "Runtime.evaluate" (list (cons 'expression code))
+                 (lambda (response)
+                   (let ((result (plist-get response :result)))
+                     (message "result %s" result)
+                     (if (eq :json-false (plist-get result :wasThrown))
+                         (save-excursion
+                           (goto-char end)
+                           (insert (format "\n/// -> %S\n" (or (plist-get (plist-get result :result) :value)
+                                                             (intern (plist-get (plist-get result :result) :type))))))
+                       (kite--log "got thrown exception response: %s" (pp-to-string response))
+                       (lexical-let ((error-object-id (plist-get (plist-get result :result) :objectId)))
 
-                           (kite--send "Runtime.getProperties" (list (cons 'objectId (cdr (assq 'objectId (cdr (assq 'result result))))))
-                                        (lambda (response)
-                                          (mapcar (lambda (x)
-                                                    (when (string= "stack" (cdr (assq 'name x)))
-                                                      (kite--send "Runtime.getProperties" (list (cons 'objectId (cdr (assq 'objectId (cdr (assq 'get x))))))
-                                                                   (lambda (response)
-                                                                     (message "got stack %s" response)))))
-                                                  (cdr (assq 'result (cdr (assq 'result response)))))
-                                          ))))))))))
+                         (kite-send "Runtime.callFunctionOn"
+                                    (list
+                                     (cons 'objectId error-object-id)
+                                     (cons 'functionDeclaration "function foo() { return this.stack; }") ; (plist-get (plist-get x :get) :objectId))
+                                     (cons 'arguments '[]))
+                                    (lambda (response)
+                                      (kite--log "got stack %s"
+                                                 (save-excursion
+                                                   (goto-char end)
+                                                   (when (> (current-column) 0)
+                                                     (insert "\n"))
+                                                   (mapcar
+                                                    (function kite--insert-stack-line)
+                                                    (split-string (plist-get (plist-get (plist-get response :result) :result) :value) "\n"))))))))
+                     (plist-get (plist-get response :result) :result)))))))
 
-                                            ;(insert (format "///! %s\n" (cdr (assq 'description (cdr (assq 'result result))))))))))))))))
+(font-lock-add-keywords 'kite-repl-mode '(("(\\([a-zA-Z]+:.*?:[0-9]+:[0-9]+\\))$" 1 `(face kite-link-face keymap ,kite-repl-mode-link-map) t)))
+
 
 (provide 'kite-repl)
