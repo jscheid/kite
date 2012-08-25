@@ -1,9 +1,12 @@
-;;; kite.el --- top-level file for Kite, a WebKit inspector front-end
+;;; kite.el --- WebKit inspector front-end
 
 ;; Copyright (C) 2012 Julian Scheid
 
 ;; Author: Julian Scheid <julians37@gmail.com>
 ;; Keywords: tools
+;; Version: 0.1
+;; Package-Requires: ((json "1.2") (websocket "0.93.1"))
+;; Compatibility: GNU Emacs 24
 
 ;; Kite is free software: you can redistribute it and/or modify it
 ;; under the terms of the GNU General Public License as published by
@@ -20,7 +23,10 @@
 
 ;;; Commentary:
 
-;; Basic infrastructure for Kite, a WebKit inspector front-end.
+;; Kite is a front-end for the WebKit inspector remote API.  It allows
+;; to debug web applications running in a WebKit browser instance and
+;; aims to provide functionality similar to the default inspector
+;; front-end built into WebKit browsers.
 
 
 ;;; Code:
