@@ -102,7 +102,7 @@
     (erase-buffer)
     (set (make-local-variable 'kite-ewoc)
          (ewoc-create (symbol-function 'kite--render-network-entry)
-                      "HEADER\n"
+                      "\n"
                       "\nReload the page to show network information\n" t)))
 
   (add-hook (make-local-variable 'kite-after-mode-hooks)
