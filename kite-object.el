@@ -50,7 +50,8 @@
   (setq widget-global-map
         (let ((map (copy-keymap widget-global-map)))
           (define-key map (kbd "RET") 'kite--object-toggle-disclosure)
-          map)))
+          map))
+  (run-mode-hooks 'kite-object-mode-hook))
 
 (defun kite--object-toggle-widget (widget &rest ignore)
   (when (widget-member widget :kite-disclosed)
