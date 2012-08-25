@@ -25,19 +25,19 @@ will prompt you to connect to one.  See *Connecting to a WebKit page*.
 You can access Kite buffers using global key bindings or with an M-x
 incantation.  The following buffers are available:
 
-Key Binding   Incantation        Description
-------------  -----------------  ---------------------------------------
-C-c k c       kite-console       View console messages
-C-c k d       kite-debugger      Manage breakpoints
-C-c k h       kite-heap          Analyze heap usage
-C-c k k       kite-repl          Execute JavaScript code in page context
-C-c k m       kite-dom           Inspect and manipulate the DOM
-C-c k n       kite-network       Analyze HTTP requests and responses
-C-c k r       kite-resources     View external resources, such as images
-C-c k t       kite-timeline      View page-global events
-C-c k p j     kite-profile-js    Profile JavaScript performance
-C-c k p c     kite-profile-css   Profile CSS selector performance
-C-c k p h     kite-profile-heap  Profile Heap usage
+Key Binding     Incantation        Description
+--------------  -----------------  ---------------------------------------
+C-c C-k c       kite-console       View console messages
+C-c C-k d       kite-debugger      Manage breakpoints
+C-c C-k h       kite-heap          Analyze heap usage
+C-c C-k k       kite-repl          Execute JavaScript code in page context
+C-c C-k m       kite-dom           Inspect and manipulate the DOM
+C-c C-k n       kite-network       Analyze HTTP requests and responses
+C-c C-k r       kite-resources     View external resources, such as images
+C-c C-k t       kite-timeline      View page-global events
+C-c C-k p j     kite-profile-js    Profile JavaScript performance
+C-c C-k p c     kite-profile-css   Profile CSS selector performance
+C-c C-k p h     kite-profile-heap  Profile Heap usage
 
 There are also secondary buffer types for inspection of JavaScript
 objects, stack frames, messages, per-DOM element CSS properties, and

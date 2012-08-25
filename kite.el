@@ -384,7 +384,7 @@ prefix argument ARG, ignore (force-refresh) the browser cache."
     (define-key map "!" 'kite-reload-page)
     map))
 
-(global-set-key "\C-ck" kite-global-keymap)
+(global-set-key "\C-c\C-k" kite-global-keymap)
 
 (defun kite--find-default-session (prefix)
   (cond
