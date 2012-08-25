@@ -426,3 +426,5 @@ the buffer when it becomes large.")
 (add-hook 'kite-Debugger-globalObjectCleared-hooks 'kite--console-globalObjectCleared)
 
 (provide 'kite-console)
+
+;;; kite-console.el ends here

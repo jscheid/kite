@@ -210,3 +210,5 @@ but not when buffer is empty"
                     "test [message repeated 5 times]\n"))))
 
 (provide 'kite-console-tests)
+
+;;; kite-console-tests.el ends here

@@ -86,3 +86,5 @@
     (kite--memory-refresh)))
 
 (provide 'kite-memory)
+
+;;; kite-memory.el ends here

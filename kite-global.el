@@ -55,3 +55,5 @@
   (define-key map "!" 'kite-reload-page))
 
 (provide 'kite-global)
+
+;;; kite-global.el ends here

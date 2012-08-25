@@ -317,3 +317,5 @@
 
 
 (provide 'kite-object)
+
+;;; kite-object.el ends here

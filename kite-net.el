@@ -425,3 +425,5 @@
 (add-hook 'kite-Network-requestWillBeSent-hooks 'kite--net-Network-requestWillBeSent)
 
 (provide 'kite-net)
+
+;;; kite-net.el ends here

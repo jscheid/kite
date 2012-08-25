@@ -85,3 +85,5 @@ which should be a sequence of strings.  Naive implementation."
                     (make-string left-fill 32)))))))))
 
 (provide 'kite-util)
+
+;;; kite-util.el ends here

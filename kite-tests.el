@@ -35,3 +35,5 @@
 (require 'kite-color-tests)
 
 (provide 'kite-tests)
+
+;;; kite-tests.el ends here

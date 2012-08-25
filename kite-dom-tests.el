@@ -538,3 +538,5 @@
   (ert-run-tests-interactively "^kite-"))
 
 (provide 'kite-dom-tests)
+
+;;; kite-dom-tests.el ends here

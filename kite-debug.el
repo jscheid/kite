@@ -246,3 +246,5 @@
   (concat " (" (kite-session-debugger-state kite-session) ")"))
 
 (provide 'kite-debug)
+
+;;; kite-debug.el ends here

@@ -865,3 +865,5 @@ line under mouse and the corresponding DOM node in the browser."
 (add-hook 'kite-Inspector-inspect-hooks 'kite--dom-Inspector-inspect)
 
 (provide 'kite-dom)
+
+;;; kite-dom.el ends here

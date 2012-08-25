@@ -294,3 +294,5 @@ Transitions Module Level 3 section 2.3"
    t))
 
 (provide 'kite-dom-css)
+
+;;; kite-dom-css.el ends here

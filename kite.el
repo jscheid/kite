@@ -477,3 +477,5 @@ prefix argument ARG, ignore (force-refresh) the browser cache."
 (add-hook 'post-command-hook 'kite-remember-recent-session)
 
 (provide 'kite)
+
+;;; kite.el ends here

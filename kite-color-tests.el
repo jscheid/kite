@@ -353,3 +353,5 @@
   (should (null (kite-parse-color "Hsla(0,0%,0%,0)"))))
 
 (provide 'kite-color-tests)
+
+;;; kite-color-tests.el ends here

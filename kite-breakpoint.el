@@ -375,3 +375,5 @@
                                 (ewoc-invalidate breakpoint-ewoc)))))))
 
 (provide 'kite-breakpoint)
+
+;;; kite-breakpoint.el ends here
