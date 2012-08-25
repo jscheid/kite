@@ -3,7 +3,7 @@
 ;; Copyright (C) 2012 Julian Scheid
 
 ;; Author: Julian Scheid <julians37@gmail.com>
-;; Keywords: tools, WWW
+;; Keywords: tools
 
 ;; Kite is free software: you can redistribute it and/or modify it
 ;; under the terms of the GNU General Public License as published by
