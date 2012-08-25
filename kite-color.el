@@ -2,8 +2,8 @@
 
 ;; Copyright (C) 2012 Julian Scheid
 
-;; Author: Julian Scheid <julians37@gmail.com>
-;; Keywords: browser, debug, color, hex, rgb, hsl
+;; Author: Julian Scheid
+;; Keywords: tools, WWW
 
 ;; Kite is free software: you can redistribute it and/or modify it
 ;; under the terms of the GNU General Public License as published by
@@ -24,9 +24,9 @@
 ;; representations according to the CSS3 Color Module, as well as
 ;; visualizing colors with and without alpha channel.
 ;;
-;; It is part of Kite, the Emacs package for developing Web front-end
-;; applications.
+;; It is part of Kite, a WebKit inspector front-end.
 
+
 ;;; Code:
 
 (require 'color)

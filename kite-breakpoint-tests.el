@@ -1,3 +1,32 @@
+;;; kite-breakpoint-tests.el --- Kite test suite for breakpoints
+
+;; Copyright (C) 2012 Julian Scheid
+
+;; Author: Julian Scheid
+;; Keywords: tools, WWW
+
+;; Kite is free software: you can redistribute it and/or modify it
+;; under the terms of the GNU General Public License as published by
+;; the Free Software Foundation, either version 3 of the License, or
+;; (at your option) any later version.
+
+;; Kite is distributed in the hope that it will be useful, but WITHOUT
+;; ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+;; or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
+;; License for more details.
+
+;; You should have received a copy of the GNU General Public License
+;; along with Kite.  If not, see <http://www.gnu.org/licenses/>.
+
+;;; Commentary:
+
+;; Kite test suite for breakpoints.
+;;
+;; It is part of Kite, a WebKit inspector front-end.
+
+
+;;; Code:
+
 (defun kite-test--should-send-packets (body expected-packets &optional response-function)
   (let ((response-function* (or response-function
                                 (lambda (command params)
