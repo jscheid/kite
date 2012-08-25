@@ -449,6 +449,11 @@ prefix argument ARG, ignore (force-refresh) the browser cache."
   (kite-maybe-goto-buffer prefix 'repl))
 
 ;;;###autoload
+(defun kite-timeline (prefix)
+  (interactive "P")
+  (error "kite-timeline not yet implemented"))
+
+;;;###autoload
 (defun kite-javascript-profiler (prefix)
   (interactive "P")
   (error "kite-javascript-profiler not yet implemented"))
