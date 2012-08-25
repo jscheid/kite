@@ -27,6 +27,7 @@
 
 ;;; Code:
 
+(require 'kite-global)
 (require 'kite-color)
 (require 'kite-dom-css)
 (require 'widget)

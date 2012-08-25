@@ -27,6 +27,7 @@
 
 ;;; Code:
 
+(require 'kite-global)
 (require 'font-lock)
 
 (defface kite-log-warning

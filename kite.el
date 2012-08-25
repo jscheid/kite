@@ -30,46 +30,6 @@
 (require 'url-parse)
 (eval-when-compile (require 'cl))
 
-(setq websocket-debug t)
-(setq websocket-callback-debug-on-error t)
-
-(defvar kite-tab-history nil)
-
-(defvar kite-most-recent-session nil)
-
-(defvar kite-after-mode-hooks nil)
-
-(defvar kite-Console-messageAdded-hooks nil)
-(defvar kite-CSS-mediaQueryResultChanged-hooks nil)
-(defvar kite-DOM-attributeModified-hooks nil)
-(defvar kite-DOM-attributeRemoved-hooks nil)
-(defvar kite-DOM-childNodeCountUpdated-hooks nil)
-(defvar kite-DOM-childNodeInserted-hooks nil)
-(defvar kite-DOM-childNodeRemoved-hooks nil)
-(defvar kite-DOM-documentUpdated-hooks nil)
-(defvar kite-DOM-setChildNodes-hooks nil)
-(defvar kite-Debugger-globalObjectCleared-hooks nil)
-(defvar kite-Debugger-paused-hooks nil)
-(defvar kite-Debugger-resumed-hooks nil)
-(defvar kite-Debugger-scriptParsed-hooks nil)
-(defvar kite-Inspector-inspect-hooks nil)
-(defvar kite-Network-dataReceived-hooks nil)
-(defvar kite-Network-loadingFinished-hooks nil)
-(defvar kite-Network-requestWillBeSent-hooks nil)
-(defvar kite-Network-responseReceived-hooks nil)
-(defvar kite-Page-domContentEventFired-hooks nil)
-(defvar kite-Page-frameNavigated-hooks nil)
-(defvar kite-Page-loadEventFired-hooks nil)
-
-(defun kite--define-global-mode-keys (map)
-  (define-key map "!" 'kite-reload-page))
-
-(make-variable-buffer-local 'kite-buffer-type)
-(set-default 'kite-buffer-type nil)
-
-(make-variable-buffer-local 'kite-session)
-(set-default 'kite-session nil)
-
 (require 'kite-debug)
 (require 'kite-dom)
 (require 'kite-memory)
@@ -78,6 +38,20 @@
 (require 'kite-object)
 (require 'kite-console)
 (require 'kite-breakpoint)
+(require 'kite-global)
+
+(make-variable-buffer-local 'kite-buffer-type)
+(set-default 'kite-buffer-type nil)
+
+(make-variable-buffer-local 'kite-session)
+(set-default 'kite-session nil)
+
+(setq websocket-debug t)
+(setq websocket-callback-debug-on-error t)
+
+(defvar kite-tab-history nil)
+(defvar kite-most-recent-session nil)
+(defvar kite-after-mode-hooks nil)
 
 (defstruct (kite-session)
   websocket

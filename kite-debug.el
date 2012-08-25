@@ -28,6 +28,8 @@
 
 ;;; Code:
 
+(require 'kite-global)
+
 (defconst kite--debugger-state-resumed
   (propertize "Resumed" 'face 'success))
 

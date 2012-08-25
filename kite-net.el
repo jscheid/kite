@@ -27,6 +27,8 @@
 
 ;;; Code:
 
+(require 'kite-global)
+
 (defvar kite-requests (make-hash-table :test 'equal))
 
 (defface bg:kite-requestStart

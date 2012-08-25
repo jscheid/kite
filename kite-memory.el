@@ -24,6 +24,11 @@
 ;;
 ;; It is part of Kite, a WebKit inspector front-end.
 
+
+;;; Code:
+
+(require 'kite-global)
+
 (defvar kite-memory-mode-map
   (let ((map (make-keymap))
 	(ctl-c-b-map (make-keymap))
