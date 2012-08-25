@@ -402,6 +402,20 @@ the buffer when it becomes large.")
             (insert (kite--message-repeat-text
                      (plist-get packet :count)))))))))
 
+(defun kite--format-stacktrace (stacktrace)
+  (let ((formatted "") (index 0))
+    (while (< index (length stacktrace))
+      (let ((stackframe (elt stacktrace index)))
+        (setq formatted
+              (concat formatted
+                      (format "%s:%s:%s(%s)"
+                              (cdr (assq 'url stackframe))
+                              (cdr (assq 'lineNumber stackframe))
+                              (cdr (assq 'columnNumber stackframe))
+                              (cdr (assq 'functionName stackframe)))))
+        (setq index (1+ index))))
+    formatted))
+
 (add-hook 'kite-Console-messageAdded-hooks 'kite--console-messageAdded)
 (add-hook 'kite-Console-messageRepeatCountUpdated-hooks 'kite--console-messageRepeatCountUpdated)
 (add-hook 'kite-Debugger-globalObjectCleared-hooks 'kite--console-globalObjectCleared)

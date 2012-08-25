@@ -105,20 +105,6 @@
 
 (defvar kite-active-session-list nil)
 
-(defun kite--format-stacktrace (stacktrace)
-  (let ((formatted "") (index 0))
-    (while (< index (length stacktrace))
-      (let ((stackframe (elt stacktrace index)))
-        (setq formatted
-              (concat formatted
-                      (format "%s:%s:%s(%s)"
-                              (cdr (assq 'url stackframe))
-                              (cdr (assq 'lineNumber stackframe))
-                              (cdr (assq 'columnNumber stackframe))
-                              (cdr (assq 'functionName stackframe)))))
-        (setq index (1+ index))))
-    formatted))
-
 (defun kite-send (method &optional params callback callback-args)
   (let ((callback-buffer (current-buffer))
         (request-id (incf (kite-session-next-request-id kite-session))))
