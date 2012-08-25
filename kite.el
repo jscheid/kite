@@ -326,11 +326,6 @@
 
 (defun kite--connect-webservice (tab-alist)
   (let ((websocket-url (plist-get tab-alist :webSocketDebuggerUrl)))
-    ;(switch-to-buffer
-    ; (get-buffer-create
-    ;  (format "*kite %s*" websocket-url)))
-    ;(kite-connection-mode)
-    ;(setq kite-tab-alist tab-alist)
 
     (kite--log "Connecting to %s" websocket-url)
 
@@ -351,12 +346,6 @@
     (if kite-active-session-list
         (setcdr kite-active-session-list (cons kite-session nil))
       (setq kite-active-session-list (cons kite-session nil)))
-
-    ;;;(setf (kite-session-buffers kite-session)
-    ;;;(cons (current-buffer)
-    ;;;(kite-session-buffers kite-session)))
-
-    ;;;(kite--connect-buffer-insert)
 
     (kite-send "Page.enable" nil
                (lambda (response) (kite--log "Page notifications enabled.")))
