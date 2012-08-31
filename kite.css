@@ -1,0 +1,61 @@
+/*
+ *  kite.css -- Additional styles for the HTML version of the Kite
+ *              user manual.
+ *
+ *  Copyright (C) 2012 Julian Scheid
+ *
+ *  This file is not part of GNU Emacs.
+ *
+ *  Kite is free software: you can redistribute it and/or modify it
+ *  under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Kite is distributed in the hope that it will be useful, but WITHOUT
+ *  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+ *  or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
+ *  License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Kite.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+body {
+    margin-left: 80px;
+    margin-right: 80px;
+    margin-top: 40px;
+    margin-bottom: 40px;
+    font-size: 15pt;
+    font-family: Helvetica Neue, Helvetica, Arial;
+}
+
+h1, h2, h3, h4, h5 {
+    margin-top: 1em;
+    padding-bottom: 3px;
+    border-bottom: 3px solid #888;
+}
+
+a {
+    text-decoration: none;
+    color: #048;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+table, tr, td, th {
+    border: 1px solid #aaa;
+}
+
+td, th {
+    padding: 0.4em;
+}
+
+li {
+    margin-top: 0.4em;
+}
+
+#TOC {
+    margin-bottom: 2em;
+}
