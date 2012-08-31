@@ -42,25 +42,19 @@
 
 (defface kite-log-error
   '((t :inherit error))
-  "Basic face used to highlight warnings."
+  "Basic face used to highlight errors."
   :version "24.1"
   :group 'kite-faces)
 
 (defface kite-log-debug
   '((t :inherit font-lock-comment))
-  "Basic face used to highlight warnings."
+  "Basic face used to highlight debug-level messages."
   :version "24.1"
   :group 'kite-faces)
 
 (defface kite-log-log
   '((t :inherit default))
-  "Basic face used to highlight warnings."
-  :version "24.1"
-  :group 'kite-faces)
-
-(defface kite-log-tip
-  '((t :inherit underline))
-  "Basic face used to highlight warnings."
+  "Basic face used to highlight regular messages."
   :version "24.1"
   :group 'kite-faces)
 
