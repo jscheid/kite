@@ -29,8 +29,8 @@ for more details.
 Documentation
 -------------
 
-Rudimentary documentation is available in the file `kite.md`.  It be
-translated to HTML, Info, and other formats using
+Rudimentary documentation is available in the file `kite.md`.  It can
+be translated to HTML, Info, and other formats using
 [pandoc](http://johnmacfarlane.net/pandoc/).  The `Makefile` has
 targets for this purpose.
 
