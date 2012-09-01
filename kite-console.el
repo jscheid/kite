@@ -125,7 +125,7 @@ the buffer when it becomes large.")
     (kite--define-global-mode-keys map)
     (define-key map "X" 'kite-clear-console)
     (define-key map "s" 'kite-console-visit-source)
-    ;(define-key map (kbd "RET") 'kite-show-log-entry)
+    (define-key map "i" 'kite-show-log-entry)
     map)
   "Local keymap for `kite-console-mode' buffers.")
 

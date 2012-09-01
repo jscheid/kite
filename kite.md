@@ -287,10 +287,10 @@ node in question.
 
 ### Message Details
 
-~~In the console view, type `i` to bring up an detail view for the
-message under point (`kite-console-details`).  The detail view show
+In the console view, type `i` to bring up an detail view for the
+message under point (`kite-show-log-entry`).  The detail view show
 all available information on the log message, some of which is elided
-from the console view for brevity's sake.~~ Not yet implemented.
+from the console view for brevity's sake.
 
 ### Message Source
 
