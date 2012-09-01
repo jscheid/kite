@@ -166,7 +166,7 @@ can be updated later on."
         'kite-repeat-count t)))
 
 (defun kite--console-replace-object-async
-  (response object-plist buffer-point)
+  (response object-plist buffer-point longp)
   "Replace a previously inserted simple object representation
 with a more detailed representation after receiving additional
 data from the server.  RESPONSE is the JSON-RPC response received
@@ -204,16 +204,22 @@ marker at which the temporary placeholder is located."
                        (kite-inspect-object
                         (widget-get widget :kite-object-id)
                         (widget-get widget :kite-object-description)))
-             (plist-get object-plist :description)))
+             (if longp
+                 (kite--format-object-with-props
+                  (plist-get (plist-get response :result) :result))
+               (plist-get object-plist :description))))
            (t
             (insert "UNKNOWN")))))))
   (widget-setup))
 
-(defun kite--console-format-object (object-plist)
+(defun kite--console-format-object (object-plist &optional longp)
   "Return a propertized string representation of OBJECT-PLIST,
 where OBJECT-PLIST is a raw short object description plist as
 sent by the remote debugger, for example as part of a log message
 record.
+
+If LONGP is t, show a more detailed description of the object by
+including its properties.
 
 For JavaScript objects and arrays, additional data is fetched
 from the remote debugger asynchronously and the returned
@@ -226,6 +232,7 @@ replacement."
   (when (and (not (plist-member object-plist :result))
              (plist-member object-plist :objectId))
     (lexical-let ((object-plist object-plist)
+                  (longp longp)
                   (buffer-point (point-marker)))
       (kite-send "Runtime.getProperties"
                  `((objectId . ,(plist-get object-plist :objectId))
@@ -270,7 +277,7 @@ debugger."
            (setq extra-args
                  (concat extra-args
                          (when (> arg-index 0) " ")
-                         (kite--console-format-object (elt parameters arg-index))))
+                         (kite--console-format-object (elt parameters arg-index) t)))
            (setq arg-index (1+ arg-index)))
          extra-args)
        (when (plist-get message :repeatCount)
