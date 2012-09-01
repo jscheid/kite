@@ -188,22 +188,8 @@ marker at which the temporary placeholder is located."
           (goto-char text-prop-start)
           (cond
            ((string= (plist-get object-plist :subtype) "array")
-            (insert "[")
-            (let ((array-index 0)
-                  (is-first t)
-                  (array-elements
-                   (plist-get (plist-get response :result)
-                              :result)))
-              (while (< array-index (length array-elements))
-                (let ((array-element (elt array-elements array-index)))
-                  (when (eq t (plist-get array-element :enumerable))
-                    (if is-first
-                        (setq is-first nil)
-                      (insert ", "))
-                    (insert (kite--console-format-object
-                             (plist-get array-element :value)))))
-                (setq array-index (1+ array-index))))
-            (insert "]"))
+            (insert (kite--format-array
+                     (plist-get (plist-get response :result) :result))))
            ((string= (plist-get object-plist :subtype) "node")
             (insert (propertize
                      (plist-get object-plist :description)
