@@ -179,7 +179,8 @@ marker at which the temporary placeholder is located."
                            (plist-get object-plist :objectId)))
          (text-prop-end (next-single-property-change
                          text-prop-start
-                         'kite-loading-object-id)))
+                         'kite-loading-object-id))
+         (log-message (get-text-property text-prop-start 'log-message)))
 
     (when (and text-prop-start text-prop-end)
       (let ((inhibit-read-only t))
@@ -209,7 +210,11 @@ marker at which the temporary placeholder is located."
                   (plist-get (plist-get response :result) :result))
                (plist-get object-plist :description))))
            (t
-            (insert "UNKNOWN")))))))
+            (insert "UNKNOWN")))
+          (put-text-property text-prop-start
+                             (point)
+                             'log-message
+                             log-message)))))
   (widget-setup))
 
 (defun kite--console-format-object (object-plist &optional longp)
