@@ -165,7 +165,8 @@ can be updated later on."
         (format " [message repeated %d times]" repeat-count)
         'kite-repeat-count t)))
 
-(defun kite--console-replace-object-async (response object-plist buffer-point)
+(defun kite--console-replace-object-async
+  (response object-plist buffer-point)
   "Replace a previously inserted simple object representation
 with a more detailed representation after receiving additional
 data from the server.  RESPONSE is the JSON-RPC response received
@@ -180,7 +181,10 @@ marker at which the temporary placeholder is located."
                          text-prop-start
                          'kite-loading-object-id)))
 
-    (kite--log "Got runtime props: %s start %s end %s" response text-prop-start text-prop-end)
+    (kite--log "Got runtime props: %s start %s end %s"
+               response
+               text-prop-start
+               text-prop-end)
     (when (and text-prop-start text-prop-end)
       (let ((inhibit-read-only t))
         (save-excursion
@@ -191,14 +195,17 @@ marker at which the temporary placeholder is located."
             (insert "[")
             (let ((array-index 0)
                   (is-first t)
-                  (array-elements (plist-get (plist-get response :result) :result)))
+                  (array-elements
+                   (plist-get (plist-get response :result)
+                              :result)))
               (while (< array-index (length array-elements))
                 (let ((array-element (elt array-elements array-index)))
                   (when (eq t (plist-get array-element :enumerable))
                     (if is-first
                         (setq is-first nil)
                       (insert ", "))
-                    (insert (kite--console-format-object (plist-get array-element :value)))))
+                    (insert (kite--console-format-object
+                             (plist-get array-element :value)))))
                 (setq array-index (1+ array-index))))
             (insert "]"))
            ((string= (plist-get object-plist :subtype) "node")
@@ -206,15 +213,16 @@ marker at which the temporary placeholder is located."
                      (plist-get object-plist :description)
                      'face 'kite-object)))
            ((null (plist-get object-plist :subtype))
-            (widget-create 'link
-                           :kite-object-id (plist-get object-plist :objectId)
-                           :kite-object-description (plist-get object-plist :description)
-                           :button-face 'kite-object
-                           :notify (lambda (widget &rest ignore)
-                                     (kite-inspect-object
-                                      (widget-get widget :kite-object-id)
-                                      (widget-get widget :kite-object-description)))
-                           (plist-get object-plist :description)))
+            (widget-create
+             'link
+             :kite-object-id (plist-get object-plist :objectId)
+             :kite-object-description (plist-get object-plist :description)
+             :button-face 'kite-object
+             :notify (lambda (widget &rest ignore)
+                       (kite-inspect-object
+                        (widget-get widget :kite-object-id)
+                        (widget-get widget :kite-object-description)))
+             (plist-get object-plist :description)))
            (t
             (insert "UNKNOWN")))))))
   (widget-setup))
