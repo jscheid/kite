@@ -365,17 +365,6 @@ unavailable."
       (goto-char (point-max))
       (insert (concat (apply 'format format-string args) "\n")))))
 
-(defun kite-console (websocket-url)
-  (lexical-let*
-      ((kite-session (gethash websocket-url kite-active-sessions)))
-    (switch-to-buffer
-     (get-buffer-create (format "*kite console %s*" websocket-url)))
-    (kite-console-mode)
-    (set (make-local-variable 'kite-session) kite-session)
-    (erase-buffer)
-    (kite-send "Console.enable" nil
-               (lambda (response) (kite--log "Console enabled.")))))
-
 (defun kite-insert-page-break ()
   (kite--log "kite-insert-page-break called")
   (insert "\f\n"))
