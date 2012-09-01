@@ -181,10 +181,6 @@ marker at which the temporary placeholder is located."
                          text-prop-start
                          'kite-loading-object-id)))
 
-    (kite--log "Got runtime props: %s start %s end %s"
-               response
-               text-prop-start
-               text-prop-end)
     (when (and text-prop-start text-prop-end)
       (let ((inhibit-read-only t))
         (save-excursion
