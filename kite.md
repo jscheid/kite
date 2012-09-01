@@ -294,9 +294,8 @@ from the console view for brevity's sake.~~ Not yet implemented.
 
 ### Message Source
 
-~~In the console view, type `g` to go to the source location at which
-the message was emitted.  See *going to source locations*.~~ Not yet
-implemented.
+In the console view, type `s` to go to the source location at which
+the message under point was emitted.
 
 ### Tail Follow
 

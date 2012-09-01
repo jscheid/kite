@@ -124,6 +124,7 @@ the buffer when it becomes large.")
     (suppress-keymap map t)
     (kite--define-global-mode-keys map)
     (define-key map "X" 'kite-clear-console)
+    (define-key map "s" 'kite-console-visit-source)
     ;(define-key map (kbd "RET") 'kite-show-log-entry)
     map)
   "Local keymap for `kite-console-mode' buffers.")
@@ -315,6 +316,24 @@ the buffer when it becomes large.")
       (erase-buffer))
     (kite-send "Console.clearMessages" nil
                (lambda (response) (kite--log "Console cleared.")))))
+
+(defun kite-console-visit-source ()
+  "Visit the JavaScript source where the console message at point
+originated, or raise an error if the source is unknown or
+unavailable."
+  (interactive)
+  (unless (eq kite-buffer-type 'console)
+    (error "Not in a kite console buffer"))
+  (save-excursion
+    (beginning-of-line)
+    (let ((stack-trace
+           (plist-get
+            (get-text-property (point) 'log-message)
+            :stackTrace)))
+      (if (and stack-trace
+               (>= (length stack-trace) 1))
+          (kite-visit-stack-frame (elt stack-trace 0))
+        (error "No source location available for this log message")))))
 
 (defun kite-show-log-entry ()
   (interactive)

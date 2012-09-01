@@ -248,6 +248,37 @@
   "Returns a string to be displayed in the mode line"
   (concat " (" (kite-session-debugger-state kite-session) ")"))
 
+(defun kite-session-script-info-for-url (url)
+  "Return the script-info entry for the given URL in the session
+bound to `kite-session', or nil if not found."
+  (let (result)
+    (maphash (lambda (key value)
+               (when (string= url (kite-script-info-url value))
+                 (setq result value)))
+             (kite-session-script-infos kite-session))
+    result))
+
+(defun kite-visit-stack-frame (stack-frame-plist)
+  "Visit the source file corresponding to the stack frame given
+by STACK-FRAME-PLIST, which should be a plist with at least the
+properties `:url', `:lineNumber' and `:columnNumber'.  The
+variable `kite-session' should be bound to the session in which
+to visit the source file."
+  (message "visiting %s, source infos: %s" stack-frame-plist (kite-session-script-infos kite-session))
+  (let ((line-number (plist-get stack-frame-plist :lineNumber))
+        (column-number (plist-get stack-frame-plist :columnNumber))
+        (script-info (kite-session-script-info-for-url
+                      (plist-get stack-frame-plist :url))))
+    (if script-info
+        (kite-visit-script
+         script-info
+         (lambda ()
+           (set (make-local-variable 'kite-session) kite-session)
+           (goto-line line-number)
+           (beginning-of-line)
+           (forward-char (- column-number 1))))
+      (error "Source is unavailable"))))
+
 (provide 'kite-debug)
 
 ;;; kite-debug.el ends here
