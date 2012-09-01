@@ -165,17 +165,17 @@ can be updated later on."
         (format " [message repeated %d times]" repeat-count)
         'kite-repeat-count t)))
 
-(defun kite--insert-object-async (response object buffer-point)
-  "Replace a previously inserted placeholder with the actual
-object representation received from the server.  RESPONSE is the
-JSON-RPC response received from the server.  OBJECT is the plist
-describing the message parameter for which the request was sent.
-BUFFER-POINT is a marker at which the temporary placeholder is
-located."
+(defun kite--console-replace-object-async (response object-plist buffer-point)
+  "Replace a previously inserted simple object representation
+with a more detailed representation after receiving additional
+data from the server.  RESPONSE is the JSON-RPC response received
+from the server.  OBJECT-PLIST is a plist describing the message
+parameter for which the request was sent.  BUFFER-POINT is a
+marker at which the temporary placeholder is located."
   (let* ((text-prop-start (text-property-any buffer-point
                            (point-max)
                            'kite-loading-object-id
-                           (plist-get object :objectId)))
+                           (plist-get object-plist :objectId)))
          (text-prop-end (next-single-property-change
                          text-prop-start
                          'kite-loading-object-id)))
@@ -187,7 +187,7 @@ located."
           (delete-region text-prop-start text-prop-end)
           (goto-char text-prop-start)
           (cond
-           ((string= (plist-get object :subtype) "array")
+           ((string= (plist-get object-plist :subtype) "array")
             (insert "[")
             (let ((array-index 0)
                   (is-first t)
@@ -198,70 +198,55 @@ located."
                     (if is-first
                         (setq is-first nil)
                       (insert ", "))
-                    (insert (kite--format-object (plist-get array-element :value)))))
+                    (insert (kite--console-format-object (plist-get array-element :value)))))
                 (setq array-index (1+ array-index))))
             (insert "]"))
-           ((string= (plist-get object :subtype) "node")
-            (insert "DOM-NODE"))
-           ((null (plist-get object :subtype))
+           ((string= (plist-get object-plist :subtype) "node")
+            (insert (propertize
+                     (plist-get object-plist :description)
+                     'face 'kite-object)))
+           ((null (plist-get object-plist :subtype))
             (widget-create 'link
-                           :kite-object-id (plist-get object :objectId)
-                           :kite-object-description (plist-get object :description)
+                           :kite-object-id (plist-get object-plist :objectId)
+                           :kite-object-description (plist-get object-plist :description)
                            :button-face 'kite-object
                            :notify (lambda (widget &rest ignore)
                                      (kite-inspect-object
                                       (widget-get widget :kite-object-id)
                                       (widget-get widget :kite-object-description)))
-                           (plist-get object :description)))
+                           (plist-get object-plist :description)))
            (t
             (insert "UNKNOWN")))))))
   (widget-setup))
 
-(defun kite--format-object (object)
-  "Return a string representation of OBJECT, where OBJECT is an
-element of the parameters vector in a log message record sent by
-the remote debugger.
+(defun kite--console-format-object (object-plist)
+  "Return a propertized string representation of OBJECT-PLIST,
+where OBJECT-PLIST is a raw short object description plist as
+sent by the remote debugger, for example as part of a log message
+record.
 
-For some objects a text representation can't be determined
-without first talking to the remote debugger.  In such a case, a
-temporary placeholder will be inserted and
-`kite--insert-object-async' will be called eventually, once the
-remote debugger's response has been received, to render the
-actual object representation.
+For JavaScript objects and arrays, additional data is fetched
+from the remote debugger asynchronously and the returned
+representation will eventually be replaced with a more detailed
+one by calling `kite--console-replace-object-async'.
 
-FIXME: rename parameter `object' to `param-plist'."
-  (let ((type (plist-get object :type)))
-    (cond
-     ((string= type "number")
-      (propertize
-       (plist-get object :description)
-       'face 'kite-number))
-     ((string= type "string")
-      (concat
-       (propertize
-        "\""
-        'face 'kite-quote)
-       (propertize
-        (plist-get object :value)
-        'face 'kite-string)
-       (propertize
-        "\""
-        'face 'kite-quote)))
-     ((and (not (plist-member object :result))
-           (plist-member object :objectId))
-      (lexical-let ((object object)
-                    (buffer-point (point-marker)))
-        (kite-send "Runtime.getProperties"
-                   (list (cons 'objectId (plist-get object :objectId))
-                         (cons 'ownProperties t))
-                   (lambda (response)
-                     (kite--insert-object-async response object buffer-point))))
-      (propertize
-       (format "(Loading...)" (plist-get object :value))
-       'kite-loading-object-id (plist-get object :objectId)
-       'face 'kite-loading))
-     (t
-      (propertize "(unknown)" 'face 'error)))))
+The returned string must be inserted into the current buffer so
+that `kite--console-replace-object-async' can locate it for
+replacement."
+  (when (and (not (plist-member object-plist :result))
+             (plist-member object-plist :objectId))
+    (lexical-let ((object-plist object-plist)
+                  (buffer-point (point-marker)))
+      (kite-send "Runtime.getProperties"
+                 `((objectId . ,(plist-get object-plist :objectId))
+                   (ownProperties . t))
+                 (lambda (response)
+                   (kite--console-replace-object-async
+                    response
+                    object-plist
+                    buffer-point)))))
+
+  (kite--format-object object-plist))
 
 (defun kite--console-insert-message (message)
   "Insert the console message described by MESSAGE at point.
@@ -281,7 +266,7 @@ debugger."
             (prog1
                 (let ((object (elt parameters arg-index)))
                   (if object
-                      (kite--format-object object)
+                      (kite--console-format-object object)
                     string))
               (setq arg-index (1+ arg-index))))
           (propertize
@@ -295,7 +280,7 @@ debugger."
            (setq extra-args
                  (concat extra-args
                          (when (> arg-index 0) " ")
-                         (kite--format-object (elt parameters arg-index))))
+                         (kite--console-format-object (elt parameters arg-index))))
            (setq arg-index (1+ arg-index)))
          extra-args)
        (when (plist-get message :repeatCount)

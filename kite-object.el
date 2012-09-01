@@ -54,6 +54,53 @@
           map))
   (run-mode-hooks 'kite-object-mode-hook))
 
+(defun kite--format-object (object-plist)
+  "Return a propertized string representation of OBJECT-PLIST,
+where OBJECT-PLIST is a raw short object description plist as
+sent by the remote debugger, for example as part of a log message
+record."
+  (let ((type (plist-get object-plist :type))
+        (subtype (plist-get object-plist :subtype)))
+    (cond
+     ;; Object (details available)
+     ((and (not (plist-member object-plist :result))
+           (plist-member object-plist :objectId))
+      (propertize
+       (plist-get object-plist :description)
+       'face 'kite-object
+       'kite-loading-object-id (plist-get object-plist :objectId)))
+     ;; Null
+     ((and (string= type "object")
+           (string= subtype "null"))
+      (propertize "null" 'face 'kite-null))
+     ;; Object or function (no details available)
+     ((or (string= type "object")
+          (string= type "function"))
+      (propertize
+       (plist-get object-plist :description)
+       'face 'kite-object))
+     ;; Number
+     ((string= type "number")
+      (propertize
+       (plist-get object-plist :description)
+       'face 'kite-number))
+     ;; String
+     ((string= type "string")
+      (concat
+       (propertize "\"" 'face 'kite-quote)
+       (propertize
+        (plist-get object-plist :value)
+        'face 'kite-string)
+       (propertize "\"" 'face 'kite-quote)))
+     ;; Boolean
+     ((string= type "boolean")
+      (propertize
+       (if (plist-get object-plist :value) "true" "false")
+       'face 'kite-boolean))
+     ;; Unknown
+     (t
+      (error "Internal error, can't format value: %s" object-plist)))))
+
 (defun kite--object-toggle-widget (widget &rest ignore)
   (when (widget-member widget :kite-disclosed)
     (widget-children-value-delete widget)
@@ -107,42 +154,10 @@
         (apply 'move-overlay overlay)))))
   (widget-setup))
 
-(defun kite--object-format-value (property)
-  (let ((value-type (plist-get (plist-get property :value) :type))
-        (value-subtype (plist-get (plist-get property :value) :subtype)))
-    (cond
-     ((or (and (string= value-type "object")
-               (not (string= value-subtype "null")))
-          (string= value-type "function"))
-      (propertize
-       (plist-get (plist-get property :value) :description)
-       'face 'kite-object))
-     ((string= value-type "number")
-      (propertize
-       (plist-get (plist-get property :value) :description)
-       'face 'kite-number))
-     ((string= value-type "boolean")
-      (propertize
-       (if (plist-get (plist-get property :value) :value)
-           "true" "false")
-       'face 'kite-boolean))
-     ((string= value-type "string")
-      (concat
-       (propertize "\"" 'face 'kite-quote)
-       (propertize
-        (plist-get (plist-get property :value) :value)
-        'face 'kite-string)
-       (propertize "\"" 'face 'kite-quote)))
-     ((and (string= value-type "object")
-           (string= value-subtype "null"))
-      (propertize "null" 'face 'kite-null))
-     (t
-      (propertize "(unknown)" 'face 'error)))))
-
 (defun kite--object-create-property-widget (parent-widget property)
   (let ((value-type (plist-get (plist-get property :value) :type))
         (value-subtype (plist-get (plist-get property :value) :subtype))
-        (value (kite--object-format-value property))
+        (value (kite--format-object (plist-get property :value)))
         (name (propertize (plist-get property :name) 'face
                           (if (eq (plist-get property :enumerable) t)
                               'kite-property-name
