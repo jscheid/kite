@@ -57,11 +57,23 @@
 (setq websocket-debug t)
 (setq websocket-callback-debug-on-error t)
 
-(defvar kite-tab-history nil)
-(defvar kite-most-recent-session nil)
-(defvar kite-after-mode-hooks nil)
+(defvar kite-tab-history nil
+  "Keeps completion history of debugger tabs")
+(defvar kite-most-recent-session nil
+  "Keeps track of the most recently used Kite session.  FIXME:
+  this should be an list instead so that once the most recently
+  used session is closed we can fall back to the second most
+  recently used.")
+(defvar kite-after-mode-hooks nil
+  "Hooks run after a major mode change, used to run code after
+  kite-session has been fully initialized.  Only used in
+  buffer-local mode.  FIXME: this needs a better name.  FIXME:
+  investigate if this can be handled more elegantly without a
+  hook.")
 
 (defstruct (kite-session)
+  "Represents an active debugging session, i.e. a connection to a
+remote WebKit debugger instance."
   websocket
   page-favicon-url
   page-thumbnail-url
@@ -76,6 +88,9 @@
   (buffers nil))
 
 (defstruct (kite-script-info)
+  "Information about a script used in a debugging session.  Used
+to cache data received via the ` Debugger.scriptParsed'
+notification."
   url
   start-line
   start-column
@@ -83,11 +98,26 @@
   end-column)
 
 (defvar kite-active-sessions
-  (make-hash-table :test 'equal :weakness 'value))
+  (make-hash-table :test 'equal :weakness 'value)
+  "Maps webservice URL to kite-session structs for each active
+  debugging session")
 
-(defvar kite-active-session-list nil)
+(defvar kite-active-session-list nil
+  "List of kite-session structs.  Maintains order for
+  kite-active-sessions, with most recently opened session last")
 
 (defun kite-send (method &optional params callback callback-args)
+  "Send a JSON-RPC 2.0 packet to the remote debugger for the
+current session.  The current session is retrieved from variable
+`kite-session', which is buffer-local or taken from a let
+binding.
+
+METHOD is the method to be set for the JSON-RPC request.  PARAMS
+is a plist of parameters to be set for the JSON-RPC request.
+CALLBACK is a function invoked with the JSON-RPC server response.
+CALLBACK-ARGS are passed as the second argument to CALLBACK.
+CALLBACK is invoked with the same current buffer that was current
+when `kite-send' was invoked."
   (let ((callback-buffer (current-buffer))
         (request-id (incf (kite-session-next-request-id kite-session))))
     (puthash request-id (list (or callback (lambda (response) nil))
@@ -105,6 +135,11 @@
                            json-request))))
 
 (defun kite--session-remove-current-buffer ()
+  "Remove the current buffer from the list of the current
+session's buffers.  If no buffers remain in the current session,
+kill the session.  The current session is retrieved from variable
+`kite-session', which is buffer-local or taken from a let
+binding."
   (setf (kite-session-buffers kite-session)
         (delete (current-buffer) (kite-session-buffers kite-session)))
   (when (null (kite-session-buffers kite-session))
@@ -121,6 +156,12 @@
     (websocket-close (kite-session-websocket kite-session))))
 
 (defun kite--on-message (websocket frame)
+  "Invoked when a message is received from the JSON-RPC server.
+If the message contains a request ID, the callback passed to
+`kite-send' when the request was sent is invoked.  Otherwise, the
+hooks corresponding to the response method are run.  For example,
+if the response method is `Page.frameNavigated' then
+`kite-Page-frameNavigated-hooks' are run."
   ;;;(kite--log "received frame: %s" frame)
   (let ((buf (current-buffer))
         (kite-session (gethash (websocket-url websocket)
@@ -160,9 +201,18 @@
                  (plist-get response :params))))))))))
 
 (defun kite--on-close (websocket)
+  "Invoked when the JSON-RPC server closed the connection, most
+likely because the tab or browser was closed.  Currently this
+does nothing, but it ought to somehow add some sort of message to
+every buffer open for this connection. FIXME"
   (kite--log "websocket connection closed"))
 
 (defun kite--connect-webservice (tab-alist)
+  "Create a new kite session for the given browser tab.
+TAB-ALIST is actually a plist that should contain the following
+fields fetched from the remote debugger via
+HTTP: :webSocketDebuggerUrl, :faviconUrl, :thumbnailUrl, :url,
+and :title."
   (let ((websocket-url (plist-get tab-alist :webSocketDebuggerUrl)))
 
     (kite--log "Connecting to %s" websocket-url)
@@ -197,6 +247,9 @@
                (lambda (response) (kite--log "got response: %s" response)))))
 
 (defun kite--find-buffer (websocket-url type)
+  "Return the buffer corresponding to the given WEBSOCKET-URL and
+buffer TYPE and return it, or nil if no such buffer is currently
+open."
   (let ((buffer-iterator (buffer-list))
         found)
     (while (and buffer-iterator (not found))
@@ -212,6 +265,9 @@
     found))
 
 (defun kite--get-buffer-create (websocket-url type mode)
+  "Return the buffer corresponding to the given WEBSOCKET-URL and
+buffer TYPE and return it.  If no such buffer is currently open,
+create one with the given MODE."
   (lexical-let*
       ((-kite-session (gethash websocket-url kite-active-sessions))
        (buf (or (kite--find-buffer websocket-url type)
@@ -229,6 +285,11 @@
     buf))
 
 (defun kite-connect (&optional host port)
+  "Connect to the remote debugger instance running on the given
+HOST and PORT using HTTP, retrieve a list of candidate tabs for
+debugging, prompt the user to pick one, and create a new session
+for the chosen tab.  Return the new session or nil if the user
+enters the empty string at the prompt."
   (let* ((url-request-method "GET")
          (url-package-name "kite.el")
          (url-package-version "0.1")
@@ -360,7 +421,9 @@ prefix argument ARG, ignore (force-refresh) the browser cache."
                    (message "Page reloaded"))))))
 
 (defun kite--unique-session-name (title)
-  ;; FIXME
+  "Create a unique name for the session, given the tab TITLE string.
+May rename existing sessions.  FIXME: this currently just returns
+the title and makes no attempt at uniquifying it."
   title)
 
 (defvar kite-profiler-keymap
@@ -368,7 +431,8 @@ prefix argument ARG, ignore (force-refresh) the browser cache."
     (define-key map "j" 'kite-javascript-profiler)
     (define-key map "c" 'kite-css-profiler)
     (define-key map "h" 'kite-heap-profiler)
-    map))
+    map)
+  "The keymap associated with the profiler prefix key.")
 
 (defvar kite-global-keymap
   (let ((map (make-sparse-keymap)))
@@ -382,11 +446,28 @@ prefix argument ARG, ignore (force-refresh) the browser cache."
     (define-key map "t" 'kite-timeline)
     (define-key map "k" 'kite-repl)
     (define-key map "!" 'kite-reload-page)
-    map))
+    map)
+  "The keymap associated with the Kite prefix key.")
 
 (global-set-key "\C-c\C-k" kite-global-keymap)
 
 (defun kite--find-default-session (prefix)
+  "Reuse an existing Kite session or create a new one, depending
+on PREFIX.
+
+If PREFIX is `(4)', create a new session for the default host and
+port.
+
+If PREFIX is `(16)', create a new session, prompting for host and
+port.
+
+Otherwise, if PREFIX is a number, use the session with that
+index.
+
+Otherwise, if any sessions are already open, reuse the most
+recently used session.
+
+Otherwise, create a new session using default host and port."
   (cond
    ((equal '(4) prefix)
     (kite-connect))
@@ -418,6 +499,10 @@ prefix argument ARG, ignore (force-refresh) the browser cache."
     (kite-connect))))
 
 (defun kite-maybe-goto-buffer (prefix type)
+  "Find a session using `kite--find-default-session' and the
+given PREFIX argument.  If this results in a vaid session, switch
+to the buffer of the given TYPE for that session, creating it if
+it doesn't exist yet."
   (let ((session (kite--find-default-session prefix)))
     (when session
       (kite--get-buffer-create session type
@@ -425,50 +510,125 @@ prefix argument ARG, ignore (force-refresh) the browser cache."
 
 ;;;###autoload
 (defun kite-console (prefix)
+  "Go to the Kite Console buffer for the session specified by
+PREFIX.  Session and buffer are created as needed.  An existing
+session is reused if possible, unless a prefix argument of (4) is
+given in which case a new session is established.  With a prefix
+of (16), Kite will prompt for remote host name and port.  With a
+numeric prefix (1 or higher), Kite will reuse the Nth session,
+where sessions are counted in the order in which they were
+created."
   (interactive "P")
   (kite-maybe-goto-buffer prefix 'console))
 
 ;;;###autoload
 (defun kite-debug (prefix)
+  "Go to the Kite Debug buffer for the session specified by
+PREFIX.  Session and buffer are created as needed.  An existing
+session is reused if possible, unless a prefix argument of (4) is
+given in which case a new session is established.  With a prefix
+of (16), Kite will prompt for remote host name and port.  With a
+numeric prefix (1 or higher), Kite will reuse the Nth session,
+where sessions are counted in the order in which they were
+created."
   (interactive "P")
   (kite-maybe-goto-buffer prefix 'debug))
 
 ;;;###autoload
 (defun kite-dom (prefix)
+  "Go to the Kite DOM buffer for the session specified by
+PREFIX.  Session and buffer are created as needed.  An existing
+session is reused if possible, unless a prefix argument of (4) is
+given in which case a new session is established.  With a prefix
+of (16), Kite will prompt for remote host name and port.  With a
+numeric prefix (1 or higher), Kite will reuse the Nth session,
+where sessions are counted in the order in which they were
+created."
   (interactive "P")
   (kite-maybe-goto-buffer prefix 'dom))
 
 ;;;###autoload
 (defun kite-network (prefix)
+  "Go to the Kite Network buffer for the session specified by
+PREFIX.  Session and buffer are created as needed.  An existing
+session is reused if possible, unless a prefix argument of (4) is
+given in which case a new session is established.  With a prefix
+of (16), Kite will prompt for remote host name and port.  With a
+numeric prefix (1 or higher), Kite will reuse the Nth session,
+where sessions are counted in the order in which they were
+created."
   (interactive "P")
   (kite-maybe-goto-buffer prefix 'network))
 
 ;;;###autoload
 (defun kite-repl (prefix)
+  "Go to the Kite REPL buffer for the session specified by
+PREFIX.  Session and buffer are created as needed.  An existing
+session is reused if possible, unless a prefix argument of (4) is
+given in which case a new session is established.  With a prefix
+of (16), Kite will prompt for remote host name and port.  With a
+numeric prefix (1 or higher), Kite will reuse the Nth session,
+where sessions are counted in the order in which they were
+created."
   (interactive "P")
   (kite-maybe-goto-buffer prefix 'repl))
 
 ;;;###autoload
 (defun kite-timeline (prefix)
+  "Go to the Kite Timeline buffer for the session specified by
+PREFIX.  Session and buffer are created as needed.  An existing
+session is reused if possible, unless a prefix argument of (4) is
+given in which case a new session is established.  With a prefix
+of (16), Kite will prompt for remote host name and port.  With a
+numeric prefix (1 or higher), Kite will reuse the Nth session,
+where sessions are counted in the order in which they were
+created."
   (interactive "P")
   (error "kite-timeline not yet implemented"))
 
 ;;;###autoload
 (defun kite-javascript-profiler (prefix)
+  "Go to the Kite JavaScript Profiler buffer for the session
+specified by PREFIX.  Session and buffer are created as needed.
+An existing session is reused if possible, unless a prefix
+argument of (4) is given in which case a new session is
+established.  With a prefix of (16), Kite will prompt for remote
+host name and port.  With a numeric prefix (1 or higher), Kite
+will reuse the Nth session, where sessions are counted in the
+order in which they were created."
   (interactive "P")
   (error "kite-javascript-profiler not yet implemented"))
 
 ;;;###autoload
 (defun kite-css-profiler (prefix)
+  "Go to the Kite CSS Profiler buffer for the session specified
+by PREFIX.  Session and buffer are created as needed.  An
+existing session is reused if possible, unless a prefix argument
+of (4) is given in which case a new session is established.  With
+a prefix of (16), Kite will prompt for remote host name and port.
+With a numeric prefix (1 or higher), Kite will reuse the Nth
+session, where sessions are counted in the order in which they
+were created."
   (interactive "P")
   (error "kite-css-profiler not yet implemented"))
 
 ;;;###autoload
 (defun kite-heap-profiler (prefix)
+  "Go to the Kite Heap Profiler buffer for the session specified
+by PREFIX.  Session and buffer are created as needed.  An
+existing session is reused if possible, unless a prefix argument
+of (4) is given in which case a new session is established.  With
+a prefix of (16), Kite will prompt for remote host name and port.
+With a numeric prefix (1 or higher), Kite will reuse the Nth
+session, where sessions are counted in the order in which they
+were created."
   (interactive "P")
   (error "kite-heap-profiler not yet implemented"))
 
 (defun kite-close-all-sessions ()
+  "Close all active Kite sessions.  This is intended mostly for
+debugging, since Kite should handle session closing
+transparently."
   (interactive)
   (dolist (process (process-list))
     (when (string-match-p "^websocket to" (process-name process))
@@ -478,10 +638,16 @@ prefix argument ARG, ignore (force-refresh) the browser cache."
   (setq kite-most-recent-session nil))
 
 (defun kite--kill-buffer ()
+  "Invoked by `kill-buffer-hook' for all Kite major modes. Kills
+the current buffer, which should be a Kite buffer (one created by
+Kite and using one of the Kite major modes), ignoring any errors
+in the process."
   (ignore-errors
     (kite--session-remove-current-buffer)))
 
 (defun kite-remember-recent-session ()
+  "Invoked by `post-command-hook'. Remembers the most recently
+used kite session."
   (setq kite-most-recent-session
         (or (when kite-session
               (websocket-url (kite-session-websocket kite-session)))
