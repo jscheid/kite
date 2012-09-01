@@ -146,11 +146,19 @@ the buffer when it becomes large.")
   (run-mode-hooks 'kite-console-mode-hook))
 
 (defun kite--kill-console ()
+  "Called when a session's console buffer is closed.  Disables
+console logging in the remote debugger by sending the
+`Console.disable' message."
   (ignore-errors
     (kite-send "Console.disable" nil
                (lambda (response) (kite--log "Console disabled.")))))
 
 (defun kite--message-repeat-text (repeat-count)
+  "Return a string to be used as a suffix for messages with the
+given REPEAT-COUNT.  Return nil for a repeat count less than or
+equal to 1, a human-readable string otherwise.  The returned
+string has the `kite-repeat-count' text property set so that it
+can be updated later on."
   (and repeat-count
        (> repeat-count 1)
        (propertize
@@ -158,8 +166,13 @@ the buffer when it becomes large.")
         'kite-repeat-count t)))
 
 (defun kite--insert-object-async (response object buffer-point)
-  (let* ((text-prop-start (text-property-any
-                           buffer-point
+  "Replace a previously inserted placeholder with the actual
+object representation received from the server.  RESPONSE is the
+JSON-RPC response received from the server.  OBJECT is the plist
+describing the message parameter for which the request was sent.
+BUFFER-POINT is a marker at which the temporary placeholder is
+located."
+  (let* ((text-prop-start (text-property-any buffer-point
                            (point-max)
                            'kite-loading-object-id
                            (plist-get object :objectId)))
@@ -204,8 +217,19 @@ the buffer when it becomes large.")
             (insert "UNKNOWN")))))))
   (widget-setup))
 
-
 (defun kite--format-object (object)
+  "Return a string representation of OBJECT, where OBJECT is an
+element of the parameters vector in a log message record sent by
+the remote debugger.
+
+For some objects a text representation can't be determined
+without first talking to the remote debugger.  In such a case, a
+temporary placeholder will be inserted and
+`kite--insert-object-async' will be called eventually, once the
+remote debugger's response has been received, to render the
+actual object representation.
+
+FIXME: rename parameter `object' to `param-plist'."
   (let ((type (plist-get object :type)))
     (cond
      ((string= type "number")
@@ -240,6 +264,9 @@ the buffer when it becomes large.")
       (propertize "(unknown)" 'face 'error)))))
 
 (defun kite--console-insert-message (message)
+  "Insert the console message described by MESSAGE at point.
+MESSAGE is the raw message plist as received from the remote
+debugger."
   (insert
    (propertize
     (let* ((parameters (plist-get message :parameters))
@@ -278,6 +305,8 @@ the buffer when it becomes large.")
     'log-message message)))
 
 (defun kite--console-messageAdded (websocket-url packet)
+  "Callback invoked for `Console.messageAdded' notifications
+received from the remote debugger."
   (let* ((buf (kite--find-buffer websocket-url 'console))
          (message (plist-get packet :message))
          (message-type (plist-get message :type)))
@@ -310,6 +339,8 @@ the buffer when it becomes large.")
         (kite--log "message added, url is %s, packet is %s" websocket-url packet)))))
 
 (defun kite-clear-console ()
+  "Clear the console locally and in the remote debugger, the
+latter by sending a `Console.clearMessages' message."
   (interactive)
   (save-excursion
     (let ((inhibit-read-only t))
@@ -336,6 +367,13 @@ unavailable."
         (error "No source location available for this log message")))))
 
 (defun kite-show-log-entry ()
+  "Show details about the console message under cursor in a
+temporary buffer.
+
+FIXME: this should print the message using the same code as
+output into the main console buffer.
+
+FIXME: this could use nicer formatting."
   (interactive)
   (save-excursion
     (beginning-of-line)
@@ -379,6 +417,10 @@ unavailable."
   frontend, set this function to `erase-buffer'." )
 
 (defun kite--console-globalObjectCleared (websocket-url packet)
+  "Callback invoked for `Console.globalObjectCleared'
+notifications received from the remote debugger.
+
+FIXME: this function is broken and needs tests."
   (let ((buf (get-buffer (format "*kite console %s*" websocket-url))))
     (when buf
       (save-excursion
@@ -389,6 +431,8 @@ unavailable."
             (funcall kite-console-on-reload-function)))))))
 
 (defun kite--console-messageRepeatCountUpdated (websocket-url packet)
+  "Callback invoked for `Console.messageRepeatCountUpdated'
+notifications received from the remote debugger."
   (let ((buf (kite--find-buffer websocket-url 'console)))
     (when buf
       (save-excursion
@@ -412,6 +456,14 @@ unavailable."
                      (plist-get packet :count)))))))))
 
 (defun kite--format-stacktrace (stacktrace)
+  "Return the given STACKTRACE as a formatted string.  STACKTRACE
+should be the raw stack trace plist as received from the remote
+debugger.
+
+FIXME: this is incomplete.
+
+FIXME: this should be consolidated with
+`kite--insert-stack-line'."
   (let ((formatted "") (index 0))
     (while (< index (length stacktrace))
       (let ((stackframe (elt stacktrace index)))
