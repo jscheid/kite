@@ -31,23 +31,31 @@
 
 ;;; Code:
 
-(defvar kite--console-test-simple-message-1
-  (list :message
-        (list :type "log"
-              :level "log"
-              :text "test1")))
+(defconst kite--console-test-simple-message-1
+  '(:message
+    (:parameters
+     [(:value "test1" :type "string")]
+     :repeatCount 1
+     :source "console-api"
+     :type "log"
+     :level "log"
+     :text "test1")))
 
-(defvar kite--console-test-simple-message-2
-  (list :message
-        (list :type "log"
-              :level "log"
-              :text "test2")))
+(defconst kite--console-test-simple-message-2
+  '(:message
+    (:parameters
+     [(:value "test1" :type "string")]
+     :repeatCount 1
+     :source "console-api"
+     :type "log"
+     :level "log"
+     :text "test2")))
 
 (defmacro with--kite-console-test-buffer (&rest body)
   `(with-temp-buffer
      (let (kite-session (inhibit-read-only t))
        (kite-console-mode)
-       (flet ((kite--console-buffer (websocket-url) (current-buffer)))
+       (flet ((kite--find-buffer (websocket-url type) (current-buffer)))
          ,@body))))
 
 (ert-deftest kite-console-insert-message ()
@@ -160,19 +168,23 @@ but not when buffer is empty"
 
    (kite--console-messageAdded
     nil
-    (list :message
-          (list :type "log"
-                :level "log"
-                :text "foo"
-                :repeatCount 1)))
+    '(:message
+      (:parameters
+       [(:value "foo" :type "string")]
+       :type "log"
+       :level "log"
+       :text "foo"
+       :repeatCount 1)))
 
    (kite--console-messageAdded
     nil
-    (list :message
-          (list :type "log"
-                :level "log"
-                :text "bar"
-                :repeatCount 3)))
+    '(:message
+      (:parameters
+       [(:value "foo" :type "string")]
+       :type "log"
+       :level "log"
+       :text "bar"
+       :repeatCount 3)))
 
    ;; Text in buffer
    (should (string= (buffer-substring-no-properties
@@ -188,10 +200,12 @@ but not when buffer is empty"
 
    (kite--console-messageAdded
     nil
-    (list :message
-          (list :type "log"
-                :level "log"
-                :text "test")))
+    '(:message
+      (:parameters
+       [(:value "test" :type "string")]
+       :type "log"
+       :level "log"
+       :text "test")))
 
    (kite--console-messageRepeatCountUpdated
     nil
