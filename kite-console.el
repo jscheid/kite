@@ -234,15 +234,45 @@ replacement."
     (lexical-let ((object-plist object-plist)
                   (longp longp)
                   (buffer-point (point-marker)))
-      (kite-send "Runtime.getProperties"
-                 `((objectId . ,(plist-get object-plist :objectId))
-                   (ownProperties . t))
-                 (lambda (response)
-                   (kite--console-replace-object-async
-                    response
-                    object-plist
-                    buffer-point)))))
-
+      ;; Optimization: receiving an array with thousands or even
+      ;; millions of elements can take a very long time, most of all
+      ;; because of JSON serialization.  Therefore, only fetch the
+      ;; slice of the array necessary for printing the compact
+      ;; representation (if applicable).
+      ;;
+      ;; FIXME: the same optimization is necessary for objects as they
+      ;; might contain thousands or millions of properties.
+      (kite-send
+       "Runtime.callFunctionOn"
+       `((objectId . ,(plist-get object-plist :objectId))
+         (functionDeclaration
+          . ,(format "\
+function f() { \
+  if (this instanceof Array) { \
+    return this.slice(0, %d); \
+  } \
+  else { \
+    return this; \
+  } \
+}"
+                    ;; Fetch one item more than necessary so that
+                    ;; kite--format-array knows when to insert an
+                    ;; ellipsis at the end.
+                    (1+ kite-short-array-max-elements)))
+         (arguments . []))
+       (lambda (response)
+         (kite-send
+          "Runtime.getProperties"
+          `((objectId . ,(plist-get (plist-get (plist-get response
+                                                          :result)
+                                               :result)
+                                    :objectId))
+            (ownProperties . t))
+          (lambda (response)
+            (kite--console-replace-object-async response
+                                                object-plist
+                                                buffer-point
+                                                longp)))))))
   (kite--format-object object-plist))
 
 (defun kite--console-insert-message (message)
