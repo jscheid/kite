@@ -495,10 +495,10 @@ FIXME: this should be consolidated with
         (setq formatted
               (concat formatted
                       (format "%s:%s:%s(%s)"
-                              (cdr (assq 'url stackframe))
-                              (cdr (assq 'lineNumber stackframe))
-                              (cdr (assq 'columnNumber stackframe))
-                              (cdr (assq 'functionName stackframe)))))
+                              (plist-get stackframe :url)
+                              (plist-get stackframe :lineNumber)
+                              (plist-get stackframe :columnNumber)
+                              (plist-get stackframe :functionName))))
         (setq index (1+ index))))
     formatted))
 
