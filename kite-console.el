@@ -407,17 +407,15 @@ FIXME: this could use nicer formatting."
         (princ (format (concat
                         "Origin: %s:%s\n"
                         "Source: %s\n"
-                        "Type: %s\n"
                         "Level: %s\n"
                         "Repeat Count: %s\n"
-                        "Message:\n\n%s\n\nStack Trace:\n\n%s")
+                        "Message:\n\n%s\nStack Trace:\n\n%s")
                        (plist-get log-message :url)
                        (plist-get log-message :line)
                        (plist-get log-message :source)
-                       (plist-get log-message :type)
                        (plist-get log-message :level)
                        (plist-get log-message :repeatCount)
-                       (plist-get log-message :text)
+                       (kite--console-format-message log-message)
                        (kite--format-stacktrace (plist-get log-message :stackTrace))
                        ))))))
 
