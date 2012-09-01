@@ -235,13 +235,11 @@ replacement."
                   (longp longp)
                   (buffer-point (point-marker)))
       ;; Optimization: receiving an array with thousands or even
-      ;; millions of elements can take a very long time, most of all
-      ;; because of JSON serialization.  Therefore, only fetch the
-      ;; slice of the array necessary for printing the compact
-      ;; representation (if applicable).
-      ;;
-      ;; FIXME: the same optimization is necessary for objects as they
-      ;; might contain thousands or millions of properties.
+      ;; millions of elements, or an object with thousands of
+      ;; properties can take a very long time, most of all because of
+      ;; JSON serialization.  Therefore, only fetch the
+      ;; elements/properties necessary for printing a compact
+      ;; representation.
       (kite-send
        "Runtime.callFunctionOn"
        `((objectId . ,(plist-get object-plist :objectId))
@@ -251,14 +249,25 @@ function f() { \
   if (this instanceof Array) { \
     return this.slice(0, %d); \
   } \
+  else if (this instanceof Object) {
+    obj = {}; \
+    count = 0; \
+    for (key in this) { \
+      obj[key] = this[key]; \
+      if (++count >= %d) break; \
+    }; \
+    return obj; \
+  } \
   else { \
     return this; \
   } \
 }"
                     ;; Fetch one item more than necessary so that
-                    ;; kite--format-array knows when to insert an
-                    ;; ellipsis at the end.
-                    (1+ kite-short-array-max-elements)))
+                    ;; kite--format-array and
+                    ;; kite--format-object-with-props know when to
+                    ;; insert an ellipsis at the end.
+                    (1+ kite-short-array-max-elements)
+                    (1+ kite-short-object-max-properties)))
          (arguments . []))
        (lambda (response)
          (kite-send
