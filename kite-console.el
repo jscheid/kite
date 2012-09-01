@@ -289,46 +289,45 @@ function f() { \
                                                 longp)))))))
   (kite--format-object object-plist))
 
-(defun kite--console-insert-message (message)
-  "Insert the console message described by MESSAGE at point.
+(defun kite--console-format-message (message)
+  "Format the console message described by MESSAGE at point.
 MESSAGE is the raw message plist as received from the remote
 debugger."
-  (insert
-   (propertize
-    (let* ((parameters (plist-get message :parameters))
-           (arg-index (if (string= (plist-get (elt parameters 0) :type) "string")
-                          1 0)))
-      (concat
-       (make-string (* 2 kite-message-group-level) 32)
-       (when (> arg-index 0)
-         (replace-regexp-in-string
-          "\\([^%]\\|^\\)\\(%[osd]\\)"
-          (lambda (string)
-            (prog1
-                (let ((object (elt parameters arg-index)))
-                  (if object
-                      (kite--console-format-object object)
-                    string))
-              (setq arg-index (1+ arg-index))))
-          (propertize
-           (plist-get message :text)
-           'face (intern (format "kite-log-%s" (plist-get message :level))))
-          t   ; fixed-case
-          t   ; literal
-          2)) ; subexp
-       (let (extra-args)
-         (while (< arg-index (length parameters))
-           (setq extra-args
-                 (concat extra-args
-                         (when (> arg-index 0) " ")
-                         (kite--console-format-object (elt parameters arg-index) t)))
-           (setq arg-index (1+ arg-index)))
-         extra-args)
-       (when (plist-get message :repeatCount)
-         (kite--message-repeat-text
-          (plist-get message :repeatCount)))
-       "\n"))
-    'log-message message)))
+  (propertize
+   (let* ((parameters (plist-get message :parameters))
+          (arg-index (if (string= (plist-get (elt parameters 0) :type) "string")
+                         1 0)))
+     (concat
+      (make-string (* 2 kite-message-group-level) 32)
+      (when (> arg-index 0)
+        (replace-regexp-in-string
+         "\\([^%]\\|^\\)\\(%[osd]\\)"
+         (lambda (string)
+           (prog1
+               (let ((object (elt parameters arg-index)))
+                 (if object
+                     (kite--console-format-object object)
+                   string))
+             (setq arg-index (1+ arg-index))))
+         (propertize
+          (plist-get message :text)
+          'face (intern (format "kite-log-%s" (plist-get message :level))))
+         t   ; fixed-case
+         t   ; literal
+         2)) ; subexp
+      (let (extra-args)
+        (while (< arg-index (length parameters))
+          (setq extra-args
+                (concat extra-args
+                        (when (> arg-index 0) " ")
+                        (kite--console-format-object (elt parameters arg-index) t)))
+          (setq arg-index (1+ arg-index)))
+        extra-args)
+      (when (plist-get message :repeatCount)
+        (kite--message-repeat-text
+         (plist-get message :repeatCount)))
+      "\n"))
+   'log-message message))
 
 (defun kite--console-messageAdded (websocket-url packet)
   "Callback invoked for `Console.messageAdded' notifications
@@ -358,7 +357,7 @@ received from the remote debugger."
                 (delete-region (point-min) (point))
                 (setq kite-console-line-count (- kite-console-line-count 1))))
             (goto-char (point-max))
-            (kite--console-insert-message message)
+            (insert (kite--console-format-message message))
             (setq kite-console-line-count (1+ kite-console-line-count)))
           (when keep-at-end
             (goto-char (point-max))))
