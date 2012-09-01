@@ -31,6 +31,14 @@
 
 ;;; Code:
 
+(defcustom kite-short-object-max-properties 5
+  "Maximum number of elements to include in the short string
+  representation of an object")
+
+(defcustom kite-short-array-max-elements 100
+  "Maximum number of elements to include in the short string
+  representation of an array")
+
 (defvar kite-object-mode-map
   (let ((map (copy-keymap
               (make-composed-keymap
@@ -100,6 +108,55 @@ record."
      ;; Unknown
      (t
       (error "Internal error, can't format value: %s" object-plist)))))
+
+(defun kite--format-object-with-props (properties)
+  "Return a short representation of the object described by the
+given PROPERTIES vector.  The representation will look like
+`Object {prop: value, prop: value, ...}'. A maximum of
+`kite-short-object-max-properties' properties will be included."
+  (let ((properties-without-proto
+         (remove-if (lambda (element)
+                      (string= "__proto__" (plist-get element :name)))
+                    properties)))
+    (concat
+     "Object {"
+     (mapconcat (lambda (element)
+                  (format
+                   "%s: %s"
+                   (plist-get element :name)
+                   (kite--format-object (plist-get element :value))))
+                (subseq properties-without-proto
+                        0
+                        (min kite-short-object-max-properties
+                             (length properties-without-proto)))
+                ", ")
+     (when (> (length properties-without-proto)
+              kite-short-object-max-properties)
+       "...")
+     "}")))
+
+(defun kite--format-array (properties)
+  "Return a short representation of the array described by the
+given PROPERTIES vector."
+  (let ((array-elements
+         (remove-if
+          (lambda (element)
+            (or (not (eq t (plist-get element :enumerable)))
+                (string= "length" (plist-get element :name))))
+          properties)))
+    (concat
+     "["
+     (mapconcat
+      (lambda (element)
+        (kite--console-format-object
+         (plist-get element :value)))
+      (subseq array-elements 0 (min kite-short-array-max-elements
+                                    (length array-elements)))
+      ", ")
+     (when (> (length array-elements)
+              kite-short-array-max-elements)
+       "...")
+     "]")))
 
 (defun kite--object-toggle-widget (widget &rest ignore)
   (when (widget-member widget :kite-disclosed)
