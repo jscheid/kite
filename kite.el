@@ -85,7 +85,8 @@ remote WebKit debugger instance."
   (debugger-state kite--debugger-state-resumed)
   (next-request-id 0)
   (pending-requests (make-hash-table))
-  (buffers nil))
+  (buffers nil)
+  (top-frame nil))
 
 (defstruct (kite-script-info)
   "Information about a script used in a debugging session.  Used
@@ -244,7 +245,12 @@ and :title."
     (kite-send "CSS.enable" nil
                (lambda (response) (kite--log "CSS enabled.")))
     (kite-send "Debugger.canSetScriptSource" nil
-               (lambda (response) (kite--log "got response: %s" response)))))
+               (lambda (response) (kite--log "got response: %s" response)))
+    (kite-send "Page.getResourceTree" nil
+               (lambda (response)
+                 (kite--log "got resource tree response: %s" response)
+                 (setf (kite-session-top-frame kite-session)
+                       (plist-get (plist-get (plist-get response :result) :frameTree) :frame))))))
 
 (defun kite--find-buffer (websocket-url type)
   "Return the buffer corresponding to the given WEBSOCKET-URL and
