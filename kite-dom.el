@@ -398,17 +398,22 @@ line under mouse and the corresponding DOM node in the browser."
                   (kite--log "DOM.getDocument got response %s" response)
                   (with-current-buffer buf
                     (save-excursion
-                      (kite--dom-insert-element
-                       (elt (plist-get
-                             (plist-get
-                              (plist-get
-                               response
-                               :result)
-                              :root)
-                             :children) 0)
-                       0 t)
+                      (kite--dom-insert-document
+                       (plist-get (plist-get response :result) :root))
                       (widget-setup)))))))
   (run-mode-hooks 'kite-dom-mode-hook))
+
+(defun kite--dom-insert-document (root-plist)
+  "Insert the whole HTML document into the DOM buffer, given the
+ROOT-PLIST as received in the response to `DOM.getDocument'."
+  (let ((html-plist
+         (find-if
+          (lambda (child-plist)
+            (string= (plist-get child-plist :nodeName) "HTML"))
+          (plist-get root-plist :children))))
+    (if html-plist
+        (kite--dom-insert-element html-plist 0 t)
+      (error "Document doesn't seem to contain html element"))))
 
 (defconst kite-dom-offset 2
   "Number of spaces to use for each DOM indentation level.")
