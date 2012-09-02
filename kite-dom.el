@@ -59,6 +59,10 @@
 ;; Try loading nxml-mode so we can steal their faces
 (require 'nxml-mode nil t)
 
+;;; Below default colors and face definitions shamelessly stolen from
+;;; nxml.  However, we try to derive from nxml faces if possible in
+;;; case we we inherit any changes the user might have made to them.
+
 ;; The following are the colors we use with a light background.
 ;; The two blues have the same hue but contrasting saturation/value.
 ;; The hue of the green is 120 degrees different from that of the
@@ -308,6 +312,8 @@ The delimiters are <! and >."
   "Face used for # before a name in the prolog."
   :group 'kite-highlighting-faces)
 
+;;; End of stolen nxml colors and faces.
+
 (defvar kite-dom-mode-map nil
   "Local keymap for `kite-dom-mode' buffers.")
 
@@ -404,9 +410,13 @@ line under mouse and the corresponding DOM node in the browser."
                       (widget-setup)))))))
   (run-mode-hooks 'kite-dom-mode-hook))
 
-(defconst kite-dom-offset 2)
+(defconst kite-dom-offset 2
+  "Number of spaces to use for each DOM indentation level.")
 
 (defun kite--notify-widget (widget &rest ignore)
+  "Experimental callback for widget-validate.  Highlight the
+widget with `modified-face' to show that its contents have been
+edited."
   (let ((modified-face (widget-get widget :modified-value-face)))
     (unless (eq (widget-get widget :value-face)
                 modified-face)
@@ -415,6 +425,7 @@ line under mouse and the corresponding DOM node in the browser."
                    'face modified-face))))
 
 (defun kite--validate-widget (widget)
+  "Experimental callback for widget-validate."
   (let ((val (widget-apply widget :value-get)))
     (message "validate, widget value %s" val)
     (unless (> (length val) 0)
@@ -422,6 +433,13 @@ line under mouse and the corresponding DOM node in the browser."
       widget)))
 
 (defun kite--insert-attribute (node-id attr-name attr-value)
+  "Insert an attribute name/value pair at point.  ATTR-NAME is
+the attribute name and ATTR-VALUE is the string representation of
+the attribute value.  NODE-ID is the ID of the element the
+attribute belongs to.
+
+Return an (ATTR-NAME . ATTR-REGION) cons cell, with ATTR-REGION
+describing the buffer region where the attribute was inserted."
   (let ((attr-begin (point-marker))
         (attr-region (make-attr-region)))
 
@@ -457,6 +475,10 @@ line under mouse and the corresponding DOM node in the browser."
     (cons (intern attr-name) attr-region)))
 
 (defun kite--dom-render-attribute-regions (element)
+  "Insert all attributes of ELEMENT.  ELEMENT is a plist
+representing the element and its attributes, as provided by the
+remote debugger.  Return a list of (ATTR-NAME . ATTR-REGION) cons
+cells in the same order as the attributes in the element plist."
   (let* (attribute-info-list
          (node-id (plist-get element :nodeId))
          (attributes (plist-get element :attributes))
@@ -475,6 +497,10 @@ line under mouse and the corresponding DOM node in the browser."
     attribute-info-list))
 
 (defun kite--dom-insert-element (element indent loadp)
+  "Insert ELEMENT at point, at indentation level INDENT.  If
+LOADP, recursively and asynchronously load and insert children.
+
+FIXME: this needs to be smarter about when to load children."
   (flet ((indent-prefix (indent node-id)
                         (propertize
                          (make-string (* kite-dom-offset indent) 32)
@@ -588,15 +614,18 @@ line under mouse and the corresponding DOM node in the browser."
       (puthash (plist-get element :nodeId) node-region kite-dom-nodes))))
 
 (defun kite--kill-dom ()
+  "Obsolete. FIXME"
   t)
 ;  (ignore-errors
 ;    (kite-send "CSS.disable" nil
 ;               (lambda (response) (message "CSS disabled.")))))
 
 (defun kite--websocket-url ()
+  "Obsolete. FIXME"
   (websocket-url (kite-session-websocket kite-session)))
 
 (defun kite-dom-inspect ()
+  "Obsolete. FIXME"
   (interactive)
   (kite--log "opening dom")
   (lexical-let*
@@ -642,6 +671,7 @@ line under mouse and the corresponding DOM node in the browser."
                        (widget-setup))))))))
 
 (defun kite--dom-buffer (websocket-url)
+  "Obsolete. FIXME"
   (let ((buffer-iterator (buffer-list))
         found)
     (while (and buffer-iterator (not found))
@@ -657,6 +687,10 @@ line under mouse and the corresponding DOM node in the browser."
     found))
 
 (defun kite--dom-DOM-setChildNodes (websocket-url packet)
+  "Callback invoked for the `DOM.setChildNodes' notification,
+which the remote debugger wants to provide us with missing DOM
+structure, for example in response to a `DOM.requestChildNodes'
+request."
   (kite--log "kite--DOM-setChildNodes got packet %s" packet)
   (with-current-buffer (kite--dom-buffer websocket-url)
     (save-excursion
@@ -678,6 +712,9 @@ line under mouse and the corresponding DOM node in the browser."
       (widget-setup))))
 
 (defun kite--dom-DOM-childNodeInserted (websocket-url packet)
+  "Callback invoked for the `DOM.childNodeInserted' notification,
+which the remote debugger sends when a script has inserted a
+child node into a DOM element."
   (kite--log "kite--DOM-childNodeInserted got packet %s" packet)
   (with-current-buffer (kite--dom-buffer websocket-url)
     (save-excursion
@@ -698,9 +735,15 @@ line under mouse and the corresponding DOM node in the browser."
       (widget-setup))))
 
 (defun kite--dom-DOM-childNodeCountUpdated (websocket-url packet)
+  "Callback invoked for the `DOM.childNodeCountUpdated' notification,
+which the remote debugger sends when the number of child nodes of
+a DOM element has changed."
   (kite--log "kite--DOM-childNodeCountUpdated got packet %s" packet))
 
 (defun kite--dom-DOM-childNodeRemoved (websocket-url packet)
+  "Callback invoked for the `DOM.childNodeRemoved' notification,
+which the remote debugger sends when a script has removed a child
+node from a DOM element."
   (kite--log "kite--DOM-childNodeRemoved got packet %s" packet)
   (with-current-buffer (kite--dom-buffer websocket-url)
     (save-excursion
@@ -711,6 +754,9 @@ line under mouse and the corresponding DOM node in the browser."
          (node-region-line-end node-region))))))
 
 (defun kite--dom-DOM-attributeModified (websocket-url packet)
+  "Callback invoked for the `DOM.attributeModified' notification,
+which the remote debugger sends when a script has modified the
+value of an attribute in a DOM element."
   (kite--log "kite--DOM-attributeModified got packet %s" packet)
   (with-current-buffer (kite--dom-buffer websocket-url)
     (save-excursion
@@ -734,6 +780,9 @@ line under mouse and the corresponding DOM node in the browser."
                       (node-region-attribute-regions node-region))))))))
 
 (defun kite--dom-DOM-attributeRemoved (websocket-url packet)
+  "Callback invoked for the `DOM.attributeRemoved' notification,
+which the remote debugger sends when a script has removed an
+attribute from a DOM element."
   (kite--log "kite--DOM-attributeRemoved got packet %s" packet)
   (with-current-buffer (kite--dom-buffer websocket-url)
     (save-excursion
@@ -747,40 +796,67 @@ line under mouse and the corresponding DOM node in the browser."
               (assq-delete-all attr-name (node-region-attribute-regions node-region)))))))
 
 (defun kite-backward-up-element (&optional arg)
+  "Move backward over one element, or up the tree if this is there are
+no previous siblings.
+With ARG, do it that many times.
+Negative ARG means move forward."
   (interactive "p")
   t)
 
 (defun kite-down-element (&optional arg)
+  "Move forward down into the content of an element.
+With ARG, do this that many times.
+Negative ARG means move backward but still down."
   (interactive "p")
   t)
 
 (defun kite-forward-element (&optional arg)
+  "Move forward over one element.
+With ARG, do it that many times.
+Negative ARG means move backward."
   (interactive "p")
   t)
 
 (defun kite-backward-element (&optional arg)
+  "Move backward over one element.
+With ARG, do it that many times.
+Negative ARG means move forward."
   (interactive "p")
   t)
 
 (defun kite-backward-paragraph (&optional arg)
+  "Move backward to start of paragraph.
+With argument ARG, do it ARG times;
+a negative argument ARG = -N means move forward N paragraphs."
   (interactive "p")
   t)
 
 (defun kite-forward-paragraph (&optional arg)
+  "Move forward to end of paragraph.
+With argument ARG, do it ARG times;
+a negative argument ARG = -N means move backward N paragraphs."
   (interactive "p")
   t)
 
 (defun kite-mark-paragraph (&optional arg)
+  "Put point at beginning of this paragraph, mark at end.
+The paragraph marked is the one that contains point or follows point.
+
+FIXME: not yet implemented."
   (interactive "p")
   t)
 
 (defun kite--rgba (r g b a)
+  "Return the given RGBA color value in the WebKit remote
+debugger API `RGBA' structure format."
   `((r . ,r)
     (g . ,g)
     (b . ,b)
     (a . ,a)))
 
 (defun kite-dom-highlight-node ()
+  "Highlight the node at point in the browser by sending the
+`DOM.highlightNode' message to the remote debugger."
   (interactive)
   (kite-send "DOM.highlightNode"
              (list (cons 'nodeId
@@ -795,13 +871,22 @@ line under mouse and the corresponding DOM node in the browser."
                (kite--log "DOM.highlightNode got response %s" response))))
 
 (defun kite-dom-hide-highlight ()
+  "Send the `DOM.hideHighlight' message to the remote debugger,
+which removes any highlight previously activated via
+`kite-dom-highlight-node'."
   (interactive)
   (kite-send "DOM.hideHighlight"))
 
 (defconst kite--dom-pick-node-message
-  "Now switch to your browser and select a DOM node")
+  "Now switch to your browser and select a DOM node"
+  "Message displayed by `kite-dom-pick-node'.")
 
 (defun kite-dom-pick-node ()
+  "Put the remote debugger into the mode in which the user can
+select an element interactively using the mouse.  Once the user
+selects an element, `kite--dom-Inspector-inspect' is invoked
+which in turn invokes `kite-dom-goto-node' to move point to the
+selected element in the DOM view."
   (interactive)
   (kite-send "DOM.setInspectModeEnabled"
              `((enabled . t)
@@ -814,8 +899,13 @@ line under mouse and the corresponding DOM node in the browser."
              (lambda (response)
                (message kite--dom-pick-node-message))))
 
-
 (defun kite-dom-goto-node (node-id)
+  "Move point to the node with the given NODE-ID.  Clears any
+existing message, in order to remove the message put there by
+`kite-dom-pick-node'.
+
+FIXME: the latter should be moved into
+`kite--dom-Inspector-inspect'."
   (interactive)
   (let ((node-region (gethash node-id kite-dom-nodes)))
     (goto-char (node-region-line-begin node-region))
@@ -824,6 +914,10 @@ line under mouse and the corresponding DOM node in the browser."
       (message nil))))
 
 (defun kite--dom-Inspector-inspect (websocket-url packet)
+  "Callback invoked for the `Inspector.inspect' notification,
+which the remote debugger sends when the user selects an element
+with the mouse.  Invokes `kite-dom-goto-node' for the element in
+question."
   (lexical-let ((websocket-url websocket-url))
     (kite-send "DOM.requestNode" (list (assq 'objectId (plist-get packet :object)))
                (lambda (response)
@@ -832,6 +926,7 @@ line under mouse and the corresponding DOM node in the browser."
                     (plist-get (plist-get response :result) :nodeId)))))))
 
 (defun kite--dom-node-at-point (&optional arg)
+  "Return the `nodeId' for node at point."
   (interactive)
   (let ((point-arg (or arg (point))))
     (or (get-text-property point-arg 'kite-node-id)
@@ -840,12 +935,16 @@ line under mouse and the corresponding DOM node in the browser."
             (widget-get widget :kite-node-id))))))
 
 (defun kite-dom-delete-node-or-attribute ()
+  "Delete node or attribute at point.
+
+FIXME: this is unfinished."
   (interactive)
   (let ((node-id (kite--dom-node-at-point)))
     (when node-id
       (kite-send "DOM.removeNode" (list (cons 'nodeId node-id))))))
 
 (defun kite-dom-narrow-to-node (&optional arg)
+  "Narrow buffer to node at point."
   (interactive)
   (let ((node-id (kite--dom-node-at-point)))
     (when node-id
