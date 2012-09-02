@@ -624,52 +624,6 @@ FIXME: this needs to be smarter about when to load children."
   "Obsolete. FIXME"
   (websocket-url (kite-session-websocket kite-session)))
 
-(defun kite-dom-inspect ()
-  "Obsolete. FIXME"
-  (interactive)
-  (kite--log "opening dom")
-  (lexical-let*
-      ((kite-session kite-session)
-       (buf (kite--dom-buffer (kite--websocket-url))))
-    (if buf
-        (switch-to-buffer buf)
-      (setq buf (generate-new-buffer
-                 (format "*kite dom %s*"
-                         (kite-session-unique-name kite-session))))
-      (with-current-buffer buf
-        (kite-dom-mode)
-        (let ((inhibit-read-only t))
-          (erase-buffer))
-        (remove-overlays)
-        (widget-setup)
-        (set (make-local-variable 'kite-session) kite-session))
-      (switch-to-buffer buf)
-      (kite-send
-       "CSS.enable"
-       nil
-       (lambda (response)
-         (message "CSS.enable got response %s" response)
-         (kite-send
-          "CSS.getAllStyleSheets"
-          nil
-          (lambda (response)
-            (message "CSS.getAllStyleSheets got response %s" response)))))
-      (kite-send "DOM.getDocument" nil
-                 (lambda (response)
-                   (kite--log "DOM.getDocument got response %s" response)
-                   (with-current-buffer buf
-                     (save-excursion
-                       (kite--dom-insert-element
-                        (elt (plist-get
-                              (plist-get
-                               (plist-get
-                                response
-                                :result)
-                               :root)
-                              :children) 0)
-                        0 t)
-                       (widget-setup))))))))
-
 (defun kite--dom-buffer (websocket-url)
   "Obsolete. FIXME"
   (let ((buffer-iterator (buffer-list))
