@@ -351,7 +351,7 @@
                                (setq max-time (max max-time (+ request-time (/ relative-time 1000))))))
                            (setq relative-times (cdr relative-times))))
                        (setq packets (cdr packets)))))
-                   kite-requests)
+                 kite-requests)
         (if (and (eq kite-min-time min-time)
                  (eq kite-max-time max-time))
             nil
