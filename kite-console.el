@@ -119,7 +119,8 @@ If nil, disable console logging.  If t, log messages but don't truncate
 the buffer when it becomes large.")
 
 (defvar kite-console-mode-map
-  (let ((map (make-composed-keymap widget-keymap special-mode-map))
+  (let ((map (make-composed-keymap (copy-keymap widget-keymap)
+                                   (copy-keymap special-mode-map)))
 	(menu-map (make-sparse-keymap)))
     (suppress-keymap map t)
     (kite--define-global-mode-keys map)
