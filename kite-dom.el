@@ -48,13 +48,17 @@
   inner-begin
   inner-end
   indent
-  attribute-regions)
+  attribute-regions
+  widget
+  children)
 
 (defstruct (attr-region)
   outer-begin
   outer-end
   value-begin
-  value-end)
+  value-end
+  name-widget
+  value-widget)
 
 ;; Try loading nxml-mode so we can steal their faces
 (require 'nxml-mode nil t)
@@ -450,30 +454,27 @@ describing the buffer region where the attribute was inserted."
 
     (setf (attr-region-outer-begin attr-region) (point-marker))
     (widget-insert " ")
-    (widget-create 'editable-field
-                   :size 1
-                   :value-face 'kite-attribute-local-name-face
-                   :modified-value-face 'kite-modified-attribute-local-name-face
-                   :notify (function kite--notify-widget)
-                   :validate (function kite--validate-widget)
-                   :match (lambda (x) (> (length (widget-value x)) 0))
-                   :kite-node-id node-id
-                   attr-name)
+    (setf (attr-region-name-widget attr-region)
+          (widget-create 'editable-field
+                         :size 1
+                         :value-face 'kite-attribute-local-name-face
+                         :modified-value-face 'kite-modified-attribute-local-name-face
+                         :notify (function kite--notify-widget)
+                         :validate (function kite--validate-widget)
+                         :match (lambda (x) (> (length (widget-value x)) 0))
+                         :kite-node-id node-id
+                         attr-name))
     (widget-insert "=")
     (setf (attr-region-value-begin attr-region) (point-marker))
-    (widget-insert (propertize "\""
-                        'kite-node-id node-id
-                        'face 'kite-attribute-value-delimiter-face))
-    (widget-create 'editable-field
-                   :size 0
-                   :value-face 'kite-attribute-value-face
-                   :modified-value-face 'kite-modified-attribute-value-face
-                   :notify (function kite--notify-widget)
-                   :kite-node-id node-id
-                   attr-value)
-    (widget-insert (propertize "\""
-                        'kite-node-id node-id
-                        'face 'kite-attribute-value-delimiter-face))
+    (setf (attr-region-value-widget attr-region)
+          (widget-create 'editable-field
+                         :size 0
+                         :format (propertize "\"%v\"" 'face 'kite-attribute-value-delimiter-face)
+                         :value-face 'kite-attribute-value-face
+                         :modified-value-face 'kite-modified-attribute-value-face
+                         :notify (function kite--notify-widget)
+                         :kite-node-id node-id
+                         attr-value))
     (setf (attr-region-value-end attr-region) (point-marker))
     (setf (attr-region-outer-end attr-region) (point-marker))
 
@@ -528,16 +529,17 @@ FIXME: this needs to be smarter about when to load children."
                                (propertize "<"
                                            'kite-node-id node-id
                                            'face 'kite-tag-delimiter-face)))
-        (widget-create
-         'editable-field
-         :size 1
-         :value-face 'kite-element-local-name-face
-         :modified-value-face 'kite-modified-element-local-name-face
-         :notify (function kite--notify-widget)
-         :validate (function kite--validate-widget)
-         :match (lambda (x) (> (length (widget-value x)) 0))
-         :kite-node-id node-id
-         localName)
+        (setf (node-region-widget node-region)
+              (widget-create
+               'editable-field
+               :size 1
+               :value-face 'kite-element-local-name-face
+               :modified-value-face 'kite-modified-element-local-name-face
+               :notify (function kite--notify-widget)
+               :validate (function kite--validate-widget)
+               :match (lambda (x) (> (length (widget-value x)) 0))
+               :kite-node-id node-id
+               localName))
         (setq attributes (kite--dom-render-attribute-regions element))
         (widget-insert (concat (propertize ">"
                                            'kite-node-id node-id
@@ -549,7 +551,10 @@ FIXME: this needs to be smarter about when to load children."
                            (node-region-inner-begin node-region)
                            'kite-node-id
                            node-id)
-        (mapcar (lambda (child) (kite--dom-insert-element child (1+ indent) loadp))
+        (mapcar (lambda (child)
+                  (push
+                   (kite--dom-insert-element child (1+ indent) loadp)
+                   (node-region-children node-region)))
                 (plist-get element :children))
         (setf (node-region-inner-end node-region) (point-marker))
         (widget-insert
@@ -568,15 +573,16 @@ FIXME: this needs to be smarter about when to load children."
         (widget-insert (concat (indent-prefix indent node-id)
                                (propertize "<"
                                            'face 'kite-tag-delimiter-face)))
-        (widget-create 'editable-field
-                       :size 1
-                       :value-face 'kite-element-local-name-face
-                       :modified-value-face 'kite-modified-element-local-name-face
-                       :notify (function kite--notify-widget)
-                       :validate (function kite--validate-widget)
-                       :match (lambda (x) (> (length (widget-value x)) 0))
-                       :kite-node-id node-id
-                       localName)
+        (setf (node-region-widget node-region)
+              (widget-create 'editable-field
+                             :size 1
+                             :value-face 'kite-element-local-name-face
+                             :modified-value-face 'kite-modified-element-local-name-face
+                             :notify (function kite--notify-widget)
+                             :validate (function kite--validate-widget)
+                             :match (lambda (x) (> (length (widget-value x)) 0))
+                             :kite-node-id node-id
+                             localName))
         (setq attributes (kite--dom-render-attribute-regions element))
         (widget-insert (propertize ">"
                                    'face 'kite-tag-delimiter-face))
@@ -616,7 +622,11 @@ FIXME: this needs to be smarter about when to load children."
       (setf (node-region-line-end node-region) (point-marker))
       (setf (node-region-indent node-region) indent)
       (setf (node-region-attribute-regions node-region) attributes)
-      (puthash (plist-get element :nodeId) node-region kite-dom-nodes))))
+      (when (node-region-inner-begin node-region)
+        (set-marker-insertion-type (node-region-inner-begin node-region) nil)
+        (set-marker-insertion-type (node-region-inner-end node-region) t))
+      (puthash (plist-get element :nodeId) node-region kite-dom-nodes)
+      node-region)))
 
 (defun kite--kill-dom ()
   "Obsolete. FIXME"
@@ -645,6 +655,21 @@ FIXME: this needs to be smarter about when to load children."
       (setq buffer-iterator (cdr buffer-iterator)))
     found))
 
+(defun kite--delete-child-widgets (node-region)
+  "Delete all widgets in the node-region's children,
+recursively."
+  (dolist (child (node-region-children node-region))
+    (kite--delete-widgets child)))
+
+(defun kite--delete-widgets (node-region)
+  "Delete the node-region's widgets and all its children's
+widgets, recursively"
+  (widget-delete (node-region-widget node-region))
+  (dolist (attr-name-and-region (node-region-attribute-regions node-region))
+    (widget-delete (attr-region-name-widget (cdr attr-name-and-region)))
+    (widget-delete (attr-region-value-widget (cdr attr-name-and-region))))
+  (kite--delete-child-widgets node-region))
+
 (defun kite--dom-DOM-setChildNodes (websocket-url packet)
   "Callback invoked for the `DOM.setChildNodes' notification,
 which the remote debugger wants to provide us with missing DOM
@@ -652,23 +677,26 @@ structure, for example in response to a `DOM.requestChildNodes'
 request."
   (kite--log "kite--DOM-setChildNodes got packet %s" packet)
   (with-current-buffer (kite--dom-buffer websocket-url)
-    (save-excursion
-      (let ((inhibit-read-only t)
-            (node-region
-             (gethash (plist-get packet :parentId) kite-dom-nodes)))
-        (delete-region (node-region-inner-begin node-region)
-                       (node-region-inner-end node-region))
+    (let ((inhibit-read-only t)
+          (node-region
+           (gethash (plist-get packet :parentId) kite-dom-nodes)))
+      (save-excursion
+        (kite--delete-child-widgets node-region)
+        (setf (node-region-children node-region) nil)
+        (delete-region (node-region-inner-begin node-region) (node-region-inner-end node-region))
         (goto-char (node-region-inner-begin node-region))
         (atomic-change-group
           (widget-insert (propertize "\n" 'kite-node-id (plist-get packet :parentId)))
           (mapcar (lambda (node)
-                    (kite--dom-insert-element node (1+ (node-region-indent node-region)) t))
+                    (push
+                     (kite--dom-insert-element node (1+ (node-region-indent node-region)) t)
+                     (node-region-children node-region)))
                   (plist-get packet :nodes))
           (widget-insert (propertize
-                   (make-string (* kite-dom-offset (node-region-indent node-region)) 32)
-                   'kite-node-id (plist-get packet :parentId)
-                   'read-only t))))
-      (widget-setup))))
+                          (make-string (* kite-dom-offset (node-region-indent node-region)) 32)
+                          'kite-node-id (plist-get packet :parentId)
+                            'read-only t)))))
+    (widget-setup)))
 
 (defun kite--dom-DOM-childNodeInserted (websocket-url packet)
   "Callback invoked for the `DOM.childNodeInserted' notification,
@@ -683,14 +711,18 @@ child node into a DOM element."
         (if (eq previous-node-id 0)
             (let ((node-region (gethash parent-node-id kite-dom-nodes)))
               (goto-char (node-region-inner-begin node-region))
-              (kite--dom-insert-element (plist-get packet :node)
+              (push
+               (kite--dom-insert-element (plist-get packet :node)
                                          (1+ (node-region-indent node-region))
-                                         t))
+                                         t)
+               (node-region-children node-region)))
           (let ((node-region (gethash previous-node-id kite-dom-nodes)))
             (goto-char (node-region-line-end node-region))
-            (kite--dom-insert-element (plist-get packet :node)
+            (push
+             (kite--dom-insert-element (plist-get packet :node)
                                        (node-region-indent node-region)
-                                       t))))
+                                       t)
+             (node-region-children node-region)))))
       (widget-setup))))
 
 (defun kite--dom-DOM-childNodeCountUpdated (websocket-url packet)
@@ -708,9 +740,12 @@ node from a DOM element."
     (save-excursion
       (let ((inhibit-read-only t)
             (node-region (gethash (plist-get packet :nodeId) kite-dom-nodes)))
+        (kite--delete-widgets node-region)
         (delete-region
          (node-region-line-begin node-region)
-         (node-region-line-end node-region))))))
+         (node-region-line-end node-region)))
+      ;; FIXME: remove from parent node-region
+      (widget-setup))))
 
 (defun kite--dom-DOM-attributeModified (websocket-url packet)
   "Callback invoked for the `DOM.attributeModified' notification,
@@ -736,7 +771,8 @@ value of an attribute in a DOM element."
           (goto-char (attr-region-value-end (cdar (node-region-attribute-regions node-region))))
           (setf (node-region-attribute-regions node-region)
                 (cons (kite--insert-attribute node-id (plist-get packet :name) (plist-get packet :value))
-                      (node-region-attribute-regions node-region))))))))
+                      (node-region-attribute-regions node-region)))))
+      (widget-setup))))
 
 (defun kite--dom-DOM-attributeRemoved (websocket-url packet)
   "Callback invoked for the `DOM.attributeRemoved' notification,
@@ -749,6 +785,8 @@ attribute from a DOM element."
              (attr-name (intern (plist-get packet :name)))
              (node-region (gethash (plist-get packet :nodeId) kite-dom-nodes))
              (attr-region (cdr (assq attr-name (node-region-attribute-regions node-region)))))
+        (widget-delete (attr-region-name-widget attr-region))
+        (widget-delete (attr-region-value-widget attr-region))
         (delete-region (attr-region-outer-begin attr-region)
                        (attr-region-outer-end attr-region))
         (setf (node-region-attribute-regions node-region)
