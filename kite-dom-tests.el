@@ -222,6 +222,73 @@
                                "</empty>\n"))))))
 
 
+(ert-deftest kite-test-reset-child-nodes ()
+  "Setting child nodes of a node that already has children works"
+
+  (with-temp-buffer
+    (kite-dom-mode)
+
+    (flet ((kite-send (command params callback)
+                      (should (string= command "DOM.requestChildNodes"))
+                      (should (equal params '((nodeId . 2))))))
+
+      (let ((inhibit-read-only t))
+        (kite--dom-insert-element
+         '(:attributes []
+                       :childNodeCount 2
+                       :nodeValue nil
+                       :localName "empty"
+                       :nodeName "EMPTY"
+                       :nodeType 1
+                       :nodeId 2)
+         0 t))
+
+      (should (string= (buffer-substring-no-properties (point-min)
+                                                       (point-max))
+                       "<empty>...</empty>\n"))
+
+      (flet ((kite--dom-buffer (websocket-url) (current-buffer)))
+        (kite--log "kite-dom-nodes now %s" kite-dom-nodes)
+        (kite--log "buffer now %s" (buffer-substring-no-properties (point-min)
+                                                                   (point-max)))
+        (kite--dom-DOM-setChildNodes nil
+                                      '(:parentId
+                                        2
+                                        :nodes [(:attributes
+                                                 ["href" "foo"]
+                                                 :childNodeCount 0
+                                                 :nodeValue nil
+                                                 :localName "foo"
+                                                 :nodeName "FOO"
+                                                 :nodeType 1
+                                                 :nodeId 3)]))
+        (kite--dom-DOM-attributeModified "dummy"
+                                         '(:value "frobnicate" :name "foobar1" :nodeId 3))
+        (kite--dom-DOM-attributeModified "dummy"
+                                         '(:value "frobnicate" :name "foobar2" :nodeId 3))
+        (kite--log "kite-dom-nodes now %s" kite-dom-nodes)
+        (kite--log "buffer now %s" (buffer-substring-no-properties (point-min)
+                                                                   (point-max)))
+        (kite--dom-DOM-setChildNodes nil
+                                      '(:parentId
+                                        2
+                                        :nodes [(:attributes
+                                                 ["href" "bar"]
+                                                 :childNodeCount 0
+                                                 :nodeValue nil
+                                                 :localName "foo"
+                                                 :nodeName "FOO"
+                                                 :nodeType 1
+                                                 :nodeId 4)])))
+
+      (should (string= (buffer-substring-no-properties (point-min)
+                                                       (point-max))
+                       (concat "<empty>\n"
+                               "  <foo href=\"bar\">\n"
+                               "  </foo>\n"
+                               "</empty>\n"))))))
+
+
 (ert-deftest kite-test-dom-insert-only ()
   "DOM is mutated correctly when node is inserted in front"
 
