@@ -361,51 +361,53 @@
 
 (defun kite--net-Network-requestWillBeSent (websocket-url packet)
   (with-current-buffer (kite--find-buffer websocket-url 'network)
-    (let ((inhibit-read-only t))
-      (when (and (string= (plist-get (plist-get packet :initiator) :type)
-                          "other")
-                 (string= (plist-get packet :frameId)
-                          (plist-get (kite-session-top-frame kite-session) :id))
-                 (string= (plist-get (plist-get packet :request) :url)
-                          (plist-get (kite-session-top-frame kite-session) :url)))
-        (clrhash kite-requests)
-        (ewoc-filter kite-ewoc (lambda (x) nil)))
-      (goto-char (point-max))
-      (let ((ewoc-node (ewoc-enter-last kite-ewoc nil)))
-        (puthash (plist-get packet :requestId) (list ewoc-node) kite-requests)
-        (ewoc-set-data ewoc-node
-                       (list (cons 'will-be-sent packet)))
+    (save-excursion
+      (let ((inhibit-read-only t))
+        (when (and (string= (plist-get (plist-get packet :initiator) :type)
+                            "other")
+                   (string= (plist-get packet :frameId)
+                            (plist-get (kite-session-top-frame kite-session) :id))
+                   (string= (plist-get (plist-get packet :request) :url)
+                            (plist-get (kite-session-top-frame kite-session) :url)))
+          (clrhash kite-requests)
+          (ewoc-filter kite-ewoc (lambda (x) nil)))
+        (let ((ewoc-node (ewoc-enter-last kite-ewoc nil)))
+          (puthash (plist-get packet :requestId) (list ewoc-node) kite-requests)
+          (ewoc-set-data ewoc-node
+                         (list (cons 'will-be-sent packet)))
+          (if (kite--network-update-min-max-time)
+              (progn
+                (kite--network-update-header)
+                (ewoc-refresh kite-ewoc))
+            (ewoc-invalidate kite-ewoc ewoc-node)))))))
+
+(defun kite--net-Network-responseReceived (websocket-url packet)
+  (with-current-buffer (kite--find-buffer websocket-url 'network)
+    (save-excursion
+      (let ((inhibit-read-only t)
+            (request-data (gethash (plist-get packet :requestId) kite-requests)))
+        (ewoc-set-data (car request-data)
+                       (cons (cons 'response-received packet)
+                             (ewoc-data (car request-data))))
         (if (kite--network-update-min-max-time)
             (progn
               (kite--network-update-header)
               (ewoc-refresh kite-ewoc))
-          (ewoc-invalidate kite-ewoc ewoc-node))))))
-
-(defun kite--net-Network-responseReceived (websocket-url packet)
-  (with-current-buffer (kite--find-buffer websocket-url 'network)
-    (let ((inhibit-read-only t)
-          (request-data (gethash (plist-get packet :requestId) kite-requests)))
-      (ewoc-set-data (car request-data)
-                     (cons (cons 'response-received packet)
-                           (ewoc-data (car request-data))))
-      (if (kite--network-update-min-max-time)
-          (progn
-            (kite--network-update-header)
-            (ewoc-refresh kite-ewoc))
-        (ewoc-invalidate kite-ewoc (car request-data))))))
+          (ewoc-invalidate kite-ewoc (car request-data)))))))
 
 (defun kite--net-Network-dataReceived (websocket-url packet)
   (with-current-buffer (kite--find-buffer websocket-url 'network)
-    (let ((inhibit-read-only t)
-          (request-data (gethash (plist-get packet :requestId) kite-requests)))
-      (ewoc-set-data (car request-data)
-                     (cons (cons 'data-received packet)
-                           (ewoc-data (car request-data))))
-      (if (kite--network-update-min-max-time)
-          (progn
-            (kite--network-update-header)
-            (ewoc-refresh kite-ewoc))
-        (ewoc-invalidate kite-ewoc (car request-data))))))
+    (save-excursion
+      (let ((inhibit-read-only t)
+            (request-data (gethash (plist-get packet :requestId) kite-requests)))
+        (ewoc-set-data (car request-data)
+                       (cons (cons 'data-received packet)
+                             (ewoc-data (car request-data))))
+        (if (kite--network-update-min-max-time)
+            (progn
+              (kite--network-update-header)
+              (ewoc-refresh kite-ewoc))
+          (ewoc-invalidate kite-ewoc (car request-data)))))))
 
 (defun kite--kill-network ()
   (ignore-errors
@@ -416,12 +418,13 @@
   (let ((network-buffer (kite--find-buffer websocket-url 'network)))
     (when network-buffer
       (with-current-buffer network-buffer
-        (set (make-local-variable 'kite-dom-content-fired-timestamp) (plist-get packet :timestamp))
-        (when (and (boundp 'kite-max-time)
-                   (or (null kite-max-time)
-                       (> kite-dom-content-fired-timestamp kite-max-time)))
-          (setq kite-max-time kite-dom-content-fired-timestamp)
-          (ewoc-refresh kite-ewoc))))))
+        (save-excursion
+          (set (make-local-variable 'kite-dom-content-fired-timestamp) (plist-get packet :timestamp))
+          (when (and (boundp 'kite-max-time)
+                     (or (null kite-max-time)
+                         (> kite-dom-content-fired-timestamp kite-max-time)))
+            (setq kite-max-time kite-dom-content-fired-timestamp)
+            (ewoc-refresh kite-ewoc)))))))
 
 (add-hook 'kite-Page-domContentEventFired-hooks 'kite--net-Page-domContentEventFired)
 (add-hook 'kite-Network-dataReceived-hooks 'kite--net-Network-dataReceived)
