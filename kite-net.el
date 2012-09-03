@@ -119,14 +119,18 @@
   (run-mode-hooks 'kite-network-mode-hook))
 
 (defun kite--net-Network-loadingFinished (websocket-url packet)
+  "Obsolete. FIXME"
   (kite--log "kite--Network-loadingFinished"))
 
 (defun kite--network-barchart-width ()
+  "Return barchart width for current buffer, in pixels."
   (/ (* (frame-pixel-width)
         (- (frame-width) kite-header-width 10))
      (frame-width)))
 
 (defun kite--render-network-entry (request-response)
+  "EWOC callback, render a single network entry (the entry for an
+individual network resource)."
   (kite--log "ewoc called with request-response %s, min-time %s, max-time %s" request-response kite-min-time kite-max-time)
   (let ((request-method (plist-get (plist-get (cdr (assq 'will-be-sent request-response)) :request) :method))
         (request-url (plist-get (plist-get (cdr (assq 'will-be-sent request-response)) :request) :url))
@@ -217,12 +221,14 @@
         "\n")))))
 
 (defun kite--frame-inner-width ()
+  "Return inner frame width (sans borders) in pixels."
   (if (fboundp 'window-inside-pixel-edges)
       (- (nth 2 (window-inside-pixel-edges))
          (nth 0 (window-inside-pixel-edges)))
     (frame-pixel-width)))
 
 (defun kite--network-update-header ()
+  "Update the header line for the kite-network buffer."
   (let ((header-string (propertize
                         (concat
                          (kite--fill-overflow "Method+URL" 50)
@@ -320,6 +326,9 @@
                    "\n"))))
 
 (defun kite--network-update-min-max-time ()
+  "Recalculate the time range for display based on timing
+information received so far and return whether the range has
+changed."
   (with-current-buffer (kite--find-buffer websocket-url 'network)
     (let (min-time)
       (maphash (lambda (key value)
@@ -360,6 +369,9 @@
           t)))))
 
 (defun kite--net-Network-requestWillBeSent (websocket-url packet)
+  "Callback invoked when a `Network.requestWillBeSent'
+notification has been received from the remote debugger.  Update
+timing data and redisplay some or all lines as necessary."
   (with-current-buffer (kite--find-buffer websocket-url 'network)
     (save-excursion
       (let ((inhibit-read-only t))
@@ -382,6 +394,9 @@
             (ewoc-invalidate kite-ewoc ewoc-node)))))))
 
 (defun kite--net-Network-responseReceived (websocket-url packet)
+  "Callback invoked when a `Network.responseReceived'
+notification has been received from the remote debugger.  Update
+timing data and redisplay some or all lines as necessary."
   (with-current-buffer (kite--find-buffer websocket-url 'network)
     (save-excursion
       (let ((inhibit-read-only t)
@@ -396,6 +411,9 @@
           (ewoc-invalidate kite-ewoc (car request-data)))))))
 
 (defun kite--net-Network-dataReceived (websocket-url packet)
+  "Callback invoked when a `Network.dataReceived' notification
+has been received from the remote debugger.  Update timing data
+and redisplay some or all lines as necessary."
   (with-current-buffer (kite--find-buffer websocket-url 'network)
     (save-excursion
       (let ((inhibit-read-only t)
@@ -410,11 +428,19 @@
           (ewoc-invalidate kite-ewoc (car request-data)))))))
 
 (defun kite--kill-network ()
+  "Called when a session's network buffer is closed.  Disables
+network notifications in the remote debugger by sending the
+`Network.disable' message."
   (ignore-errors
     (kite-send "Network.disable" nil
                (lambda (response) (kite--log "Network disabled.")))))
 
 (defun kite--net-Page-domContentEventFired (websocket-url packet)
+  "Callback invoked when a `Page.domContentEventFired'
+notification is received from the remote debugger.  Remember the
+time at which the event was fired and redraw the ewoc.
+
+FIXME: the event time isn't actually rendered yet."
   (let ((network-buffer (kite--find-buffer websocket-url 'network)))
     (when network-buffer
       (with-current-buffer network-buffer
