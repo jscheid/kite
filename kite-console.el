@@ -622,12 +622,13 @@ the buffer."
    (lambda (response)
      (let ((result (plist-get response :result)))
        (if (eq :json-false (plist-get result :wasThrown))
-           (comint-output-filter (kite-console-process)
-                                 (concat (kite--console-format-object
-                                          (plist-get result :result)
-                                          t)
-                                         "\n"
-                                         kite-console-prompt-internal))
+           (comint-output-filter
+            (kite-console-process)
+            (concat (kite--console-format-object
+                     (plist-get result :result)
+                     t)
+                    "\n"
+                    kite-console-prompt-internal))
          (kite--get-formatted-stack-trace
           (plist-get (plist-get result :result) :objectId)
           (lambda (stack-trace)
