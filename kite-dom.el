@@ -52,7 +52,8 @@
   widget
   parent
   children
-  node-id)
+  node-id
+  node-type)
 
 (defstruct (attr-region)
   outer-begin
@@ -546,6 +547,8 @@ FIXME: this needs to be smarter about when to load children."
           attributes)
 
       (setf (node-region-node-id node-region) node-id)
+      (setf (node-region-node-type node-region) nodeType)
+      (setf (node-region-indent node-region) indent)
 
       (setf (node-region-line-begin node-region) (point-marker))
 
@@ -681,7 +684,6 @@ FIXME: this needs to be smarter about when to load children."
       (setf (node-region-outer-end node-region)
             (copy-marker (- (node-region-line-end node-region) 1)))
 
-      (setf (node-region-indent node-region) indent)
       (setf (node-region-attribute-regions node-region) attributes)
       (when (node-region-inner-begin node-region)
         (set-marker-insertion-type (node-region-inner-begin node-region) nil)
