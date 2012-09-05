@@ -127,6 +127,48 @@
   :version "24.1"
   :group 'kite-faces)
 
+(defface kite-stack-error-type
+  '((t :inherit error))
+  "Face used to highlight error types in stack traces."
+  :version "24.1"
+  :group 'kite-faces)
+
+(defface kite-stack-error-message
+  '((t :inherit default))
+  "Face used to highlight error messages in stack traces."
+  :version "24.1"
+  :group 'kite-faces)
+
+(defface kite-stack-function-name
+  '((t :inherit font-lock-function-name-face))
+  "Face used to highlight function names in stack traces."
+  :version "24.1"
+  :group 'kite-faces)
+
+(defface kite-stack-pseudo-file-name
+  '((t :inherit default))
+  "Face used to highlight file names in stack traces."
+  :version "24.1"
+  :group 'kite-faces)
+
+(defface kite-stack-file-name
+  '((t :inherit link))
+  "Face used to highlight file names in stack traces."
+  :version "24.1"
+  :group 'kite-faces)
+
+(defface kite-stack-line-number
+  '((t :inherit kite-number))
+  "Face used to highlight line numbers in stack traces."
+  :version "24.1"
+  :group 'kite-faces)
+
+(defface kite-stack-column-number
+  '((t :inherit kite-number))
+  "Face used to highlight column numbers in stack traces."
+  :version "24.1"
+  :group 'kite-faces)
+
 (defcustom kite-console-log-max 1000
   "Maximum number of lines to keep in the kite console log buffer.
 If nil, disable console logging.  If t, log messages but don't truncate
@@ -449,13 +491,14 @@ unavailable."
     (error "Not in a kite console buffer"))
   (save-excursion
     (beginning-of-line)
-    (let ((stack-trace
-           (plist-get
-            (get-text-property (point) 'log-message)
-            :stackTrace)))
-      (if (and stack-trace
-               (>= (length stack-trace) 1))
-          (kite-visit-stack-frame (elt stack-trace 0))
+    (let ((stack-frame
+           (or (elt (plist-get
+                     (get-text-property (point) 'log-message)
+                     :stackTrace)
+                    0)
+               (get-text-property (point) 'kite-source))))
+      (if stack-frame
+          (kite-visit-stack-frame stack-frame)
         (error "No source location available for this log message")))))
 
 (defun kite-show-log-entry ()
@@ -583,9 +626,97 @@ FIXME: this should be consolidated with
     (comint-send-input)			; update history, markers etc.
     (kite-console-eval-input kite-console-input)))
 
+(defconst kite--stack-line-regexp
+  (let ((rx-constituents
+         (append rx-constituents
+                 (list
+                  (cons 'file-line-column
+                        (rx
+                         (or
+                          (submatch      ; <file>
+                           "<"
+                           (minimal-match (1+ anything))
+                           ">")
+                          (submatch      ; file
+                           (minimal-match (1+ anything))))
+                         ":"
+                         (submatch      ; line
+                          (1+ (in digit)))
+                         ":"
+                         (submatch      ; column
+                          (1+ (in digit)))))))))
+
+    (rx
+     string-start
+     (or
+      (: (submatch                      ; error type
+          (1+ (in alnum)))
+         ":"
+         (0+ (in space))
+         (submatch                      ; error message
+          (0+ anything)))
+      (: (1+ (in space))
+         "at"
+         (1+ (in space))
+         (or
+          (: file-line-column)
+          (: (submatch                  ; function
+              (1+ (not (in space))))
+             (1+ (in space))
+             "("
+             file-line-column
+             ")"))))
+     (0+ (in space))
+     string-end)))
+
 (defun kite--format-stack-line (stack-line)
-  "Return a prettified version of a line of a WebKit stack
-  trace.  For now, just returns the given STACK-LINE."
+  "Return a prettified version of a line of a WebKit stack trace.
+  Adds face and font-lock-face properties, and the kite-source
+  property for lines that describe a source location."
+  (when (string-match kite--stack-line-regexp stack-line)
+    (let* ((matches (match-data t))
+           (faces
+            '(nil
+              kite-stack-error-type
+              kite-stack-error-message
+              kite-stack-pseudo-file-name
+              kite-stack-file-name
+              kite-stack-line-number
+              kite-stack-column-number
+              kite-stack-function-name
+              kite-stack-pseudo-file-name
+              kite-stack-file-name
+              kite-stack-line-number
+              kite-stack-column-number)))
+      (loop for i from 1 to (- (/ (length matches) 2) 1) do
+            (dolist (property '(face font-lock-face))
+              (when (nth (* 2 i) matches)
+                (put-text-property (nth (* 2 i) matches)
+                                   (nth (1+ (* 2 i)) matches)
+                                   property
+                                   (nth i faces)
+                                   stack-line))))
+      (let ((file-name
+             (or (match-string-no-properties 4 stack-line)
+                 (match-string-no-properties 9 stack-line)))
+            (line-number-str
+             (or (match-string-no-properties 5 stack-line)
+                 (match-string-no-properties 10 stack-line)))
+            (column-number-str
+             (or (match-string-no-properties 6 stack-line)
+                 (match-string-no-properties 11 stack-line)))
+            (function-name
+             (match-string-no-properties 7 stack-line)))
+        (when file-name
+          (put-text-property
+           0
+           (length stack-line)
+           'kite-source
+           (list :url file-name
+                 :lineNumber (string-to-number line-number-str)
+                 :columnNumber (string-to-number column-number-str)
+                 :functionName function-name)
+           stack-line)))))
   stack-line)
 
 (defun kite--get-formatted-stack-trace (error-object-id
