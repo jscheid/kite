@@ -979,6 +979,11 @@ question."
           (when widget
             (widget-get widget :kite-node-id))))))
 
+(defun kite--dom-node-region-at-point (&optional arg)
+  "Return then node region for node at point."
+  (interactive)
+  (gethash (kite--dom-node-at-point arg) kite-dom-nodes))
+
 (defun kite-dom-delete-node-or-attribute ()
   "Delete node or attribute at point.
 
