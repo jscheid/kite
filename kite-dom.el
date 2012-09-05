@@ -352,7 +352,8 @@ The delimiters are <! and >."
         (define-key map "c" 'kite-dom-show-matched-css)
         (define-key map "C" 'kite-dom-show-computed-css)
         (define-key map "\C-xnd" 'kite-dom-narrow-to-node)
-
+        (define-key map "\M-\C-n" 'kite-dom-forward-element)
+        (define-key map "\M-\C-p" 'kite-dom-backward-element)
         (define-key map [mouse-movement] 'kite-mouse-movement)
 
         map))
