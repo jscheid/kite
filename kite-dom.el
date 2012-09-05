@@ -529,6 +529,38 @@ cells in the same order as the attributes in the element plist."
       (setq attr-index (+ 2 attr-index)))
     attribute-info-list))
 
+(defun kite--dom-update-inner-whitespace (node-region)
+  "Update whitespace at the beginning and end of the inner node
+display depending on which child nodes there are.  If the first
+child node is a text node, don't insert a linefeed after the
+opening tag.  If the last child node is a text node, don't insert
+indentation before the closing tag."
+  (let ((children (node-region-children node-region)))
+  (save-excursion
+    (goto-char (node-region-inner-begin node-region))
+    (let ((existing-space
+           (get-text-property (point) 'kite-inner-begin)))
+      (if (or (null children)
+              (eq (node-region-node-type (car children))
+                  kite-dom-text-node))
+          (when existing-space
+            (delete-char 1))
+        (unless existing-space
+          (widget-insert (propertize "\n" 'kite-inner-begin t)))))
+
+    (goto-char (node-region-inner-end node-region))
+    (let ((existing-space
+           (get-text-property (- (point) 1) 'kite-inner-end))
+          (indent (node-region-indent node-region)))
+      (if (or (null children)
+              (eq (node-region-node-type (car (last children)))
+                  kite-dom-text-node))
+          (when existing-space
+            (delete-char (- (* kite-dom-offset indent))))
+        (unless existing-space
+          (widget-insert (propertize (make-string (* kite-dom-offset indent) 32)
+                                     'kite-inner-end t))))))))
+
 (defun kite--dom-insert-element (element indent loadp)
   "Insert ELEMENT at point, at indentation level INDENT.  If
 LOADP, recursively and asynchronously load and insert children.
@@ -576,8 +608,7 @@ FIXME: this needs to be smarter about when to load children."
         (widget-insert (concat (propertize ">"
                                            'kite-node-id node-id
                                            'read-only t
-                                           'face 'kite-tag-delimiter-face)
-                               "\n"))
+                                           'face 'kite-tag-delimiter-face)))
         (setf (node-region-inner-begin node-region) (point-marker))
         (put-text-property (node-region-line-begin node-region)
                            (node-region-inner-begin node-region)
@@ -594,7 +625,6 @@ FIXME: this needs to be smarter about when to load children."
         (setf (node-region-inner-end node-region) (point-marker))
         (widget-insert
          (concat
-          (indent-prefix indent node-id)
           (propertize "<" 'face 'kite-tag-delimiter-face)
           (propertize "/" 'face 'kite-tag-slash-face)
           (propertize localName 'face 'kite-element-local-name-face)
@@ -602,7 +632,9 @@ FIXME: this needs to be smarter about when to load children."
         (put-text-property (node-region-inner-end node-region)
                            (point)
                            'kite-node-id
-                           node-id))
+                           node-id)
+
+        (kite--dom-update-inner-whitespace node-region))
 
        ((eq nodeType kite-dom-element-node)
         (widget-insert (concat (indent-prefix indent node-id)
@@ -642,33 +674,39 @@ FIXME: this needs to be smarter about when to load children."
                      (lambda (response) nil))))
 
        ((eq nodeType kite-dom-text-node)
-        (widget-insert
-         (concat
-          (indent-prefix indent node-id)
-          (propertize (replace-regexp-in-string
-                       "\\(^\\(\\s \\|\n\\)+\\|\\(\\s \\|\n\\)+$\\)" ""
-                       (plist-get element :nodeValue))
-                      'face 'kite-text-face)
-          "\n"))
-        (put-text-property (node-region-line-begin node-region)
-                           (point)
-                           'kite-node-id
-                           node-id))
+        (setf (node-region-widget node-region)
+              (widget-create 'editable-field
+                             :size 1
+                             :value-face 'kite-text-face
+                             :modified-value-face 'kite-modified-text-face
+                             :notify (function kite--notify-widget)
+                             :validate (function kite--validate-widget)
+                             :kite-node-id node-id
+                             :keymap 'kite--dom-widget-field-keymap
+                             (plist-get element :nodeValue))))
 
        ((eq nodeType kite-dom-comment-node)
         (widget-insert
-         (concat
-          (indent-prefix indent node-id)
-          (propertize
-           "<!--"
-           'face 'kite-comment-delimiter-face)
-          (propertize
-           (plist-get element :nodeValue)
-           'face 'kite-comment-content-face)
-          (propertize
-           "-->"
-           'face 'kite-comment-delimiter-face)
-          "\n"))
+         (indent-prefix indent node-id)
+         (propertize
+          "<!--"
+          'face 'kite-comment-delimiter-face))
+
+        (setf (node-region-widget node-region)
+              (widget-create 'editable-field
+                             :size 1
+                             :value-face 'kite-comment-content-face
+                             :modified-value-face 'kite-modified-comment-content-face
+                             :notify (function kite--notify-widget)
+                             :validate (function kite--validate-widget)
+                             :kite-node-id node-id
+                             :keymap 'kite--dom-widget-field-keymap
+                             (plist-get element :nodeValue)))
+        (widget-insert
+         (propertize
+          "-->"
+          'face 'kite-comment-delimiter-face)
+         "\n")
         (put-text-property (node-region-line-begin node-region)
                            (point)
                            'kite-node-id
@@ -754,20 +792,14 @@ request."
         (delete-region (node-region-inner-begin node-region) (node-region-inner-end node-region))
         (goto-char (node-region-inner-begin node-region))
         (atomic-change-group
-          (widget-insert (propertize "\n" 'kite-node-id (plist-get packet :parentId)))
-
           (setf (node-region-children node-region)
                 (mapcar (lambda (child)
                           (let ((new-node-region (kite--dom-insert-element child (1+ (node-region-indent node-region)) t)))
                             (setf (node-region-parent new-node-region) node-region)
                             new-node-region))
-                        (plist-get packet :nodes)))
-
-          (widget-insert (propertize
-                          (make-string (* kite-dom-offset (node-region-indent node-region)) 32)
-                          'kite-node-id (plist-get packet :parentId)
-                            'read-only t)))))
-    (widget-setup)))
+                        (plist-get packet :nodes)))))
+      (widget-setup)
+      (kite--dom-update-inner-whitespace node-region))))
 
 (defun kite--dom-DOM-childNodeInserted (websocket-url packet)
   "Callback invoked for the `DOM.childNodeInserted' notification,
@@ -805,7 +837,8 @@ child node into a DOM element."
                      (subseq (node-region-children node-region)
                              insert-position)))))
           (setf (node-region-parent new-node-region) node-region)))
-      (widget-setup))))
+      (widget-setup)
+      (kite--dom-update-inner-whitespace node-region))))
 
 (defun kite--dom-DOM-childNodeCountUpdated (websocket-url packet)
   "Callback invoked for the `DOM.childNodeCountUpdated' notification,
@@ -828,7 +861,8 @@ node from a DOM element."
          (node-region-line-end node-region))
         (setf (node-region-children (node-region-parent node-region))
               (delete node-region
-                      (node-region-children (node-region-parent node-region)))))
+                      (node-region-children (node-region-parent node-region))))
+        (kite--dom-update-inner-whitespace (node-region-parent node-region)))
       (widget-setup))))
 
 (defun kite--dom-DOM-attributeModified (websocket-url packet)
