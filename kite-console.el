@@ -621,7 +621,6 @@ the buffer."
    "Runtime.evaluate" (list (cons 'expression input))
    (lambda (response)
      (let ((result (plist-get response :result)))
-       (message "result %s" result)
        (if (eq :json-false (plist-get result :wasThrown))
            (comint-output-filter (kite-console-process)
                                  (concat (kite--console-format-object
