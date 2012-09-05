@@ -862,7 +862,7 @@ attribute from a DOM element."
         (setf (node-region-attribute-regions node-region)
               (assq-delete-all attr-name (node-region-attribute-regions node-region)))))))
 
-(defun kite-backward-up-element (&optional arg)
+(defun kite-dom-backward-up-element (&optional arg)
   "Move backward over one element, or up the tree if this is there are
 no previous siblings.
 With ARG, do it that many times.
@@ -870,26 +870,33 @@ Negative ARG means move forward."
   (interactive "p")
   t)
 
-(defun kite-down-element (&optional arg)
+(defun kite-dom-down-element (&optional arg)
   "Move forward down into the content of an element.
 With ARG, do this that many times.
 Negative ARG means move backward but still down."
   (interactive "p")
   t)
 
-(defun kite-forward-element (&optional arg)
+(defun kite-dom-forward-element (&optional arg)
   "Move forward over one element.
 With ARG, do it that many times.
 Negative ARG means move backward."
   (interactive "p")
-  t)
+  (let* ((node-region (kite--dom-node-region-at-point))
+         (parent-children (node-region-children
+                           (node-region-parent node-region)))
+         (node-position (position node-region parent-children))
+         (new-position (max 0 (min (+ node-position arg)
+                                   (- (length parent-children) 1))))
+         (next-node-region (nth new-position parent-children)))
+    (goto-char (1+ (node-region-outer-begin next-node-region)))))
 
-(defun kite-backward-element (&optional arg)
+(defun kite-dom-backward-element (&optional arg)
   "Move backward over one element.
 With ARG, do it that many times.
 Negative ARG means move forward."
   (interactive "p")
-  t)
+  (kite-dom-forward-element (- arg)))
 
 (defun kite-backward-paragraph (&optional arg)
   "Move backward to start of paragraph.
