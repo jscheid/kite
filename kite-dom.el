@@ -334,6 +334,13 @@ The delimiters are <! and >."
 
 ;;; End of stolen nxml colors and faces.
 
+(defvar kite--dom-widget-field-keymap
+  (let ((map (make-sparse-keymap)))
+    (set-keymap-parent map widget-field-keymap)
+    (define-key map "\M-\C-n" 'kite-dom-forward-element)
+    (define-key map "\M-\C-p" 'kite-dom-backward-element)
+    map))
+
 (defvar kite-dom-mode-map nil
   "Local keymap for `kite-dom-mode' buffers.")
 
@@ -480,6 +487,7 @@ describing the buffer region where the attribute was inserted."
                          :validate (function kite--validate-widget)
                          :match (lambda (x) (> (length (widget-value x)) 0))
                          :kite-node-id node-id
+                         :keymap 'kite--dom-widget-field-keymap
                          attr-name))
     (widget-insert "=")
     (setf (attr-region-value-begin attr-region) (point-marker))
@@ -491,6 +499,7 @@ describing the buffer region where the attribute was inserted."
                          :modified-value-face 'kite-modified-attribute-value-face
                          :notify (function kite--notify-widget)
                          :kite-node-id node-id
+                         :keymap 'kite--dom-widget-field-keymap
                          attr-value))
     (setf (attr-region-value-end attr-region) (point-marker))
     (setf (attr-region-outer-end attr-region) (point-marker))
@@ -558,6 +567,7 @@ FIXME: this needs to be smarter about when to load children."
                :validate (function kite--validate-widget)
                :match (lambda (x) (> (length (widget-value x)) 0))
                :kite-node-id node-id
+               :keymap 'kite--dom-widget-field-keymap
                localName))
         (setq attributes (kite--dom-render-attribute-regions element))
         (widget-insert (concat (propertize ">"
@@ -604,6 +614,7 @@ FIXME: this needs to be smarter about when to load children."
                              :validate (function kite--validate-widget)
                              :match (lambda (x) (> (length (widget-value x)) 0))
                              :kite-node-id node-id
+                             :keymap 'kite--dom-widget-field-keymap
                              localName))
         (setq attributes (kite--dom-render-attribute-regions element))
         (widget-insert (propertize ">"
