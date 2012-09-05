@@ -72,39 +72,59 @@ record."
     (cond
      ;; Object (details available)
      ((and (not (plist-member object-plist :result))
-           (plist-member object-plist :objectId))
+           (plist-member object-plist :objectId)
+           (string= type "object"))
       (propertize
        (plist-get object-plist :description)
        'face 'kite-object
+       'font-lock-face 'kite-object
        'kite-loading-object-id (plist-get object-plist :objectId)))
      ;; Null
      ((and (string= type "object")
            (string= subtype "null"))
-      (propertize "null" 'face 'kite-null))
-     ;; Object or function (no details available)
-     ((or (string= type "object")
-          (string= type "function"))
+      (propertize "null"
+                  'face 'kite-null
+                  'font-lock-face 'kite-null))
+     ;; Undefined
+     ((string= type "undefined")
+      (propertize "undefined"
+                  'face 'kite-undefined
+                  'font-lock-face 'kite-undefined))
+     ;; Object (no details available)
+     ((string= type "object")
       (propertize
        (plist-get object-plist :description)
-       'face 'kite-object))
+       'face 'kite-object
+       'font-lock-face 'kite-object))
+     ;; Function
+     ((string= type "function")
+      ;; Note: no font face, leave it up to font-lock-mode
+      (plist-get object-plist :description))
      ;; Number
      ((string= type "number")
       (propertize
        (plist-get object-plist :description)
-       'face 'kite-number))
+       'face 'kite-number
+       'font-lock-face 'kite-number))
      ;; String
      ((string= type "string")
       (concat
-       (propertize "\"" 'face 'kite-quote)
+       (propertize "\""
+                   'face 'kite-quote
+                   'font-lock-face 'kite-quote)
        (propertize
         (plist-get object-plist :value)
-        'face 'kite-string)
-       (propertize "\"" 'face 'kite-quote)))
+        'face 'kite-string
+        'font-lock-face 'kite-string)
+       (propertize "\""
+                   'face 'kite-quote
+                   'font-lock-face 'kite-quote)))
      ;; Boolean
      ((string= type "boolean")
       (propertize
        (if (plist-get object-plist :value) "true" "false")
-       'face 'kite-boolean))
+       'face 'kite-boolean
+       'font-lock-face 'kite-boolean))
      ;; Unknown
      (t
       (error "Internal error, can't format value: %s" object-plist)))))
@@ -212,13 +232,15 @@ given PROPERTIES vector."
   (widget-setup))
 
 (defun kite--object-create-property-widget (parent-widget property)
-  (let ((value-type (plist-get (plist-get property :value) :type))
-        (value-subtype (plist-get (plist-get property :value) :subtype))
-        (value (kite--format-object (plist-get property :value)))
-        (name (propertize (plist-get property :name) 'face
-                          (if (eq (plist-get property :enumerable) t)
-                              'kite-property-name
-                            'kite-proto-property-name))))
+  (let* ((value-type (plist-get (plist-get property :value) :type))
+         (value-subtype (plist-get (plist-get property :value) :subtype))
+         (value (kite--format-object (plist-get property :value)))
+         (name-face (if (eq (plist-get property :enumerable) t)
+                        'kite-property-name
+                      'kite-proto-property-name))
+         (name (propertize (plist-get property :name)
+                           'font-lock-face name-face
+                           'face name-face)))
 
     (kite--log "kite--object-create-property-widget, property=%s" property)
 
@@ -250,8 +272,8 @@ given PROPERTIES vector."
         :notify (lambda (widget &rest ignore)
                   (put-text-property (widget-field-start widget)
                                      (widget-field-end widget)
-                                     'face
-                                     'kite-number))
+                                     'face 'kite-number
+                                     'font-lock-face 'kite-number))
         value))))
 
 (defun kite-property-widget-format-handler (widget escape)

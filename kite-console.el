@@ -82,6 +82,12 @@
   :version "24.1"
   :group 'kite-faces)
 
+(defface kite-undefined
+  '((t :inherit nxml-char-ref-number))
+  "Face used to highlight undefined values."
+  :version "24.1"
+  :group 'kite-faces)
+
 (defface kite-string
   '((t :inherit font-lock-string))
   "Face used to highlight strings."
