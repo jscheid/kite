@@ -637,7 +637,29 @@ FIXME: this needs to be smarter about when to load children."
         (put-text-property (node-region-line-begin node-region)
                            (point)
                            'kite-node-id
-                           node-id)))
+                           node-id))
+
+       ((eq nodeType kite-dom-comment-node)
+        (widget-insert
+         (concat
+          (indent-prefix indent node-id)
+          (propertize
+           "<!--"
+           'face 'kite-comment-delimiter-face)
+          (propertize
+           (plist-get element :nodeValue)
+           'face 'kite-comment-content-face)
+          (propertize
+           "-->"
+           'face 'kite-comment-delimiter-face)
+          "\n"))
+        (put-text-property (node-region-line-begin node-region)
+                           (point)
+                           'kite-node-id
+                           node-id))
+
+       (t
+        (error "Unknown node type %s" nodeType)))
 
       (setf (node-region-line-end node-region) (point-marker))
       (setf (node-region-indent node-region) indent)
