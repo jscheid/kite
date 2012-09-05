@@ -51,7 +51,8 @@
   attribute-regions
   widget
   parent
-  children)
+  children
+  node-id)
 
 (defstruct (attr-region)
   outer-begin
@@ -533,6 +534,8 @@ FIXME: this needs to be smarter about when to load children."
           (inhibit-read-only t)
           (node-region (make-node-region))
           attributes)
+
+      (setf (node-region-node-id node-region) node-id)
 
       (setf (node-region-line-begin node-region) (point-marker))
 
