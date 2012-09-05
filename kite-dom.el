@@ -148,8 +148,10 @@ This is not used directly, but only via inheritance by other faces."
 
 (defface kite-text-face
   (if (facep 'nxml-text-face)
-      '((t (:inherit nxml-text-face)))
-    nil)
+      `((((class color) (background light)) (:inherit nxml-text-face :background ,kite-light-blue-color))
+        (((class color) (background dark)) (:inherit nxml-text-face :background ,kite-dark-blue-color)))
+    `((((class color) (background light)) (:background ,kite-light-blue-color))
+      (((class color) (background dark)) (:background ,kite-dark-blue-color))))
   "Face used to highlight text."
   :group 'kite-highlighting-faces)
 
@@ -529,37 +531,77 @@ cells in the same order as the attributes in the element plist."
       (setq attr-index (+ 2 attr-index)))
     attribute-info-list))
 
-(defun kite--dom-update-inner-whitespace (node-region)
-  "Update whitespace at the beginning and end of the inner node
-display depending on which child nodes there are.  If the first
-child node is a text node, don't insert a linefeed after the
-opening tag.  If the last child node is a text node, don't insert
-indentation before the closing tag."
-  (let ((children (node-region-children node-region)))
-  (save-excursion
-    (goto-char (node-region-inner-begin node-region))
-    (let ((existing-space
-           (get-text-property (point) 'kite-inner-begin)))
-      (if (or (null children)
-              (eq (node-region-node-type (car children))
-                  kite-dom-text-node))
-          (when existing-space
-            (delete-char 1))
-        (unless existing-space
-          (widget-insert (propertize "\n" 'kite-inner-begin t)))))
+(defun kite--dom-leading-whitespace (node1 node2)
+  "Return the whitespace required before NODE2 given that it is
+preceded by NODE1.  NODE1 may be nil, which indicates that NODE2
+is the first child."
+  (cond
+   ((eq (node-region-node-type node2) kite-dom-element-node)
+    (concat
+     "\n"
+     (make-string (* kite-dom-offset (node-region-indent node2)) 32)))
+   (t
+    "")))
 
-    (goto-char (node-region-inner-end node-region))
-    (let ((existing-space
-           (get-text-property (- (point) 1) 'kite-inner-end))
-          (indent (node-region-indent node-region)))
-      (if (or (null children)
-              (eq (node-region-node-type (car (last children)))
-                  kite-dom-text-node))
-          (when existing-space
-            (delete-char (- (* kite-dom-offset indent))))
-        (unless existing-space
-          (widget-insert (propertize (make-string (* kite-dom-offset indent) 32)
-                                     'kite-inner-end t))))))))
+(defun kite--dom-trailing-whitespace (node1 node2)
+  "Return the whitespace required after NODE1 given that it is
+followed by NODE2.  NODE2 may be nil, which indicates that NODE1
+is the last child."
+  (cond
+   ((or (eq (node-region-node-type node1) kite-dom-text-node)
+        (and (not (null node2))
+             (eq (node-region-node-type node2) kite-dom-text-node)))
+    "")
+   ((null node2)
+    (concat
+     "\n"
+     (make-string (* kite-dom-offset (- (node-region-indent node1) 1)) 32)))
+   (t
+    "")))
+
+(defun kite--dom-update-inner-whitespace (node-region)
+  "For each child, update leading and trailing whitespace."
+  (save-excursion
+    (let* ((children (node-region-children node-region))
+           (last-child (- (length children) 1))
+           (overlays (overlays-in 0 (buffer-size))) ;; (node-region-line-begin node-region)
+           ;;(node-region-line-end node-region)))
+           (overlay-lengths (mapcar (lambda (overlay)
+                                      (- (overlay-end overlay)
+                                         (overlay-start overlay)))
+                                    overlays)))
+
+      (loop for index from 0 upto last-child do
+            (let* ((prev-child (and (> index 0)
+                                    (nth (- index 1) children)))
+                   (child (nth index children))
+                   (next-child (and (< index last-child)
+                                    (nth (1+ index) children))))
+
+              ;; delete any leading whitespace
+              (delete-region (node-region-line-begin child)
+                             (node-region-outer-begin child))
+              ;; insert leading whitespace
+              (goto-char (node-region-line-begin child))
+              (let ((save-point (point)))
+                (widget-insert (kite--dom-leading-whitespace prev-child child))
+                (set-marker (node-region-line-begin child) save-point)
+                (set-marker (node-region-outer-begin child) (point)))
+
+              ;; delete any trailing whitespace
+              (delete-region (node-region-outer-end child)
+                             (node-region-line-end child))
+              ;; insert trailing whitespace
+              (goto-char (node-region-outer-end child))
+              (let ((save-point (point)))
+                (widget-insert (propertize (kite--dom-trailing-whitespace child next-child) 'face 'error))
+                (set-marker (node-region-outer-end child) save-point)
+                (set-marker (node-region-line-end child) (point)))))
+
+      (mapcar* (lambda (overlay old-length)
+                 (kite--log "overlay %s old-length %s" overlay old-length)
+                 (move-overlay overlay (overlay-start overlay) (+ (overlay-start overlay) old-length)))
+               overlays overlay-lengths))))
 
 (defun kite--dom-insert-element (element indent loadp)
   "Insert ELEMENT at point, at indentation level INDENT.  If
@@ -588,10 +630,9 @@ FIXME: this needs to be smarter about when to load children."
        ((and (eq nodeType kite-dom-element-node)
              (or (eq 0 (plist-get element :childNodeCount))
                  (plist-member element :children)))
-        (widget-insert (concat (indent-prefix indent node-id)
-                               (propertize "<"
-                                           'kite-node-id node-id
-                                           'face 'kite-tag-delimiter-face)))
+        (widget-insert (propertize "<"
+                                   'kite-node-id node-id
+                                   'face 'kite-tag-delimiter-face))
         (setf (node-region-widget node-region)
               (widget-create
                'editable-field
@@ -628,18 +669,15 @@ FIXME: this needs to be smarter about when to load children."
           (propertize "<" 'face 'kite-tag-delimiter-face)
           (propertize "/" 'face 'kite-tag-slash-face)
           (propertize localName 'face 'kite-element-local-name-face)
-          (propertize ">\n" 'face 'kite-tag-delimiter-face)))
+          (propertize ">" 'face 'kite-tag-delimiter-face)))
         (put-text-property (node-region-inner-end node-region)
                            (point)
                            'kite-node-id
-                           node-id)
-
-        (kite--dom-update-inner-whitespace node-region))
+                           node-id))
 
        ((eq nodeType kite-dom-element-node)
-        (widget-insert (concat (indent-prefix indent node-id)
-                               (propertize "<"
-                                           'face 'kite-tag-delimiter-face)))
+        (widget-insert (propertize "<"
+                                   'face 'kite-tag-delimiter-face))
         (setf (node-region-widget node-region)
               (widget-create 'editable-field
                              :size 1
@@ -662,8 +700,7 @@ FIXME: this needs to be smarter about when to load children."
           (propertize "<" 'face 'kite-tag-delimiter-face)
           (propertize "/" 'face 'kite-tag-slash-face)
           (propertize localName 'face 'kite-element-local-name-face)
-          (propertize ">" 'face 'kite-tag-delimiter-face)
-          "\n"))
+          (propertize ">" 'face 'kite-tag-delimiter-face)))
         (put-text-property (node-region-line-begin node-region)
                            (point)
                            'kite-node-id
@@ -687,7 +724,6 @@ FIXME: this needs to be smarter about when to load children."
 
        ((eq nodeType kite-dom-comment-node)
         (widget-insert
-         (indent-prefix indent node-id)
          (propertize
           "<!--"
           'face 'kite-comment-delimiter-face))
@@ -718,9 +754,12 @@ FIXME: this needs to be smarter about when to load children."
       (setf (node-region-line-end node-region) (point-marker))
 
       (setf (node-region-outer-begin node-region)
-            (copy-marker (+ (node-region-line-begin node-region) (* kite-dom-offset indent))))
+            (copy-marker (node-region-line-begin node-region)))
       (setf (node-region-outer-end node-region)
-            (copy-marker (- (node-region-line-end node-region) 1)))
+            (copy-marker (node-region-line-end node-region)))
+
+      (when (eq nodeType kite-dom-element-node)
+        (kite--dom-update-inner-whitespace node-region))
 
       (setf (node-region-attribute-regions node-region) attributes)
       (when (node-region-inner-begin node-region)
