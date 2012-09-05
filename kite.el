@@ -85,8 +85,10 @@ remote WebKit debugger instance."
   (debugger-state kite--debugger-state-resumed)
   (next-request-id 0)
   (pending-requests (make-hash-table))
-  (buffers nil)
-  (top-frame nil))
+  buffers
+  top-frame
+  isolated-context-list
+  default-context)
 
 (defstruct (kite-script-info)
   "Information about a script used in a debugging session.  Used
@@ -172,7 +174,7 @@ if the response method is `Page.frameNavigated' then
       (let* ((json-object-type 'plist)
              (response (json-read-from-string (aref frame 2))))
 
-        (kite--log "received response: %s"
+        (kite--log "received message: %s"
                    (pp-to-string response))
         (when (listp response)
           (with-current-buffer buf
@@ -238,6 +240,8 @@ and :title."
 
     (kite-send "Page.enable" nil
                (lambda (response) (kite--log "Page notifications enabled.")))
+    (kite-send "Runtime.setReportExecutionContextCreation" '(:enabled t)
+               (lambda (response) (kite--log "ExecutionContextCreation reporting enabled.")))
     (kite-send "Inspector.enable" nil
                (lambda (response) (kite--log "Inspector enabled.")))
     (kite-send "Debugger.enable" nil
@@ -660,6 +664,19 @@ used kite session."
             kite-most-recent-session)))
 
 (add-hook 'post-command-hook 'kite-remember-recent-session)
+
+(defun kite--isolated-context-created (websocket-url packet)
+  "Callback invoked for the `Runtime.isolatedContextCreated' notification,
+which the remote debugger sends when a new JavaScript execution
+context is created."
+  (let ((isolated-context (plist-get packet :context)))
+    (push (kite-session-isolated-context-list kite-session)
+          isolated-context)
+    (when (null (kite-session-default-context kite-session))
+      (setf (kite-session-default-context kite-session)
+            isolated-context))))
+
+(add-hook 'kite-Runtime-isolatedContextCreated-hooks 'kite--isolated-context-created)
 
 (provide 'kite)
 

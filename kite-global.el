@@ -50,6 +50,7 @@
 (defvar kite-Page-domContentEventFired-hooks nil)
 (defvar kite-Page-frameNavigated-hooks nil)
 (defvar kite-Page-loadEventFired-hooks nil)
+(defvar kite-Runtime-isolatedContextCreated-hooks nil)
 
 (defun kite--define-global-mode-keys (map)
   (define-key map "!" 'kite-reload-page))
