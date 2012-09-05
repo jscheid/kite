@@ -64,6 +64,20 @@
 ;; Try loading nxml-mode so we can steal their faces
 (require 'nxml-mode nil t)
 
+;; Per https://developer.mozilla.org/en-US/docs/DOM/Node.nodeType
+(defconst kite-dom-element-node 1)
+(defconst kite-dom-attribute-node 2)
+(defconst kite-dom-text-node 3)
+(defconst kite-dom-cdata-section-node 4)
+(defconst kite-dom-entity-reference-node 5)
+(defconst kite-dom-entity-node 6)
+(defconst kite-dom-processing-instruction-node 7)
+(defconst kite-dom-comment-node 8)
+(defconst kite-dom-document-node 9)
+(defconst kite-dom-document-type-node 10)
+(defconst kite-dom-document-fragment-node 11)
+(defconst kite-dom-notation-node 12)
+
 ;;; Below default colors and face definitions shamelessly stolen from
 ;;; nxml.  However, we try to derive from nxml faces if possible in
 ;;; case we we inherit any changes the user might have made to them.
@@ -523,7 +537,7 @@ FIXME: this needs to be smarter about when to load children."
       (setf (node-region-line-begin node-region) (point-marker))
 
       (cond
-       ((and (eq nodeType 1)
+       ((and (eq nodeType kite-dom-element-node)
              (or (eq 0 (plist-get element :childNodeCount))
                  (plist-member element :children)))
         (widget-insert (concat (indent-prefix indent node-id)
@@ -572,7 +586,7 @@ FIXME: this needs to be smarter about when to load children."
                            'kite-node-id
                            node-id))
 
-       ((eq nodeType 1)
+       ((eq nodeType kite-dom-element-node)
         (widget-insert (concat (indent-prefix indent node-id)
                                (propertize "<"
                                            'face 'kite-tag-delimiter-face)))
@@ -608,7 +622,7 @@ FIXME: this needs to be smarter about when to load children."
                      (list (cons 'nodeId (plist-get element :nodeId)))
                      (lambda (response) nil))))
 
-       ((eq nodeType 3)
+       ((eq nodeType kite-dom-text-node)
         (widget-insert
          (concat
           (indent-prefix indent node-id)
