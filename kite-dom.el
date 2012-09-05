@@ -663,11 +663,23 @@ FIXME: this needs to be smarter about when to load children."
         (error "Unknown node type %s" nodeType)))
 
       (setf (node-region-line-end node-region) (point-marker))
+
+      (setf (node-region-outer-begin node-region)
+            (copy-marker (+ (node-region-line-begin node-region) (* kite-dom-offset indent))))
+      (setf (node-region-outer-end node-region)
+            (copy-marker (- (node-region-line-end node-region) 1)))
+
       (setf (node-region-indent node-region) indent)
       (setf (node-region-attribute-regions node-region) attributes)
       (when (node-region-inner-begin node-region)
         (set-marker-insertion-type (node-region-inner-begin node-region) nil)
         (set-marker-insertion-type (node-region-inner-end node-region) t))
+      (when (node-region-outer-begin node-region)
+        (set-marker-insertion-type (node-region-outer-begin node-region) t)
+        (set-marker-insertion-type (node-region-outer-end node-region) nil))
+      (when (node-region-line-begin node-region)
+        (set-marker-insertion-type (node-region-line-begin node-region) t)
+        (set-marker-insertion-type (node-region-line-end node-region) nil))
       (puthash (plist-get element :nodeId) node-region kite-dom-nodes)
       node-region)))
 
