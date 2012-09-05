@@ -352,7 +352,7 @@ The delimiters are <! and >."
         (suppress-keymap map t)
         (kite--define-global-mode-keys map)
         (define-key map (kbd "RET") 'undefined)
-        (define-key map (kbd "DEL") 'kite-dom-delete-node-or-attribute)
+        (define-key map (kbd "DEL") 'kite-dom-delete-node)
         (define-key map "p" 'kite-dom-pick-node)
         (define-key map "h" 'kite-dom-highlight-node)
         (define-key map "H" 'kite-dom-hide-highlight)
@@ -1025,10 +1025,8 @@ question."
   (interactive)
   (gethash (kite--dom-node-at-point arg) kite-dom-nodes))
 
-(defun kite-dom-delete-node-or-attribute ()
-  "Delete node or attribute at point.
-
-FIXME: this is unfinished."
+(defun kite-dom-delete-node ()
+  "Delete node at point."
   (interactive)
   (let ((node-id (kite--dom-node-at-point)))
     (when node-id
