@@ -569,13 +569,14 @@ FIXME: this needs to be smarter about when to load children."
                            (node-region-inner-begin node-region)
                            'kite-node-id
                            node-id)
-        (mapcar (lambda (child)
-                  (let ((new-node-region (kite--dom-insert-element child (1+ indent) loadp)))
-                    (push
-                     new-node-region
-                     (node-region-children node-region))
-                    (setf (node-region-parent new-node-region) node-region)))
-                (plist-get element :children))
+
+        (setf (node-region-children node-region)
+              (mapcar (lambda (child)
+                        (let ((new-node-region (kite--dom-insert-element child (1+ indent) loadp)))
+                          (setf (node-region-parent new-node-region) node-region)
+                          new-node-region))
+                      (plist-get element :children)))
+
         (setf (node-region-inner-end node-region) (point-marker))
         (widget-insert
          (concat
@@ -724,18 +725,18 @@ request."
            (gethash (plist-get packet :parentId) kite-dom-nodes)))
       (save-excursion
         (kite--delete-child-widgets node-region)
-        (setf (node-region-children node-region) nil)
         (delete-region (node-region-inner-begin node-region) (node-region-inner-end node-region))
         (goto-char (node-region-inner-begin node-region))
         (atomic-change-group
           (widget-insert (propertize "\n" 'kite-node-id (plist-get packet :parentId)))
-          (mapcar (lambda (node)
-                    (let ((new-node-region (kite--dom-insert-element node (1+ (node-region-indent node-region)) t)))
-                      (push
-                       new-node-region
-                       (node-region-children node-region))
-                      (setf (node-region-parent new-node-region) node-region)))
-                  (plist-get packet :nodes))
+
+          (setf (node-region-children node-region)
+                (mapcar (lambda (child)
+                          (let ((new-node-region (kite--dom-insert-element child (1+ (node-region-indent node-region)) t)))
+                            (setf (node-region-parent new-node-region) node-region)
+                            new-node-region))
+                        (plist-get packet :nodes)))
+
           (widget-insert (propertize
                           (make-string (* kite-dom-offset (node-region-indent node-region)) 32)
                           'kite-node-id (plist-get packet :parentId)
@@ -749,26 +750,35 @@ child node into a DOM element."
   (kite--log "kite--DOM-childNodeInserted got packet %s" packet)
   (with-current-buffer (kite--dom-buffer websocket-url)
     (save-excursion
-      (let ((inhibit-read-only t)
-            (previous-node-id (plist-get packet :previousNodeId))
-            (parent-node-id (plist-get packet :parentNodeId)))
-        (if (eq previous-node-id 0)
-            (let ((node-region (gethash parent-node-id kite-dom-nodes)))
-              (goto-char (node-region-inner-begin node-region))
-              (let ((new-node-region (kite--dom-insert-element (plist-get packet :node)
-                                                               (1+ (node-region-indent node-region))
-                                                               t)))
-                (push
-                 new-node-region
-                 (node-region-children node-region))
-                (setf (node-region-parent new-node-region) node-region)))
-          (let ((node-region (gethash previous-node-id kite-dom-nodes)))
-            (goto-char (node-region-line-end node-region))
-            (push
-             (kite--dom-insert-element (plist-get packet :node)
-                                       (node-region-indent node-region)
-                                       t)
-             (node-region-children node-region)))))
+      (let* ((inhibit-read-only t)
+             (previous-node-id (plist-get packet :previousNodeId))
+             (parent-node-id (plist-get packet :parentNodeId))
+             (node-region (gethash parent-node-id kite-dom-nodes))
+             (previous-node-region
+              (gethash previous-node-id kite-dom-nodes)))
+
+        (goto-char (if (eq previous-node-id 0)
+                       (node-region-inner-begin node-region)
+                     (node-region-line-end previous-node-region)))
+        (let ((new-node-region
+               (kite--dom-insert-element
+                (plist-get packet :node)
+                (1+ (node-region-indent node-region))
+                t)))
+          (if (eq previous-node-id 0)
+              (push new-node-region (node-region-children node-region))
+            (let ((insert-position
+                   (position previous-node-region
+                             (node-region-children node-region))))
+              (setf (node-region-children node-region)
+                    (append
+                     (subseq (node-region-children node-region)
+                             0
+                             insert-position)
+                     (list new-node-region)
+                     (subseq (node-region-children node-region)
+                             insert-position)))))
+          (setf (node-region-parent new-node-region) node-region)))
       (widget-setup))))
 
 (defun kite--dom-DOM-childNodeCountUpdated (websocket-url packet)
@@ -789,10 +799,10 @@ node from a DOM element."
         (kite--delete-widgets node-region)
         (delete-region
          (node-region-line-begin node-region)
-         (node-region-line-end node-region)))
-      (setf (node-region-children (node-region-parent node-region))
-            (delete node-region
-                    (node-region-children (node-region-parent node-region))))
+         (node-region-line-end node-region))
+        (setf (node-region-children (node-region-parent node-region))
+              (delete node-region
+                      (node-region-children (node-region-parent node-region)))))
       (widget-setup))))
 
 (defun kite--dom-DOM-attributeModified (websocket-url packet)
