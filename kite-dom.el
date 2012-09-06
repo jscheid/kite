@@ -586,7 +586,9 @@ is the last child."
               ;; insert leading whitespace
               (goto-char (node-region-line-begin child))
               (let ((save-point (point)))
-                (widget-insert (kite--dom-leading-whitespace prev-child child))
+                (widget-insert (propertize
+                                (kite--dom-leading-whitespace prev-child child)
+                                'kite-node-id (node-region-node-id child)))
                 (set-marker (node-region-line-begin child) save-point)
                 (set-marker (node-region-outer-begin child) (point)))
 
@@ -596,7 +598,9 @@ is the last child."
               ;; insert trailing whitespace
               (goto-char (node-region-outer-end child))
               (let ((save-point (point)))
-                (widget-insert (propertize (kite--dom-trailing-whitespace child next-child) 'face 'error))
+                (widget-insert (propertize
+                                (kite--dom-trailing-whitespace child next-child)
+                                'kite-node-id (node-region-node-id child)))
                 (set-marker (node-region-outer-end child) save-point)
                 (set-marker (node-region-line-end child) (point)))))
 
