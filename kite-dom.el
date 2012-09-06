@@ -443,7 +443,9 @@ ROOT-PLIST as received in the response to `DOM.getDocument'."
             (string= (plist-get child-plist :nodeName) "HTML"))
           (plist-get root-plist :children))))
     (if html-plist
-        (kite--dom-insert-element html-plist 0 t)
+        (progn
+          (kite--dom-insert-element html-plist 0 t)
+          (insert "\n"))
       (error "Document doesn't seem to contain html element"))))
 
 (defconst kite-dom-offset 2
