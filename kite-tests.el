@@ -34,6 +34,27 @@
 (require 'kite-console-tests)
 (require 'kite-color-tests)
 
+
+(ert-deftest kite-test-find-frame-by-id ()
+  "kite--frame-by-id works"
+
+  (flet ((websocket-open (&rest ignore)
+                         nil)
+         (kite-send (method params callback)
+                    (when (string= method "Page.getResourceTree")
+                      (funcall callback
+                               '(:id 7 :result (:frameTree (:childFrames [(:resources [] :frame (:securityOrigin null :name "" :parentId "12583.1" :mimeType "text/html" :url "file:///Users/julians/src/kite/misc/page1.html" :loaderId "12583.4" :id "12583.2"))] :resources [] :frame (:securityOrigin null :mimeType "text/html" :url "file:///Users/julians/src/kite/misc/twoframes.html" :loaderId "12583.3" :id "12583.1"))))))))
+
+    (kite--connect-webservice nil))
+
+  (should (kite--equal-wildcard
+           (kite--frame-by-id "12583.1")
+           '(:securityOrigin null :mimeType "text/html" :url "file:///Users/julians/src/kite/misc/twoframes.html" :loaderId "12583.3" :id "12583.1")))
+
+  (should (kite--equal-wildcard
+           (kite--frame-by-id "12583.2")
+           '(:securityOrigin null :name "" :parentId "12583.1" :mimeType "text/html" :url "file:///Users/julians/src/kite/misc/page1.html" :loaderId "12583.4" :id "12583.2"))))
+
 (provide 'kite-tests)
 
 ;;; kite-tests.el ends here

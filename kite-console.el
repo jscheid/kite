@@ -245,6 +245,7 @@ when the user customizes `kite-console-prompt'.")
 
   (add-hook (make-local-variable 'kite-after-mode-hooks)
             (lambda ()
+              (kite--console-update-mode-line)
               (kite-send "Console.enable" nil
                          (lambda (response) (kite--log "Console enabled.")))))
   (run-mode-hooks 'kite-console-mode-hook))
@@ -749,7 +750,11 @@ ERROR-OBJECT-ID."
 insert the result or error message, along with a new prompt, into
 the buffer."
   (kite-send
-   "Runtime.evaluate" (list (cons 'expression input))
+   "Runtime.evaluate"
+   (list (cons 'expression input)
+         (cons 'contextId (plist-get (kite-session-current-context
+                                      kite-session)
+                                     :id)))
    (lambda (response)
      (let ((result (plist-get response :result)))
        (if (eq :json-false (plist-get result :wasThrown))
@@ -767,6 +772,46 @@ the buffer."
              (kite-console-process)
              (concat stack-trace kite-console-prompt-internal)))))))))
 
+(defun kite--contexts-by-unique-name (context-and-frame-list)
+  "Given CONTEXT-AND-FRAME-LIST, an alist of (CONTEXT-ID
+  . CONTEXT-PLIST FRAME-PLIST), return an alist of (CONTEXT-ID
+  . UNIQUE-CONTEXT-NAME)."
+  (mapcar (lambda (context-and-frame)
+            (cons (plist-get (nth 1 (cdr context-and-frame)) :url)
+                  (car context-and-frame)))
+          context-and-frame-list))
+
+(defun kite--session-contexts-by-unique-name ()
+  (kite--contexts-by-unique-name
+   (mapcar
+    (lambda (context)
+      (cons context
+            (list context (kite--frame-by-id
+                           (plist-get context :frameId)))))
+    (kite-session-isolated-context-list kite-session))))
+
+(defvar kite-context-history)
+
+(defun kite-set-context ()
+  "Interactively select a JavaScript execution context for the
+console."
+  (interactive)
+  (let* ((contexts-by-unique-name
+          (kite--session-contexts-by-unique-name))
+         (selection (completing-read "Context: "
+                                     (mapcar (function car)
+                                             contexts-by-unique-name)
+                                     nil
+                                     t
+                                     nil
+                                     'kite-context-history))
+         (new-context (cdr (assoc selection
+                                  contexts-by-unique-name))))
+    (when new-context
+      (setf (kite-session-current-context kite-session)
+            new-context)
+      (kite--console-update-mode-line))))
+
 ;;; Process and marker utilities
 
 (defun kite-console-process ()
@@ -781,9 +826,31 @@ the buffer."
   ;; Set the process mark in the current buffer to POS.
   (set-marker (process-mark (get-buffer-process (current-buffer))) pos))
 
+(defun kite--console-update-mode-line ()
+  "Update the console buffer mode line display.  Should be
+invoked after execution context changes."
+  (setq mode-line-process nil)
+  (setq mode-line-buffer-identification
+        (let ((current-context (kite-session-current-context kite-session)))
+          (nconc
+           (propertized-buffer-identification "%b")
+           (when current-context
+             (list
+              (replace-regexp-in-string
+               "%" "%%"
+               (format
+                " (%s)"
+                (car (rassq current-context
+                            (kite--session-contexts-by-unique-name)))))))))))
+
+(defun kite--console-isolated-context-created (websocket-url packet)
+  (kite--console-update-mode-line)
+  (force-mode-line-update))
+
 (add-hook 'kite-Console-messageAdded-hooks 'kite--console-messageAdded)
 (add-hook 'kite-Console-messageRepeatCountUpdated-hooks 'kite--console-messageRepeatCountUpdated)
 (add-hook 'kite-Debugger-globalObjectCleared-hooks 'kite--console-globalObjectCleared)
+(add-hook 'kite-Runtime-isolatedContextCreated-hooks 'kite--console-isolated-context-created)
 
 (provide 'kite-console)
 

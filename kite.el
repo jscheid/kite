@@ -86,9 +86,10 @@ remote WebKit debugger instance."
   (next-request-id 0)
   (pending-requests (make-hash-table))
   buffers
-  top-frame
+  frame-tree
   isolated-context-list
-  default-context)
+  default-context
+  current-context)
 
 (defstruct (kite-script-info)
   "Information about a script used in a debugging session.  Used
@@ -253,8 +254,16 @@ and :title."
     (kite-send "Page.getResourceTree" nil
                (lambda (response)
                  (kite--log "got resource tree response: %s" response)
-                 (setf (kite-session-top-frame kite-session)
-                       (plist-get (plist-get (plist-get response :result) :frameTree) :frame))))))
+                 (setf (kite-session-frame-tree kite-session)
+                       (plist-get (plist-get response :result) :frameTree))
+                 (let ((console-buffer
+                        (kite--find-buffer
+                         (websocket-url
+                          (kite-session-websocket kite-session))
+                         'console)))
+                   (when console-buffer
+                     (with-current-buffer console-buffer
+                       (kite--console-update-mode-line))))))))
 
 (defun kite--find-buffer (websocket-url type)
   "Return the buffer corresponding to the given WEBSOCKET-URL and
@@ -670,11 +679,29 @@ used kite session."
 which the remote debugger sends when a new JavaScript execution
 context is created."
   (let ((isolated-context (plist-get packet :context)))
-    (push (kite-session-isolated-context-list kite-session)
-          isolated-context)
+    (push isolated-context
+          (kite-session-isolated-context-list kite-session))
     (when (null (kite-session-default-context kite-session))
       (setf (kite-session-default-context kite-session)
+            isolated-context)
+      (setf (kite-session-current-context kite-session)
             isolated-context))))
+
+(defun kite--find-frame-recursive (frame-tree frame-id)
+  (if (string= frame-id (plist-get (plist-get frame-tree :frame) :id))
+      (plist-get frame-tree :frame)
+    (let* ((children (plist-get frame-tree :childFrames))
+           (num-children (length children))
+           (child-index 0)
+           found-frame)
+      (while (and (< child-index num-children)
+                  (null found-frame))
+        (setq found-frame (kite--find-frame-recursive (elt children child-index) frame-id))
+        (setq child-index (1+ child-index)))
+      found-frame)))
+
+(defun kite--frame-by-id (frame-id)
+  (kite--find-frame-recursive (kite-session-frame-tree kite-session) frame-id))
 
 (add-hook 'kite-Runtime-isolatedContextCreated-hooks 'kite--isolated-context-created)
 
