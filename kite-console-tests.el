@@ -78,53 +78,9 @@
    ;; Text in buffer
    (should (string= (buffer-substring-no-properties
                      (point-min) (point-max))
-                    "test1\ntest2\ntest1\ntest2\n"))
-   ;; Point still at start of buffer
-   (should (eq (point) (point-min)))))
-
-(ert-deftest kite-console-follow ()
-  "kite-console does tail-follow if point is at end of buffer,
-but not when buffer is empty"
-
-  (with--kite-console-test-buffer
-
-   (kite--console-messageAdded
-    nil
-    kite--console-test-simple-message-1)
-
-   (should (string= (buffer-substring-no-properties
-                     (point-min) (point-max))
-                    "test1\n"))
-
-   ;; Point still at start of buffer
-   (should (eq (point) (point-min)))
-
-   (kite--console-messageAdded
-    nil
-    kite--console-test-simple-message-2)
-
-   (should (string= (buffer-substring-no-properties
-                     (point-min) (point-max))
-                    "test1\ntest2\n"))
-
-   ;; Point still at start of buffer
-   (should (eq (point) (point-min)))
-
-   (goto-char (point-max))
-
-   ;; Point now at end of buffer
-   (should (eq (point) (point-max)))
-
-   (kite--console-messageAdded
-    nil
-    kite--console-test-simple-message-1)
-
-   (should (string= (buffer-substring-no-properties
-                     (point-min) (point-max))
-                    "test1\ntest2\ntest1\n"))
-
-   ;; Point still at end of buffer
-   (should (eq (point) (point-max)))))
+                    (concat kite-console-header
+                            "test1\ntest2\ntest1\ntest2\n"
+                            kite-console-prompt)))))
 
 (ert-deftest kite-console-group-nesting ()
   "Nested messages are indented"
@@ -156,10 +112,9 @@ but not when buffer is empty"
    ;; Text in buffer
    (should (string= (buffer-substring-no-properties
                      (point-min) (point-max))
-                    "test1\n  test2\ntest1\n"))
-
-   ;; Point still at start of buffer
-   (should (eq (point) (point-min)))))
+                    (concat kite-console-header
+                            "test1\n  test2\ntest1\n"
+                            kite-console-prompt)))))
 
 (ert-deftest kite-console-repeat-count ()
   "Repeat count is included in message display"
@@ -189,9 +144,10 @@ but not when buffer is empty"
    ;; Text in buffer
    (should (string= (buffer-substring-no-properties
                      (point-min) (point-max))
-                    (concat
-                     "foo\n"
-                     "bar [message repeated 3 times]\n")))))
+                    (concat kite-console-header
+                            "foo\n"
+                            "bar [message repeated 3 times]\n"
+                            kite-console-prompt)))))
 
 (ert-deftest kite-console-repeat-update ()
   "Repeat count in message display can be updated"
@@ -213,7 +169,9 @@ but not when buffer is empty"
 
    (should (string= (buffer-substring-no-properties
                      (point-min) (point-max))
-                    "test [message repeated 4 times]\n"))
+                    (concat kite-console-header
+                            "test [message repeated 4 times]\n"
+                            kite-console-prompt)))
 
    (kite--console-messageRepeatCountUpdated
     nil
@@ -221,7 +179,9 @@ but not when buffer is empty"
 
    (should (string= (buffer-substring-no-properties
                      (point-min) (point-max))
-                    "test [message repeated 5 times]\n"))))
+                    (concat kite-console-header
+                            "test [message repeated 5 times]\n"
+                            kite-console-prompt)))))
 
 (provide 'kite-console-tests)
 
