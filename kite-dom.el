@@ -881,9 +881,9 @@ child node into a DOM element."
                      (list new-node-region)
                      (subseq (node-region-children node-region)
                              insert-position)))))
-          (setf (node-region-parent new-node-region) node-region)))
-      (widget-setup)
-      (kite--dom-update-inner-whitespace node-region))))
+          (setf (node-region-parent new-node-region) node-region))
+        (widget-setup)
+        (kite--dom-update-inner-whitespace node-region)))))
 
 (defun kite--dom-DOM-childNodeCountUpdated (websocket-url packet)
   "Callback invoked for the `DOM.childNodeCountUpdated' notification,
