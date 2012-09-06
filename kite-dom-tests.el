@@ -93,12 +93,10 @@
                      (concat
                       "<html>\n"
                       "  <head>\n"
-                      "    <link href=\"foo\">\n"
-                      "    </link>\n"
+                      "    <link href=\"foo\"></link>\n"
                       "  </head>\n"
-                      "  <body>\n"
-                      "  </body>\n"
-                      "</html>\n")))))
+                      "  <body></body>\n"
+                      "</html>")))))
 
 (ert-deftest kite-test-dom-node-id ()
   "A node ID is associated with each character in the buffer"
@@ -168,13 +166,9 @@
                                                      (point-max))
                      (concat
                       "<dummy>\n"
-                      "  <child1>\n"
-                      "    test\n"
-                      "  </child1>\n"
-                      "  <child2>\n"
-                      "    foobar\n"
-                      "  </child2>\n"
-                      "</dummy>\n")))))
+                      "  <child1>test</child1>\n"
+                      "  <child2>foobar</child2>\n"
+                      "</dummy>")))))
 
 (ert-deftest kite-test-dom-children-not-loaded ()
   "A node whose children aren't loaded is rendered correctly"
@@ -199,7 +193,7 @@
 
       (should (string= (buffer-substring-no-properties (point-min)
                                                        (point-max))
-                       "<empty>...</empty>\n"))
+                       "<empty>...</empty>"))
 
       (flet ((kite--dom-buffer (websocket-url) (current-buffer)))
         (kite--dom-DOM-setChildNodes nil
@@ -217,9 +211,8 @@
       (should (string= (buffer-substring-no-properties (point-min)
                                                        (point-max))
                        (concat "<empty>\n"
-                               "  <foo>\n"
-                               "  </foo>\n"
-                               "</empty>\n"))))))
+                               "  <foo></foo>\n"
+                               "</empty>"))))))
 
 
 (ert-deftest kite-test-reset-child-nodes ()
@@ -245,7 +238,7 @@
 
       (should (string= (buffer-substring-no-properties (point-min)
                                                        (point-max))
-                       "<empty>...</empty>\n"))
+                       "<empty>...</empty>"))
 
       (flet ((kite--dom-buffer (websocket-url) (current-buffer)))
         (kite--log "kite-dom-nodes now %s" kite-dom-nodes)
@@ -284,9 +277,8 @@
       (should (string= (buffer-substring-no-properties (point-min)
                                                        (point-max))
                        (concat "<empty>\n"
-                               "  <foo href=\"bar\">\n"
-                               "  </foo>\n"
-                               "</empty>\n"))))))
+                               "  <foo href=\"bar\"></foo>\n"
+                               "</empty>"))))))
 
 
 (ert-deftest kite-test-dom-insert-only ()
@@ -318,14 +310,12 @@
                          (concat
                           "<html>\n"
                           "  <head>\n"
-                          "    <link href=\"foo\">\n"
-                          "    </link>\n"
+                          "    <link href=\"foo\"></link>\n"
                           "  </head>\n"
                           "  <body>\n"
-                          "    <div>\n"
-                          "    </div>\n"
+                          "    <div></div>\n"
                           "  </body>\n"
-                          "</html>\n")))))))
+                          "</html>")))))))
 
 (ert-deftest kite-test-dom-insert-before ()
   "DOM is mutated correctly when node is inserted before another node"
@@ -394,14 +384,11 @@
                      (concat
                       "<html>\n"
                       "  <head>\n"
-                      "    <link href=\"foo\">\n"
-                      "    </link>\n"
-                      "    <div>\n"
-                      "    </div>\n"
+                      "    <link href=\"foo\"></link>\n"
+                      "    <div></div>\n"
                       "  </head>\n"
-                      "  <body>\n"
-                      "  </body>\n"
-                      "</html>\n")))))
+                      "  <body></body>\n"
+                      "</html>")))))
 
 (ert-deftest kite-test-dom-remove ()
   "DOM is mutated correctly when node is removed"
@@ -421,9 +408,8 @@
                                                      (point-max))
                      (concat
                       "<html>\n"
-                      "  <body>\n"
-                      "  </body>\n"
-                      "</html>\n")))))
+                      "  <body></body>\n"
+                      "</html>")))))
 
 (ert-deftest kite-test-dom-modify-attribute ()
   "DOM is mutated correctly when attribute is modified"
@@ -444,12 +430,10 @@
                      (concat
                       "<html>\n"
                       "  <head>\n"
-                      "    <link href=\"frobnicate\">\n"
-                      "    </link>\n"
+                      "    <link href=\"frobnicate\"></link>\n"
                       "  </head>\n"
-                      "  <body>\n"
-                      "  </body>\n"
-                      "</html>\n")))
+                      "  <body></body>\n"
+                      "</html>")))
     (let* ((node-info (gethash 87 kite-dom-nodes))
            (attr-info (cdr (assoc 'href (node-region-attribute-regions node-info)))))
 
@@ -476,12 +460,10 @@
                      (concat
                       "<html>\n"
                       "  <head>\n"
-                      "    <link href=\"foo\" baz=\"bar\">\n"
-                      "    </link>\n"
+                      "    <link href=\"foo\" baz=\"bar\"></link>\n"
                       "  </head>\n"
-                      "  <body>\n"
-                      "  </body>\n"
-                      "</html>\n")))
+                      "  <body></body>\n"
+                      "</html>")))
 
     (let* ((node-info (gethash 87 kite-dom-nodes))
            (attr-info (cdr (assq 'baz (node-region-attribute-regions node-info)))))
@@ -506,12 +488,10 @@
                      (concat
                       "<html>\n"
                       "  <head>\n"
-                      "    <link>\n"
-                      "    </link>\n"
+                      "    <link></link>\n"
                       "  </head>\n"
-                      "  <body>\n"
-                      "  </body>\n"
-                      "</html>\n")))
+                      "  <body></body>\n"
+                      "</html>")))
 
     (let* ((node-info (gethash 87 kite-dom-nodes))
            (attr-info (cdr (assq 'href (node-region-attribute-regions node-info)))))
