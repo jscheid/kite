@@ -761,32 +761,39 @@ ERROR-OBJECT-ID."
                   "\n")
                  "\n"))))))
 
+(defun kite--is-whitespace-or-comment (string)
+  "Return non-nil if STRING is all whitespace or a comment."
+  (or (string= string "")
+      (string-match-p "\\`[ \t\n]*\\(?:\/\/.*\\)*\\'" string)))
+
+
 (defun kite-console-eval-input (input)
   "Evaluate console input: send it to the remote debugger and
 insert the result or error message, along with a new prompt, into
 the buffer."
-  (kite-send
-   "Runtime.evaluate"
-   (list (cons 'expression input)
-         (cons 'contextId (plist-get (kite-session-current-context
-                                      kite-session)
-                                     :id)))
-   (lambda (response)
-     (let ((result (plist-get response :result)))
-       (if (eq :json-false (plist-get result :wasThrown))
-           (comint-output-filter
-            (kite-console-process)
-            (concat (kite--console-format-object
-                     (plist-get result :result)
-                     t)
-                    "\n"
-                    kite-console-prompt-internal))
-         (kite--get-formatted-stack-trace
-          (plist-get (plist-get result :result) :objectId)
-          (lambda (stack-trace)
-            (comint-output-filter
-             (kite-console-process)
-             (concat stack-trace kite-console-prompt-internal)))))))))
+  (unless (kite--is-whitespace-or-comment input)
+    (kite-send
+     "Runtime.evaluate"
+     (list (cons 'expression input)
+           (cons 'contextId (plist-get (kite-session-current-context
+                                        kite-session)
+                                       :id)))
+     (lambda (response)
+       (let ((result (plist-get response :result)))
+         (if (eq :json-false (plist-get result :wasThrown))
+             (comint-output-filter
+              (kite-console-process)
+              (concat (kite--console-format-object
+                       (plist-get result :result)
+                       t)
+                      "\n"
+                      kite-console-prompt-internal))
+           (kite--get-formatted-stack-trace
+            (plist-get (plist-get result :result) :objectId)
+            (lambda (stack-trace)
+              (comint-output-filter
+               (kite-console-process)
+               (concat stack-trace kite-console-prompt-internal))))))))))
 
 (defun kite--contexts-by-unique-name (context-and-frame-list)
   "Given CONTEXT-AND-FRAME-LIST, an alist of (CONTEXT-ID
