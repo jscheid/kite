@@ -60,11 +60,11 @@ and how many errors occurred in the session."
    (propertize "r" 'face 'success)
    (when (> (kite-session-error-count kite-session) 0)
      (concat
-      "("
+      ":"
       (propertize (number-to-string
                    (kite-session-error-count kite-session))
                   'face 'error)
-      ")"))))
+      ))))
 
 (defun kite--mode-line-update ()
   "Update information in mode line.  Should be called after list
