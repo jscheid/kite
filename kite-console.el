@@ -476,10 +476,7 @@ received from the remote debugger."
                 (delete-region (point-min) (point))
                 (setq kite-console-line-count (- kite-console-line-count 1))))
 
-            (goto-char (kite-console-pm))
-            (let ((inhibit-field-text-motion t))
-              (beginning-of-line)
-              (backward-char))
+            (kite--console-goto-last-message)
             (insert (concat "\n" (kite--console-format-message message))))
 
           (setq kite-console-line-count (1+ kite-console-line-count)))
@@ -543,8 +540,9 @@ FIXME: this could use nicer formatting."
                        ))))))
 
 (defun kite-insert-page-break ()
-  (kite--log "kite-insert-page-break called")
-  (insert "\f\n"))
+  "Insert a newline and page break character.  Default for
+`kite-console-on-reload-function'."
+  (insert "\n\f"))
 
 (defcustom kite-console-on-reload-function
   (function kite-insert-page-break)
@@ -555,18 +553,22 @@ FIXME: this could use nicer formatting."
   page break.  To mimic the behaviour of the WebKit debugger
   frontend, set this function to `erase-buffer'." )
 
+(defun kite--console-goto-last-message ()
+  "Put point after the last message printed"
+  (goto-char (kite-console-pm))
+  (let ((inhibit-field-text-motion t))
+    (beginning-of-line)
+    (backward-char)))
+
 (defun kite--console-globalObjectCleared (websocket-url packet)
   "Callback invoked for `Console.globalObjectCleared'
-notifications received from the remote debugger.
-
-FIXME: this function is broken and needs tests."
-  (let ((buf (get-buffer (format "*kite console %s*" websocket-url))))
+notifications received from the remote debugger."
+  (let ((buf (kite--find-buffer websocket-url 'console)))
     (when buf
       (save-excursion
         (with-current-buffer buf
-          (goto-char (point-max))
+          (kite--console-goto-last-message)
           (let ((inhibit-read-only t))
-            (kite--log "kite--console-Debugger-globalObjectCleared called")
             (funcall kite-console-on-reload-function)))))))
 
 (defun kite--console-messageRepeatCountUpdated (websocket-url packet)
