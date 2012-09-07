@@ -176,14 +176,17 @@
 
 (defcustom kite-console-log-max 1000
   "Maximum number of lines to keep in the kite console log buffer.
-If nil, disable console logging.  If t, log messages but don't truncate
-the buffer when it becomes large.")
+If nil, disable console logging.  If t, log messages but don't
+truncate the buffer when it becomes large.")
 
 (defcustom kite-console-prompt "JS> "
   "Prompt used in kite-console.")
 
-(defvar kite-console-prompt-internal (propertize "JS> " 'font-lock-face 'kite-console-prompt-face)
-  "Stored value of `kite-console-prompt' in the current kite-console buffer.
+(defvar kite-console-prompt-internal
+  (propertize "JS> " 'font-lock-face 'kite-console-prompt-face)
+  "Stored value of `kite-console-prompt' in the current kite-console
+buffer.
+
 This is an internal variable used by kite-console.  Its purpose
 is to prevent a running kite-console process from being messed up
 when the user customizes `kite-console-prompt'.")
@@ -219,7 +222,8 @@ when the user customizes `kite-console-prompt'.")
   (set (make-local-variable 'widget-link-suffix) "")
 
   ;; Below code is adapted from ielm.el
-  (setq comint-prompt-regexp (concat "^" (regexp-quote kite-console-prompt)))
+  (setq comint-prompt-regexp
+        (concat "^" (regexp-quote kite-console-prompt)))
   (setq comint-input-sender 'kite-console-input-sender)
   (setq comint-get-old-input 'kite-console-get-old-input)
   (set (make-local-variable 'comint-prompt-read-only) t)
@@ -227,8 +231,12 @@ when the user customizes `kite-console-prompt'.")
   ;; A dummy process to keep comint happy. It will never get any input
   (unless (comint-check-proc (current-buffer))
     (condition-case nil
-        (start-process "kite-console" (current-buffer) "hexl")
-      (file-error (start-process "kite-console" (current-buffer) "cat")))
+        (start-process "kite-console"
+                       (current-buffer)
+                       "hexl")
+      (file-error (start-process "kite-console"
+                                 (current-buffer)
+                                 "cat")))
     (set-process-query-on-exit-flag (kite-console-process) nil)
     (goto-char (point-max))
 
@@ -248,10 +256,14 @@ when the user customizes `kite-console-prompt'.")
       (let ((inhibit-read-only t))
         (add-text-properties
          (point-min) (point-max)
-         '(rear-nonsticky t field output inhibit-line-move-field-capture t))))
-    (comint-output-filter (kite-console-process) kite-console-prompt-internal)
+         (list 'rear-nonsticky t
+               'field 'output
+               'inhibit-line-move-field-capture t))))
+    (comint-output-filter (kite-console-process)
+                          kite-console-prompt-internal)
     (set-marker comint-last-input-start (kite-console-pm))
-    (set-process-filter (get-buffer-process (current-buffer)) 'comint-output-filter))
+    (set-process-filter (get-buffer-process (current-buffer))
+                        'comint-output-filter))
 
   (kite--console-update-mode-line)
   (kite-send "Console.enable" nil
@@ -287,10 +299,11 @@ data from the server.  RESPONSE is the JSON-RPC response received
 from the server.  OBJECT-PLIST is a plist describing the message
 parameter for which the request was sent.  BUFFER-POINT is a
 marker at which the temporary placeholder is located."
-  (let* ((text-prop-start (text-property-any buffer-point
-                                             (point-max)
-                                             'kite-loading-object-id
-                                             (plist-get object-plist :objectId)))
+  (let* ((text-prop-start (text-property-any
+                           buffer-point
+                           (point-max)
+                           'kite-loading-object-id
+                           (plist-get object-plist :objectId)))
          (text-prop-end (next-single-property-change
                          text-prop-start
                          'kite-loading-object-id))
@@ -314,7 +327,9 @@ marker at which the temporary placeholder is located."
             (widget-create
              'link
              :kite-object-id (plist-get object-plist :objectId)
-             :kite-object-description (plist-get object-plist :description)
+             :kite-object-description (plist-get
+                                       object-plist
+                                       :description)
              :button-face 'kite-object
              :notify (lambda (widget &rest ignore)
                        (kite-inspect-object
@@ -410,16 +425,20 @@ MESSAGE is the raw message plist as received from the remote
 debugger."
   (propertize
    (let* ((parameters (plist-get message :parameters))
-          (arg-index (if (string= (plist-get (elt parameters 0) :type) "string")
+          (arg-index (if (string= (kite--get parameters 0 :type)
+                                  "string")
                          1 0)))
      (concat
       (make-string (* 2 kite-message-group-level) 32)
       (let ((kite-level-prefix
-             (cdr (assoc (plist-get message :level) kite-level-prefixes))))
+             (cdr (assoc (plist-get message :level)
+                         kite-level-prefixes))))
         (when kite-level-prefix
           (propertize
            kite-level-prefix
-           'font-lock-face (intern (format "kite-log-%s" (plist-get message :level))))))
+           'font-lock-face (intern
+                            (format "kite-log-%s"
+                                    (plist-get message :level))))))
 
       (when (or (> arg-index 0) (null parameters))
         (replace-regexp-in-string
@@ -440,7 +459,9 @@ debugger."
           (setq extra-args
                 (concat extra-args
                         (when (> arg-index 0) " ")
-                        (kite--console-format-object (elt parameters arg-index) t)))
+                        (kite--console-format-object
+                         (elt parameters arg-index)
+                         t)))
           (setq arg-index (1+ arg-index)))
         extra-args)
       (when (plist-get message :repeatCount)
@@ -474,13 +495,17 @@ received from the remote debugger."
                 (goto-char (point-min))
                 (forward-line)
                 (delete-region (point-min) (point))
-                (setq kite-console-line-count (- kite-console-line-count 1))))
+                (setq kite-console-line-count
+                      (- kite-console-line-count 1))))
 
             (kite--console-goto-last-message)
-            (insert (concat "\n" (kite--console-format-message message))))
+            (insert (concat "\n"
+                            (kite--console-format-message message))))
 
           (setq kite-console-line-count (1+ kite-console-line-count)))
-        (kite--log "message added, url is %s, packet is %s" websocket-url packet)))))
+        (kite--log "message added, url is %s, packet is %s"
+                   websocket-url
+                   packet)))))
 
 (defun kite-clear-console ()
   "Clear the console locally and in the remote debugger, the
@@ -536,7 +561,8 @@ FIXME: this could use nicer formatting."
                        (plist-get log-message :level)
                        (plist-get log-message :repeatCount)
                        (kite--console-format-message log-message)
-                       (kite--format-stacktrace (plist-get log-message :stackTrace))
+                       (kite--format-stacktrace
+                        (plist-get log-message :stackTrace))
                        ))))))
 
 (defun kite-insert-page-break ()
@@ -630,7 +656,8 @@ FIXME: this should be consolidated with
 (defun kite-console-send-input ()
   "Evaluate the current console prompt input."
   (interactive)
-  (let (kite-console-input)	       	; set by kite-console-input-sender
+  (let (kite-console-input)	       	; set by
+                                        ; kite-console-input-sender
     (comint-send-input)			; update history, markers etc.
     (kite-console-eval-input kite-console-input)))
 
@@ -690,7 +717,7 @@ JavaScript identifier.")
 
 (defun kite--format-stack-line (stack-line)
   "Return a prettified version of a line of a WebKit stack trace.
-  Adds face and font-lock-face properties, and the kite-source
+  adds face and font-lock-face properties, and the kite-source
   property for lines that describe a source location."
   (when (string-match kite--stack-line-regexp stack-line)
     (let* ((matches (match-data t))
@@ -795,7 +822,8 @@ the buffer."
             (lambda (stack-trace)
               (comint-output-filter
                (kite-console-process)
-               (concat stack-trace kite-console-prompt-internal))))))))))
+               (concat stack-trace
+                       kite-console-prompt-internal))))))))))
 
 (defun kite--contexts-by-unique-name (context-and-frame-list)
   "Given CONTEXT-AND-FRAME-LIST, an alist of (CONTEXT-ID
@@ -864,18 +892,19 @@ console."
   "Update the console buffer mode line display.  Should be
 invoked after execution context changes."
   (setq mode-line-process nil)
-  (setq mode-line-buffer-identification
-        (let ((current-context (kite-session-current-context kite-session)))
-          (nconc
-           (propertized-buffer-identification "%b")
-           (when current-context
-             (list
-              (replace-regexp-in-string
-               "%" "%%"
-               (format
-                " (%s)"
-                (car (rassq current-context
-                            (kite--session-contexts-by-unique-name)))))))))))
+  (setq
+   mode-line-buffer-identification
+   (let ((current-context (kite-session-current-context kite-session)))
+     (nconc
+      (propertized-buffer-identification "%b")
+      (when current-context
+        (list
+         (replace-regexp-in-string
+          "%" "%%"
+          (format
+           " (%s)"
+           (car (rassq current-context
+                       (kite--session-contexts-by-unique-name)))))))))))
 
 (defun kite--console-isolated-context-created (websocket-url packet)
   (kite--console-update-mode-line)
@@ -982,10 +1011,14 @@ doesn't support asynchronicity."
                 lex-completion-end
                 completions)))))))))
 
-(add-hook 'kite-Console-messageAdded-hooks 'kite--console-messageAdded)
-(add-hook 'kite-Console-messageRepeatCountUpdated-hooks 'kite--console-messageRepeatCountUpdated)
-(add-hook 'kite-Debugger-globalObjectCleared-hooks 'kite--console-globalObjectCleared)
-(add-hook 'kite-Runtime-isolatedContextCreated-hooks 'kite--console-isolated-context-created)
+(add-hook 'kite-Console-messageAdded-hooks
+          'kite--console-messageAdded)
+(add-hook 'kite-Console-messageRepeatCountUpdated-hooks
+          'kite--console-messageRepeatCountUpdated)
+(add-hook 'kite-Debugger-globalObjectCleared-hooks
+          'kite--console-globalObjectCleared)
+(add-hook 'kite-Runtime-isolatedContextCreated-hooks
+          'kite--console-isolated-context-created)
 
 (provide 'kite-console)
 
