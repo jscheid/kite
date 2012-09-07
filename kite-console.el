@@ -280,9 +280,9 @@ from the server.  OBJECT-PLIST is a plist describing the message
 parameter for which the request was sent.  BUFFER-POINT is a
 marker at which the temporary placeholder is located."
   (let* ((text-prop-start (text-property-any buffer-point
-                           (point-max)
-                           'kite-loading-object-id
-                           (plist-get object-plist :objectId)))
+                                             (point-max)
+                                             'kite-loading-object-id
+                                             (plist-get object-plist :objectId)))
          (text-prop-end (next-single-property-change
                          text-prop-start
                          'kite-loading-object-id))
@@ -374,12 +374,12 @@ function f() { \
     return this; \
   } \
 }"
-                    ;; Fetch one item more than necessary so that
-                    ;; kite--format-array and
-                    ;; kite--format-object-with-props know when to
-                    ;; insert an ellipsis at the end.
-                    (1+ kite-short-array-max-elements)
-                    (1+ kite-short-object-max-properties)))
+                     ;; Fetch one item more than necessary so that
+                     ;; kite--format-array and
+                     ;; kite--format-object-with-props know when to
+                     ;; insert an ellipsis at the end.
+                     (1+ kite-short-array-max-elements)
+                     (1+ kite-short-object-max-properties)))
          (arguments . []))
        (lambda (response)
          (kite-send
@@ -471,7 +471,7 @@ received from the remote debugger."
 
             )
 
-            (setq kite-console-line-count (1+ kite-console-line-count)))
+          (setq kite-console-line-count (1+ kite-console-line-count)))
         (kite--log "message added, url is %s, packet is %s" websocket-url packet)))))
 
 (defun kite-clear-console ()
@@ -646,11 +646,11 @@ JavaScript identifier.")
                   (cons 'file-line-column
                         (rx
                          (or
-                          (submatch      ; <file>
+                          (submatch     ; <file>
                            "<"
                            (minimal-match (1+ anything))
                            ">")
-                          (submatch      ; file
+                          (submatch     ; file
                            (minimal-match (1+ anything))))
                          ":"
                          (submatch      ; line
@@ -895,7 +895,7 @@ function f(regex_str) {
     }
     return result.join(\";\");
 }")
-         (arguments [ ( :value ,lex-js-regex ) ]))
+          (arguments [ ( :value ,lex-js-regex ) ]))
         (lambda (response)
           (funcall lex-callback
                    (split-string (plist-get
