@@ -898,13 +898,14 @@ FIXME: no error handling."
                                  kite-session)
                                 :id)))
      (lambda (response)
-       (kite-send
-        "Runtime.callFunctionOn"
-        `((objectId . ,(plist-get (plist-get (plist-get response
-                                                        :result)
-                                             :result)
-                                  :objectId))
-          (functionDeclaration . "
+       (lexical-let ((object-id (kite--get response
+                                           :result
+                                           :result
+                                           :objectId)))
+         (kite-send
+          "Runtime.callFunctionOn"
+          `((objectId . ,object-id)
+            (functionDeclaration . "
 function f(regex_str) {
     result = [];
     regex = new RegExp(regex_str);
@@ -915,15 +916,14 @@ function f(regex_str) {
     }
     return result.join(\";\");
 }")
-          (arguments [ ( :value ,lex-js-regex ) ]))
-        (lambda (response)
-          (funcall lex-callback
-                   (split-string (plist-get
-                                  (plist-get
-                                   (plist-get response :result)
-                                   :result)
-                                  :value)
-                                 ";"))))))))
+            (arguments [ ( :value ,lex-js-regex ) ]))
+          (lambda (response)
+            (funcall lex-callback
+                     (split-string (kite--get response
+                                              :result
+                                              :result
+                                              :value)
+                                   ";")))))))))
 
 (defun kite-async-completion-at-point ()
   "Asynchronously fetch completions for the JavaScript expression
