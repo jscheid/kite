@@ -98,6 +98,22 @@ notification."
   end-line
   end-column)
 
+(defface kite-session-closed
+  '((((class color) (min-colors 88) (background light))
+     (:inherit default :background "RosyBrown1"))
+    (((class color) (min-colors 88) (background dark))
+     (:inherit default :background "red4"))
+    (((class color) (min-colors 16))
+     (:inherit default :background "red"))
+    (((class color) (min-colors 8))
+     (:inherit default :background "red"))
+    (((class color grayscale))
+     :foreground "grey")
+    (t (:inverse-video t)))
+  "Face for displaying 'session closed' message in kite buffers."
+  :version "24.1"
+  :group 'kite)
+
 (defvar kite-active-sessions
   (make-hash-table :test 'equal :weakness 'value)
   "Maps webservice URL to kite-session structs for each active
@@ -203,10 +219,24 @@ if the response method is `Page.frameNavigated' then
 
 (defun kite--on-close (websocket)
   "Invoked when the JSON-RPC server closed the connection, most
-likely because the tab or browser was closed.  Currently this
-does nothing, but it ought to somehow add some sort of message to
-every buffer open for this connection. FIXME"
-  (kite--log "websocket connection closed"))
+likely because the tab or browser was closed.  Removes the
+session from the list of active sessions and adds a header line
+to all session buffers saying that the session is closed."
+  (let ((kite-session (gethash (websocket-url websocket) kite-active-sessions)))
+    (when kite-session
+      (message "\
+Kite session was closed by the remote debugging server: %s"
+               (kite-session-page-title kite-session))
+      (dolist (kite-buffer (kite-session-buffers kite-session))
+        (with-current-buffer kite-buffer
+          (set (make-local-variable 'header-line-format)
+               (propertize "*** Kite session closed ***"
+                           'face 'kite-session-closed))))
+      (remhash (websocket-url (kite-session-websocket kite-session))
+               kite-active-sessions)
+      (setq kite-active-session-list
+            (remove kite-session kite-active-session-list))
+      (kite--mode-line-update))))
 
 (defun kite--connect-webservice (tab-alist)
   "Create a new kite session for the given browser tab.
