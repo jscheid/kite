@@ -169,6 +169,11 @@
   :version "24.1"
   :group 'kite-faces)
 
+(defconst kite-level-prefixes
+  '(("warning" . "WARNING: ")
+    ("error" . "ERROR: "))
+  "Prefix strings by message log level")
+
 (defcustom kite-console-log-max 1000
   "Maximum number of lines to keep in the kite console log buffer.
 If nil, disable console logging.  If t, log messages but don't truncate
@@ -409,6 +414,13 @@ debugger."
                          1 0)))
      (concat
       (make-string (* 2 kite-message-group-level) 32)
+      (let ((kite-level-prefix
+             (cdr (assoc (plist-get message :level) kite-level-prefixes))))
+        (when kite-level-prefix
+          (propertize
+           kite-level-prefix
+           'font-lock-face (intern (format "kite-log-%s" (plist-get message :level))))))
+
       (when (or (> arg-index 0) (null parameters))
         (replace-regexp-in-string
          "\\([^%]\\|^\\)\\(%[osd]\\)"
@@ -419,9 +431,7 @@ debugger."
                      (kite--console-format-object object)
                    string))
              (setq arg-index (1+ arg-index))))
-         (propertize
-          (plist-get message :text)
-          'font-lock-face (intern (format "kite-log-%s" (plist-get message :level))))
+         (plist-get message :text)
          t   ; fixed-case
          t   ; literal
          2)) ; subexp
