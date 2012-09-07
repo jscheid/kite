@@ -918,6 +918,7 @@ function f(regex_str) {
 }")
             (arguments [ ( :value ,lex-js-regex ) ]))
           (lambda (response)
+            (kite--release-object object-id)
             (funcall lex-callback
                      (split-string (kite--get response
                                               :result
