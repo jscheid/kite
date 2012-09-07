@@ -570,8 +570,7 @@
              (kite-send (command params callback)
                         (setq sent-packets (cons (list command params callback)
                                                  sent-packets))))
-        (kite-dom-mode)
-        (run-hooks 'kite-after-mode-hooks)))
+        (kite-dom-mode)))
     (should (kite--equal-wildcard sent-packets
                                    '(("DOM.getDocument" nil *)
                                      ("CSS.enable" nil *))))))

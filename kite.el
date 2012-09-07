@@ -64,12 +64,6 @@
   this should be an list instead so that once the most recently
   used session is closed we can fall back to the second most
   recently used.")
-(defvar kite-after-mode-hooks nil
-  "Hooks run after a major mode change, used to run code after
-  kite-session has been fully initialized.  Only used in
-  buffer-local mode.  FIXME: this needs a better name.  FIXME:
-  investigate if this can be handled more elegantly without a
-  hook.")
 
 (defstruct (kite-session)
   "Represents an active debugging session, i.e. a connection to a
@@ -287,21 +281,23 @@ open."
   "Return the buffer corresponding to the given WEBSOCKET-URL and
 buffer TYPE and return it.  If no such buffer is currently open,
 create one with the given MODE."
-  (lexical-let*
-      ((-kite-session (gethash websocket-url kite-active-sessions))
-       (buf (or (kite--find-buffer websocket-url type)
-                (generate-new-buffer
+  (or (let ((buf (kite--find-buffer websocket-url type)))
+        (when buf
+          (switch-to-buffer buf)))
+      (lexical-let*
+          ((-kite-session (gethash websocket-url kite-active-sessions))
+           (buf (generate-new-buffer
                  (format "*kite %s %s*"
                          type
-                         (kite-session-unique-name -kite-session))))))
-    (switch-to-buffer buf)
-    (with-current-buffer buf
-      (funcall mode)
-      (setq kite-session -kite-session)
-      (set (make-local-variable 'kite-buffer-type) type)
-      (add-hook 'kill-buffer-hook 'kite--kill-buffer nil t)
-      (run-hooks 'kite-after-mode-hooks))
-    buf))
+                         (kite-session-unique-name -kite-session)))))
+        (switch-to-buffer buf)
+        (with-current-buffer buf
+          (let ((kite-session -kite-session))
+            (funcall mode))
+          (setq kite-session -kite-session)
+          (set (make-local-variable 'kite-buffer-type) type)
+          (add-hook 'kill-buffer-hook 'kite--kill-buffer nil t)
+        buf))))
 
 (defun kite-connect (&optional host port)
   "Connect to the remote debugger instance running on the given

@@ -69,9 +69,7 @@
   "Toggle kite debug mode."
   :group 'kite
   (setq case-fold-search nil)
-  (add-hook (make-local-variable 'kite-after-mode-hooks)
-            (lambda ()
-              (kite--connect-buffer-insert)))
+  (kite--connect-buffer-insert)
   (run-mode-hooks 'kite-debug-mode-hook))
 
 (defun kite-debug-pause ()

@@ -248,11 +248,10 @@ when the user customizes `kite-console-prompt'.")
     (set-marker comint-last-input-start (kite-console-pm))
     (set-process-filter (get-buffer-process (current-buffer)) 'comint-output-filter))
 
-  (add-hook (make-local-variable 'kite-after-mode-hooks)
-            (lambda ()
-              (kite--console-update-mode-line)
-              (kite-send "Console.enable" nil
-                         (lambda (response) (kite--log "Console enabled.")))))
+  (kite--console-update-mode-line)
+  (kite-send "Console.enable" nil
+             (lambda (response) (kite--log "Console enabled.")))
+
   (run-mode-hooks 'kite-console-mode-hook))
 
 (defun kite--kill-console ()

@@ -412,26 +412,25 @@ line under mouse and the corresponding DOM node in the browser."
   (remove-overlays)
   (widget-setup)
 
-  (add-hook
-   (make-local-variable 'kite-after-mode-hooks)
-   (lambda ()
+  (kite-send
+   "CSS.enable"
+   nil
+   (lambda (response)
      (kite-send
-      "CSS.enable"
+      "CSS.getAllStyleSheets"
       nil
       (lambda (response)
-        (kite-send
-         "CSS.getAllStyleSheets"
-         nil
-         (lambda (response)
-           (kite--log "CSS.getAllStyleSheets got response %s" response)))))
-     (kite-send "DOM.getDocument" nil
-                (lambda (response)
-                  (kite--log "DOM.getDocument got response %s" response)
-                  (with-current-buffer buf
-                    (save-excursion
-                      (kite--dom-insert-document
-                       (plist-get (plist-get response :result) :root))
-                      (widget-setup)))))))
+        (kite--log "CSS.getAllStyleSheets got response %s" response)))))
+
+  (kite-send "DOM.getDocument" nil
+             (lambda (response)
+               (kite--log "DOM.getDocument got response %s" response)
+               (save-excursion
+                 (let ((inhibit-read-only t))
+                   (kite--dom-insert-document
+                    (kite--get response :result :root)))
+                 (widget-setup))))
+
   (run-mode-hooks 'kite-dom-mode-hook))
 
 (defun kite--dom-insert-document (root-plist)

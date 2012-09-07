@@ -112,10 +112,8 @@
                       "\n"
                       "\nReload the page to show network information\n" t)))
 
-  (add-hook (make-local-variable 'kite-after-mode-hooks)
-            (lambda ()
-              (kite-send "Network.enable" nil
-                         (lambda (response) (kite--log "Network enabled.")))))
+  (kite-send "Network.enable" nil
+             (lambda (response) (kite--log "Network enabled.")))
   (run-mode-hooks 'kite-network-mode-hook))
 
 (defun kite--net-Network-loadingFinished (websocket-url packet)
