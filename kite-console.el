@@ -192,7 +192,7 @@ when the user customizes `kite-console-prompt'.")
     (define-key map "\C-cX" 'kite-clear-console)
     (define-key map "\C-cg" 'kite-console-visit-source)
     (define-key map "\C-ci" 'kite-show-log-entry)
-    (define-key map "\C-j" 'kite-console-send-input)
+    (define-key map (kbd "RET") 'kite-console-send-input)
     map)
   "Local keymap for `kite-console-mode' buffers.")
 
