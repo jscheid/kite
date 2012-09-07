@@ -470,9 +470,7 @@ received from the remote debugger."
             (let ((inhibit-field-text-motion t))
               (beginning-of-line)
               (backward-char))
-            (insert (concat "\n" (kite--console-format-message message)))
-
-            )
+            (insert (concat "\n" (kite--console-format-message message))))
 
           (setq kite-console-line-count (1+ kite-console-line-count)))
         (kite--log "message added, url is %s, packet is %s" websocket-url packet)))))
