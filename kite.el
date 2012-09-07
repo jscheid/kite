@@ -294,6 +294,7 @@ create one with the given MODE."
                  (format "*kite %s %s*"
                          type
                          (kite-session-unique-name -kite-session)))))
+        (push buf (kite-session-buffers -kite-session))
         (switch-to-buffer buf)
         (with-current-buffer buf
           (let ((kite-session -kite-session))
