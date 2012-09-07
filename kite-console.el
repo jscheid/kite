@@ -849,6 +849,15 @@ console."
   ;; Set the process mark in the current buffer to POS.
   (set-marker (process-mark (get-buffer-process (current-buffer))) pos))
 
+(defun kite-console-get-old-input nil
+  ;; Return the previous input surrounding point
+  (save-excursion
+    (beginning-of-line)
+    (unless (looking-at-p comint-prompt-regexp)
+      (re-search-backward comint-prompt-regexp))
+    (comint-skip-prompt)
+    (buffer-substring (point) (progn (forward-sexp 1) (point)))))
+
 (defun kite--console-update-mode-line ()
   "Update the console buffer mode line display.  Should be
 invoked after execution context changes."
