@@ -116,21 +116,22 @@ CALLBACK is a function invoked with the JSON-RPC server response.
 CALLBACK-ARGS are passed as the second argument to CALLBACK.
 CALLBACK is invoked with the same current buffer that was current
 when `kite-send' was invoked."
-  (let ((callback-buffer (current-buffer))
-        (request-id (incf (kite-session-next-request-id kite-session))))
-    (puthash request-id (list (or callback (lambda (response) nil))
-                              callback-buffer
-                              callback-args)
-             (kite-session-pending-requests kite-session))
-    (let ((json-request (json-encode
-                         (list
-                          (cons :jsonrpc "2.0")
-                          (cons :method method)
-                          (cons :params params)
-                          (cons :id request-id)))))
-      (kite--log "Sending request: %s" json-request)
-      (websocket-send-text (kite-session-websocket kite-session)
-                           json-request))))
+  (when (websocket-openp (kite-session-websocket kite-session))
+    (let ((callback-buffer (current-buffer))
+          (request-id (incf (kite-session-next-request-id kite-session))))
+      (puthash request-id (list (or callback (lambda (response) nil))
+                                callback-buffer
+                                callback-args)
+               (kite-session-pending-requests kite-session))
+      (let ((json-request (json-encode
+                           (list
+                            (cons :jsonrpc "2.0")
+                            (cons :method method)
+                            (cons :params params)
+                            (cons :id request-id)))))
+        (kite--log "Sending request: %s" json-request)
+        (websocket-send-text (kite-session-websocket kite-session)
+                             json-request)))))
 
 (defun kite--session-remove-current-buffer ()
   "Remove the current buffer from the list of the current
@@ -148,9 +149,6 @@ binding."
              kite-active-sessions)
     (setq kite-active-session-list
           (remove kite-session kite-active-session-list))
-    (when t ; workaround for websocket.el bug? TODO: revisit once latest websocket is working again
-      (process-send-eof (websocket-conn (kite-session-websocket kite-session)))
-      (kill-process (websocket-conn (kite-session-websocket kite-session))))
     (websocket-close (kite-session-websocket kite-session))))
 
 (defun kite--on-message (websocket frame)
