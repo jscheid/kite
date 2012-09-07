@@ -891,20 +891,29 @@ console."
 (defun kite--console-update-mode-line ()
   "Update the console buffer mode line display.  Should be
 invoked after execution context changes."
-  (setq mode-line-process nil)
-  (setq
-   mode-line-buffer-identification
-   (let ((current-context (kite-session-current-context kite-session)))
-     (nconc
-      (propertized-buffer-identification "%b")
-      (when current-context
-        (list
-         (replace-regexp-in-string
-          "%" "%%"
-          (format
-           " (%s)"
-           (car (rassq current-context
-                       (kite--session-contexts-by-unique-name)))))))))))
+  (let ((buf (kite--find-buffer
+              (websocket-url
+               (kite-session-websocket kite-session))
+              'console)))
+    (when buf
+      (save-excursion
+        (with-current-buffer buf
+          (setq mode-line-process nil)
+          (setq
+           mode-line-buffer-identification
+           (let ((current-context (kite-session-current-context
+                                   kite-session))
+                 (unique-names (kite--session-contexts-by-unique-name)))
+             (nconc
+              (propertized-buffer-identification "%b")
+              (when current-context
+                (list
+                 (replace-regexp-in-string
+                  "%" "%%"
+                  (format
+                   " (%s)"
+                   (car (rassq current-context
+                               unique-names))))))))))))))
 
 (defun kite--console-isolated-context-created (websocket-url packet)
   (kite--console-update-mode-line)
