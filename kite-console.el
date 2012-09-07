@@ -234,7 +234,9 @@ when the user customizes `kite-console-prompt'.")
          (list js--font-lock-keywords))
 
     ;; Add a silly header
-    (insert kite-console-header)
+    (insert (propertize kite-console-header
+                        'face 'font-lock-comment
+                        'font-lock-face 'font-lock-comment))
     (kite-console-set-pm (point-max))
     (unless comint-use-prompt-regexp
       (let ((inhibit-read-only t))
