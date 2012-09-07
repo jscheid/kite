@@ -46,6 +46,7 @@
 (require 'kite-object)
 (require 'kite-console)
 (require 'kite-breakpoint)
+(require 'kite-modeline)
 (require 'kite-global)
 
 (make-variable-buffer-local 'kite-buffer-type)
@@ -83,7 +84,9 @@ remote WebKit debugger instance."
   frame-tree
   isolated-context-list
   default-context
-  current-context)
+  current-context
+  (error-count 0)
+  last-message)
 
 (defstruct (kite-script-info)
   "Information about a script used in a debugging session.  Used
@@ -149,7 +152,8 @@ binding."
              kite-active-sessions)
     (setq kite-active-session-list
           (remove kite-session kite-active-session-list))
-    (websocket-close (kite-session-websocket kite-session))))
+    (websocket-close (kite-session-websocket kite-session)))
+  (kite--mode-line-update))
 
 (defun kite--on-message (websocket frame)
   "Invoked when a message is received from the JSON-RPC server.
@@ -230,6 +234,8 @@ and :title."
     (if kite-active-session-list
         (setcdr kite-active-session-list (cons kite-session nil))
       (setq kite-active-session-list (cons kite-session nil)))
+
+    (kite--mode-line-update)
 
     (kite-send "Page.enable" nil
                (lambda (response) (kite--log "Page notifications enabled.")))
@@ -648,7 +654,8 @@ transparently."
       (process-send-eof process)))
   (clrhash kite-active-sessions)
   (setq kite-active-session-list nil)
-  (setq kite-most-recent-session nil))
+  (setq kite-most-recent-session nil)
+  (kite--mode-line-update))
 
 (defun kite--kill-buffer ()
   "Invoked by `kill-buffer-hook' for all Kite major modes. Kills
@@ -722,7 +729,37 @@ using `elt'.  Other member types are not currently implemented."
       (setq members (cdr members)))
     result))
 
-(add-hook 'kite-Runtime-isolatedContextCreated-hooks 'kite--isolated-context-created)
+(defun kite--messageAdded (websocket-url packet)
+  "Update session error count if message is on error level."
+  (setf (kite-session-last-message kite-session)
+        (plist-get packet :message))
+  (when (string= "error" (kite--get packet :message :level))
+    (incf (kite-session-error-count kite-session)))
+  (kite--mode-line-update))
+
+(defun kite--messageRepeatCountUpdated (websocket-url packet)
+  "Update session error count for repeated errors."
+  (when (string= "error"
+                 (plist-get (kite-session-last-message kite-session)
+                            :level))
+    (incf (kite-session-error-count kite-session)))
+  (kite--mode-line-update))
+
+(defun kite--globalObjectCleared (websocket-url packet)
+  "Reset session state.
+
+FIXME: this needs to reset many more state properties."
+  (setf (kite-session-error-count kite-session))
+  (kite--mode-line-update))
+
+(add-hook 'kite-Runtime-isolatedContextCreated-hooks
+          'kite--isolated-context-created)
+(add-hook 'kite-Console-messageAdded-hooks
+          'kite--messageAdded)
+(add-hook 'kite-Console-messageRepeatCountUpdated-hooks
+          'kite--messageRepeatCountUpdated)
+(add-hook 'kite-Debugger-globalObjectCleared-hooks
+          'kite--globalObjectCleared)
 
 (provide 'kite)
 
