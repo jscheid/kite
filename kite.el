@@ -703,6 +703,31 @@ context is created."
 (defun kite--frame-by-id (frame-id)
   (kite--find-frame-recursive (kite-session-frame-tree kite-session) frame-id))
 
+(defun kite--release-object (object-id)
+  "Release the object with the given OBJECT-ID on the browser
+side."
+  (kite-send "Runtime.releaseObject"
+             `((objectId . ,object-id))))
+
+(defun kite--get (object &rest members)
+  "Convenience function for getting members of nested data
+structures.  For each item of MEMBERS, retrieves an item from
+OBJECT and applies subsequent members to that item.  Returns the
+last item yielded by this operation.  A keyword member looks up
+the item using `plist-get'. A number members looks up the item
+using `elt'.  Other member types are not currently implemented."
+  (let ((result object))
+    (while members
+      (cond
+       ((keywordp (car members))
+        (setq result (plist-get result (car members))))
+       ((numberp (car members))
+        (setq result (elt result (car members))))
+       (t
+        (error "Don't know how to interpret member: %s" (car members))))
+      (setq members (cdr members)))
+    result))
+
 (add-hook 'kite-Runtime-isolatedContextCreated-hooks 'kite--isolated-context-created)
 
 (provide 'kite)
