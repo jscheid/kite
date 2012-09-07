@@ -217,6 +217,7 @@ when the user customizes `kite-console-prompt'.")
   (setq comint-prompt-regexp (concat "^" (regexp-quote kite-console-prompt)))
   (setq comint-input-sender 'kite-console-input-sender)
   (setq comint-get-old-input 'kite-console-get-old-input)
+  (set (make-local-variable 'comint-prompt-read-only) t)
 
   ;; A dummy process to keep comint happy. It will never get any input
   (unless (comint-check-proc (current-buffer))
