@@ -119,7 +119,7 @@ CALLBACK is a function invoked with the JSON-RPC server response.
 CALLBACK-ARGS are passed as the second argument to CALLBACK.
 CALLBACK is invoked with the same current buffer that was current
 when `kite-send' was invoked."
-  (when (websocket-openp (kite-session-websocket kite-session))
+  (if (websocket-openp (kite-session-websocket kite-session))
     (let ((callback-buffer (current-buffer))
           (request-id (incf (kite-session-next-request-id kite-session))))
       (puthash request-id (list (or callback (lambda (response) nil))
@@ -134,7 +134,8 @@ when `kite-send' was invoked."
                             (cons :id request-id)))))
         (kite--log "Sending request: %s" json-request)
         (websocket-send-text (kite-session-websocket kite-session)
-                             json-request)))))
+                             json-request)))
+    (error "This kite session is closed")))
 
 (defun kite--session-remove-current-buffer ()
   "Remove the current buffer from the list of the current
