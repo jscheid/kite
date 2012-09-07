@@ -188,6 +188,7 @@ when the user customizes `kite-console-prompt'.")
 	(menu-map (make-sparse-keymap)))
     ;;(suppress-keymap map t)
     (kite--define-global-mode-keys map)
+    (define-key map "\t" 'kite-async-completion-at-point)
     (define-key map "\C-cX" 'kite-clear-console)
     (define-key map "\C-cg" 'kite-console-visit-source)
     (define-key map "\C-ci" 'kite-show-log-entry)
@@ -627,6 +628,17 @@ FIXME: this should be consolidated with
     (comint-send-input)			; update history, markers etc.
     (kite-console-eval-input kite-console-input)))
 
+(defconst kite--identifier-part-regexp
+  (rx
+   word-boundary
+   (1+ (or alnum
+           ?.
+           (: "\\x" (repeat 2 xdigit))
+           (: "\\u" (repeat 4 xdigit))))
+   point)
+  "Used by `kite-async-completion-at-point' to find a part of a
+JavaScript identifier.")
+
 (defconst kite--stack-line-regexp
   (let ((rx-constituents
          (append rx-constituents
@@ -846,6 +858,106 @@ invoked after execution context changes."
 (defun kite--console-isolated-context-created (websocket-url packet)
   (kite--console-update-mode-line)
   (force-mode-line-update))
+
+(defun kite--get-properties-fast (object-expr js-regex callback)
+  "Efficiently and asynchronously fetch matching property names
+for the object resulting from evaluating OBJECT-EXPR, a
+JavaScript expression.  Only properties matching JS-REGEX, a
+regular expression using JavaScript syntax, are fetched.  The
+resulting property names are passed as an unsorted list of
+strings to CALLBACK, which should accept a single parameter.
+
+FIXME: no error handling."
+
+  (lexical-let ((lex-js-regex js-regex)
+                (lex-callback callback))
+    (kite-send
+     "Runtime.evaluate"
+     `((expression . ,object-expr)
+       (contextId . ,(plist-get (kite-session-current-context
+                                 kite-session)
+                                :id)))
+     (lambda (response)
+       (kite-send
+        "Runtime.callFunctionOn"
+        `((objectId . ,(plist-get (plist-get (plist-get response
+                                                        :result)
+                                             :result)
+                                  :objectId))
+          (functionDeclaration . "
+function f(regex_str) {
+    result = [];
+    regex = new RegExp(regex_str);
+    for (key in this) {
+      if (regex.test(key)) {
+        result.push(key);
+      }
+    }
+    return result.join(\";\");
+}")
+         (arguments [ ( :value ,lex-js-regex ) ]))
+        (lambda (response)
+          (funcall lex-callback
+                   (split-string (plist-get
+                                  (plist-get
+                                   (plist-get response :result)
+                                   :result)
+                                  :value)
+                                 ";"))))))))
+
+(defun kite-async-completion-at-point ()
+  "Asynchronously fetch completions for the JavaScript expression
+at point and, once results have arrived, perform completion using
+`completion-in-region'.
+
+Note: we can't use the usual mechanism of hooking into the
+completions API (`completion-at-point-functions') because it
+doesn't support asynchronicity."
+  (interactive)
+  (let (completion-begin)
+
+    ;; Find the dotted JavaScript expression (consisting of
+    ;; identifiers only) before point.  Note that we can't use just a
+    ;; single regex because greedy regexes don't work when searching
+    ;; backwards.
+    (save-excursion
+      (save-match-data
+        (while (re-search-backward kite--identifier-part-regexp nil t))
+        (setq completion-begin (point))))
+
+    ;; FIXME: the previous step is too broad, it will find identifiers
+    ;; starting with a digit.  Could do a second pass here to make
+    ;; sure that we're looking at a valid expression, or improve error
+    ;; handling in `kite--get-properties-fast' to ensure that we do
+    ;; the right thing when the JavaScript side gets back to us with a
+    ;; complaint.
+
+    (when (< completion-begin (point))
+      (let* ((components (split-string (buffer-substring-no-properties
+                                        completion-begin
+                                        (point))
+                                       "\\."))
+             (last-component (car (last components))))
+
+        (lexical-let ((lex-completion-begin (- (point)
+                                               (length last-component)))
+                      (lex-completion-end (point)))
+          (kite--get-properties-fast
+           (if (> (length components) 1)
+               (mapconcat 'identity
+                          (subseq components
+                                  0
+                                  (- (length components) 1))
+                          ".")
+             "window")
+           (concat "^" (regexp-quote last-component))
+           (lambda (completions)
+             (let* (completion-extra-properties
+                    completion-in-region-mode-predicate)
+               (completion-in-region
+                lex-completion-begin
+                lex-completion-end
+                completions)))))))))
 
 (add-hook 'kite-Console-messageAdded-hooks 'kite--console-messageAdded)
 (add-hook 'kite-Console-messageRepeatCountUpdated-hooks 'kite--console-messageRepeatCountUpdated)
