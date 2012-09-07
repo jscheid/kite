@@ -534,13 +534,6 @@ FIXME: this could use nicer formatting."
                        (kite--format-stacktrace (plist-get log-message :stackTrace))
                        ))))))
 
-(defun kite--log (format-string &rest args)
-  (with-current-buffer
-      (get-buffer-create (format "*kite log*"))
-    (save-excursion
-      (goto-char (point-max))
-      (insert (concat (apply 'format format-string args) "\n")))))
-
 (defun kite-insert-page-break ()
   (kite--log "kite-insert-page-break called")
   (insert "\f\n"))

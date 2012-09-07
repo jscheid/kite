@@ -84,6 +84,14 @@ which should be a sequence of strings.  Naive implementation."
                     string
                     (make-string left-fill 32)))))))))
 
+(defun kite--log (format-string &rest args)
+  "Print a message to the kite debug logging buffer"
+  (with-current-buffer
+      (get-buffer-create (format "*kite log*"))
+    (save-excursion
+      (goto-char (point-max))
+      (insert (concat (apply 'format format-string args) "\n")))))
+
 (provide 'kite-util)
 
 ;;; kite-util.el ends here
