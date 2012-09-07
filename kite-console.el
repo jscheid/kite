@@ -300,7 +300,7 @@ marker at which the temporary placeholder is located."
           (cond
            ((string= (plist-get object-plist :subtype) "array")
             (insert (kite--format-array
-                     (plist-get (plist-get response :result) :result))))
+                     (kite--get response :result :result))))
            ((string= (plist-get object-plist :subtype) "node")
             (insert (propertize
                      (plist-get object-plist :description)
@@ -318,7 +318,7 @@ marker at which the temporary placeholder is located."
                         (widget-get widget :kite-object-description)))
              (if longp
                  (kite--format-object-with-props
-                  (plist-get (plist-get response :result) :result))
+                  (kite--get response :result :result))
                (plist-get object-plist :description))))
            (t
             (insert "UNKNOWN")))
@@ -388,9 +388,9 @@ function f() { \
        (lambda (response)
          (kite-send
           "Runtime.getProperties"
-          `((objectId . ,(plist-get (plist-get (plist-get response
-                                                          :result)
-                                               :result)
+          `((objectId . ,(kite--get response
+                                    :result
+                                    :result
                                     :objectId))
             (ownProperties . t))
           (lambda (response)
@@ -753,11 +753,11 @@ ERROR-OBJECT-ID."
                 (concat
                  (mapconcat
                   (function kite--format-stack-line)
-                  (split-string (plist-get
-                                 (plist-get
-                                  (plist-get response :result)
-                                  :result)
-                                 :value) "\n")
+                  (split-string (kite--get response
+                                           :result
+                                           :result
+                                           :value)
+                                "\n")
                   "\n")
                  "\n"))))))
 
@@ -789,7 +789,7 @@ the buffer."
                       "\n"
                       kite-console-prompt-internal))
            (kite--get-formatted-stack-trace
-            (plist-get (plist-get result :result) :objectId)
+            (kite--get result :result :objectId)
             (lambda (stack-trace)
               (comint-output-filter
                (kite-console-process)
