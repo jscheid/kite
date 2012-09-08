@@ -870,8 +870,8 @@ child node into a DOM element."
           (if (eq previous-node-id 0)
               (push new-node-region (node-region-children node-region))
             (let ((insert-position
-                   (position previous-node-region
-                             (node-region-children node-region))))
+                   (1+ (position previous-node-region
+                                 (node-region-children node-region)))))
               (setf (node-region-children node-region)
                     (append
                      (subseq (node-region-children node-region)
