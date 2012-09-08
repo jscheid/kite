@@ -249,6 +249,9 @@ HTTP: :webSocketDebuggerUrl, :faviconUrl, :thumbnailUrl, :url,
 and :title."
   (let ((websocket-url (plist-get tab-alist :webSocketDebuggerUrl)))
 
+    (when (null websocket-url)
+      (error "Internal error, null websocket-url"))
+
     (kite--log "Connecting to %s" websocket-url)
 
     (set (make-local-variable 'kite-session)
@@ -541,7 +544,8 @@ Otherwise, create a new session using default host and port."
     (websocket-url
      (kite-session-websocket
       (nth (- prefix 1) kite-active-session-list))))
-   ((gethash kite-most-recent-session kite-active-sessions)
+   ((and (not (null kite-most-recent-session))
+         (gethash kite-most-recent-session kite-active-sessions))
     kite-most-recent-session)
    ((> 0 (hash-table-count kite-active-sessions))
     (let (random-session)

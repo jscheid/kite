@@ -54,8 +54,11 @@
 (defmacro with--kite-console-test-buffer (&rest body)
   `(with-temp-buffer
      (let (kite-session (inhibit-read-only t))
-       (kite-console-mode)
-       (flet ((kite--find-buffer (websocket-url type) (current-buffer)))
+       (flet ((kite--find-buffer (websocket-url type) (current-buffer))
+              (kite--console-update-mode-line ())
+              (kite--mode-line-update ())
+              (kite-send (&rest ignore)))
+         (kite-console-mode)
          ,@body))))
 
 (ert-deftest kite-console-insert-message ()

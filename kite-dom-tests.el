@@ -84,7 +84,8 @@
   "A very simple HTML document is rendered correctly"
 
   (with-temp-buffer
-    (kite-dom-mode)
+    (flet ((kite-send (&rest ignore)))
+      (kite-dom-mode))
 
     (kite--dom-insert-element simple-element 0 nil)
 
@@ -102,7 +103,8 @@
   "A node ID is associated with each character in the buffer"
 
   (with-temp-buffer
-    (kite-dom-mode)
+    (flet ((kite-send (&rest ignore)))
+      (kite-dom-mode))
 
     (kite--dom-insert-element simple-element 0 nil)
 
@@ -120,7 +122,8 @@
   "A simple document with text nodes is rendered correctly"
 
   (with-temp-buffer
-    (kite-dom-mode)
+    (flet ((kite-send (&rest ignore)))
+      (kite-dom-mode))
 
     (let ((inhibit-read-only t))
       (kite--dom-insert-element
@@ -174,7 +177,8 @@
   "A node whose children aren't loaded is rendered correctly"
 
   (with-temp-buffer
-    (kite-dom-mode)
+    (flet ((kite-send (&rest ignore)))
+      (kite-dom-mode))
 
     (flet ((kite-send (command params callback)
                       (should (string= command "DOM.requestChildNodes"))
@@ -219,7 +223,8 @@
   "Setting child nodes of a node that already has children works"
 
   (with-temp-buffer
-    (kite-dom-mode)
+    (flet ((kite-send (&rest ignore)))
+      (kite-dom-mode))
 
     (flet ((kite-send (command params callback)
                       (should (string= command "DOM.requestChildNodes"))
@@ -285,7 +290,8 @@
   "DOM is mutated correctly when node is inserted in front"
 
   (with-temp-buffer
-    (kite-dom-mode)
+    (flet ((kite-send (&rest ignore)))
+      (kite-dom-mode))
     (let ((inhibit-read-only t))
 
       (kite--dom-insert-element simple-element 0 nil)
@@ -321,7 +327,8 @@
   "DOM is mutated correctly when node is inserted before another node"
 
   (with-temp-buffer
-    (kite-dom-mode)
+    (flet ((kite-send (&rest ignore)))
+      (kite-dom-mode))
     (let ((inhibit-read-only t))
 
       (kite--dom-insert-element simple-element 0 nil)
@@ -359,7 +366,8 @@
   "DOM is mutated correctly when node is inserted after another node"
 
   (with-temp-buffer
-    (kite-dom-mode)
+    (flet ((kite-send (&rest ignore)))
+      (kite-dom-mode))
     (let ((inhibit-read-only t))
 
       (kite--dom-insert-element simple-element 0 nil)
@@ -394,7 +402,8 @@
   "DOM is mutated correctly when node is removed"
 
   (with-temp-buffer
-    (kite-dom-mode)
+    (flet ((kite-send (&rest ignore)))
+      (kite-dom-mode))
     (let ((inhibit-read-only t))
 
       (kite--dom-insert-element simple-element 0 nil)
@@ -415,7 +424,8 @@
   "DOM is mutated correctly when attribute is modified"
 
   (with-temp-buffer
-    (kite-dom-mode)
+    (flet ((kite-send (&rest ignore)))
+      (kite-dom-mode))
     (let ((inhibit-read-only t))
 
       (kite--dom-insert-element simple-element 0 nil)
@@ -445,7 +455,8 @@
   "DOM is mutated correctly when attribute is modified"
 
   (with-temp-buffer
-    (kite-dom-mode)
+    (flet ((kite-send (&rest ignore)))
+      (kite-dom-mode))
     (let ((inhibit-read-only t))
 
       (kite--dom-insert-element simple-element 0 nil)
@@ -473,7 +484,8 @@
   "DOM is mutated correctly when attribute is removed"
 
   (with-temp-buffer
-    (kite-dom-mode)
+    (flet ((kite-send (&rest ignore)))
+      (kite-dom-mode))
     (let ((inhibit-read-only t))
 
       (kite--dom-insert-element simple-element 0 nil)
@@ -545,7 +557,8 @@
 
   (with-temp-buffer
     (let (kite-session)
-    (kite-dom-mode)
+      (flet ((kite-send (&rest ignore)))
+        (kite-dom-mode))
     (let ((inhibit-read-only t))
       (kite--dom-insert-element simple-element 0 nil))
     (flet ((kite-send (command params callback)
