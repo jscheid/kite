@@ -353,14 +353,11 @@
                      (concat
                       "<html>\n"
                       "  <head>\n"
-                      "    <div>\n"
-                      "    </div>\n"
-                      "    <link href=\"foo\">\n"
-                      "    </link>\n"
+                      "    <div></div>\n"
+                      "    <link href=\"foo\"></link>\n"
                       "  </head>\n"
-                      "  <body>\n"
-                      "  </body>\n"
-                      "</html>\n")))))
+                      "  <body></body>\n"
+                      "</html>")))))
 
 (ert-deftest kite-test-dom-insert-after ()
   "DOM is mutated correctly when node is inserted after another node"
