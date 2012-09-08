@@ -81,3 +81,5 @@ in the mode line changes."
          "]")))
 
 (provide 'kite-modeline)
+
+;;; kite-modeline.el ends here
