@@ -155,12 +155,11 @@
                     (kite-session kite-session))
         (kite-visit-script
          script-info
+         line-number
+         column-number
          (lambda ()
            (kite-debugging-mode)
-           (set (make-local-variable 'kite-session) kite-session)
-           (goto-line line-number)
-           (beginning-of-line)
-           (forward-char column-number))))
+           (set (make-local-variable 'kite-session) kite-session))))
       (message "Debugger paused"))))
 
 (defun kite--Debugger-scriptParsed (websocket-url packet)
@@ -171,7 +170,8 @@
     :start-line (plist-get packet :startLine)
     :start-column (plist-get packet :startColumn)
     :end-line (plist-get packet :endLine)
-    :end-column (plist-get packet :endColumn))
+    :end-column (plist-get packet :endColumn)
+    :source-map-url (plist-get packet :sourceMapURL))
    (kite-session-script-infos kite-session)))
 
 (add-hook 'kite-Debugger-paused-hooks 'kite--Debugger-paused)
@@ -229,18 +229,109 @@
                    (funcall after-load-function))))
     new-buffer))
 
-(defun kite-visit-script (script-info after-load-function)
+(defun kite-script-info--source-map (script-info)
+  "Return the parsed source map for the given SCRIPT-INFO as a
+`kite-source-map' struct, or nil if there is no source map for
+the SCRIPT-INFO.  Raise an error if the source map can't be
+loaded or parsed."
+  (when (kite-script-info-source-map-url script-info)
+    (with-current-buffer
+        (url-retrieve-synchronously
+         (url-expand-file-name
+          (kite-script-info-source-map-url script-info)
+          (kite-script-info-url script-info)))
+      (goto-char 0)
+      (if (and (or (looking-at "HTTP/1\\.. 200")
+                   (not (looking-at "HTTP/")))
+               (re-search-forward "\n\n" nil t))
+          (kite--source-map-decode
+           (let ((json-array-type 'list)
+                 (json-object-type 'plist))
+             (json-read)))
+        (error "Could not retrieve source map: %s"
+               (buffer-substring-no-properties
+                (point-min) (point-max)))))))
+
+(defun kite-script-info--source-map-cached (script-info)
+  "Return the parsed source map for the given SCRIPT-INFO as a
+`kite-source-map' struct, or nil if there is no source map for
+the SCRIPT-INFO.  Raise an error if the source map can't be
+loaded or parsed.  Uses a cache in the session so that each
+source map is loaded and parsed only once."
+  (when (kite-script-info-source-map-url script-info)
+    (let ((cached-entry
+           (gethash (kite-script-info-source-map-url script-info)
+                    (kite-session-source-map-cache kite-session))))
+      (cond
+       ((kite-source-map-p cached-entry)
+        cached-entry)
+       ((consp cached-entry)
+        (signal (car err) (cdr err)))
+       (t
+        (condition-case err
+            (puthash (kite-script-info-source-map-url script-info)
+                     (kite-script-info--source-map script-info)
+                     (kite-session-source-map-cache kite-session))
+          (error
+           (puthash (kite-script-info-source-map-url script-info)
+                    err
+                    (kite-session-source-map-cache kite-session))
+           (signal (car err) (cdr err)))))))))
+
+(defun kite-script-info--original-source (script-info line column)
+  "Return original URL, line, and column corresponding to the
+given SCRIPT-INFO, LINE, and COLUMN.  The original location is
+returned as a plist with keys `:url', `:line' and `:column'."
+  (let ((source-map
+         (condition-case err
+             (kite-script-info--source-map-cached script-info)
+           (error
+            ;; In case of error, display error and fall back to
+            ;; generated source
+            (message (cdr err))
+            nil))))
+    (if source-map
+        (let ((original-pos
+               (kite-source-map-original-position-for
+                source-map
+                line
+                column)))
+          (list :url
+                (url-expand-file-name
+                 (plist-get original-pos :source)
+                 (kite-script-info-url script-info))
+                :line (plist-get original-pos :line)
+                :column (plist-get original-pos :column)))
+      (list :url (kite-script-info-url script-info)
+            :line line
+            :column column))))
+
+(defun kite-visit-script (script-info line column after-load-function)
+  "Visit the script described by the given SCRIPT-INFO and, once
+loaded, move point to LINE and COLUMN and execute
+AFTER-LOAD-FUNCTION with the new buffer current.  If a source map
+is available, go to the original location instead."
   (interactive)
-  (let* ((url (kite-script-info-url script-info))
+  (let* ((original-source (kite-script-info--original-source
+                           script-info
+                           line
+                           column))
+         (url (plist-get original-source :url))
          (url-parts (url-generic-parse-url url)))
-    (cond
-     ((string= (url-type url-parts) "file")
-      (find-file (url-filename url-parts))
-      (funcall after-load-function))
-     (t
-      (switch-to-buffer (or (get-buffer url)
-                            (kite--create-remote-script-buffer
-                             script-info after-load-function)))))))
+    (flet ((after-load ()
+                       (goto-line (plist-get original-source :line))
+                       (beginning-of-line)
+                       (forward-char
+                        (plist-get original-source :column))
+                       (funcall after-load-function)))
+      (cond
+       ((string= (url-type url-parts) "file")
+        (find-file (url-filename url-parts))
+        (after-load))
+       (t
+        (switch-to-buffer (or (get-buffer url)
+                              (kite--create-remote-script-buffer
+                               script-info (function after-load)))))))))
 
 (defun kite--debug-stats-mode-line-indicator ()
   "Returns a string to be displayed in the mode line"
@@ -270,11 +361,10 @@ to visit the source file."
     (if script-info
         (kite-visit-script
          script-info
+         line-number
+         (- column-number 1)
          (lambda ()
-           (set (make-local-variable 'kite-session) kite-session)
-           (goto-line line-number)
-           (beginning-of-line)
-           (forward-char (- column-number 1))))
+           (set (make-local-variable 'kite-session) kite-session)))
       (error "Source is unavailable"))))
 
 (provide 'kite-debug)

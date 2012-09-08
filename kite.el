@@ -47,6 +47,7 @@
 (require 'kite-console)
 (require 'kite-breakpoint)
 (require 'kite-modeline)
+(require 'kite-sourcemap)
 (require 'kite-global)
 
 (make-variable-buffer-local 'kite-buffer-type)
@@ -86,7 +87,8 @@ remote WebKit debugger instance."
   default-context
   current-context
   (error-count 0)
-  last-message)
+  last-message
+  (source-map-cache (make-hash-table :test 'equal)))
 
 (defstruct (kite-script-info)
   "Information about a script used in a debugging session.  Used
@@ -96,7 +98,8 @@ notification."
   start-line
   start-column
   end-line
-  end-column)
+  end-column
+  source-map-url)
 
 (defface kite-session-closed
   '((((class color) (min-colors 88) (background light))
@@ -782,6 +785,7 @@ using `elt'.  Other member types are not currently implemented."
 
 FIXME: this needs to reset many more state properties."
   (setf (kite-session-error-count kite-session))
+  (clrhash (kite-session-source-map-cache kite-session))
   (kite--mode-line-update))
 
 (add-hook 'kite-Runtime-isolatedContextCreated-hooks
