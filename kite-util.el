@@ -96,6 +96,36 @@ which should be a sequence of strings.  Naive implementation."
       (goto-char (point-max))
       (insert (concat (apply 'format format-string args) "\n")))))
 
+(defun kite--visit-remote-file (url)
+  "Synchronously fetch the given URL, create a new read-only
+buffer for its contents and switch to the buffer.  Invokes
+`normal-mode' to guess the correct major mode for the new buffer.
+
+If there is a buffer open visiting URL, just switch to that
+buffer instead.
+
+FIXME: Should use the HTTP Content-Type header to determine the
+major mode more reliably."
+  (switch-to-buffer
+   (or
+    (get-buffer url)
+    (let ((new-buffer (generate-new-buffer url))
+          (url-parts (url-generic-parse-url url)))
+      (with-current-buffer new-buffer
+        (setq buffer-file-name (url-filename url-parts))
+        (save-excursion
+          (insert
+           (with-current-buffer
+               (url-retrieve-synchronously url)
+             (goto-char (point-min))
+             (save-match-data
+               (re-search-forward "\n\n" nil t))
+             (buffer-substring-no-properties (point) (point-max)))))
+        (setq buffer-read-only t)
+        (set-buffer-modified-p nil)
+        (normal-mode))
+      new-buffer))))
+
 (provide 'kite-util)
 
 ;;; kite-util.el ends here
