@@ -75,7 +75,6 @@
   "Face to use for CSS value widget with unparseable input."
   :group 'kite)
 
-
 (defun kite-dom--render-property (css-rule property-index property indent)
   (widget-insert
    (propertize
@@ -369,7 +368,6 @@
                             (not (null (cdr barrier))))
                    (kite--dom-render-computed-css
                     (car barrier) (cdr barrier)))))))
-
 
 (defun kite--dom-timing-function-image (width height args)
   "Create an image that visualizes the timing function as a cubic
