@@ -666,6 +666,10 @@ FIXME: this needs to be smarter about when to load children."
                            'kite-node-id
                            node-id)
 
+        (puthash node-id
+                 (plist-get element :children)
+                 (kite-session-dom-children-cache kite-session))
+
         (setf (node-region-children node-region)
               (mapcar (lambda (child)
                         (let ((new-node-region (kite--dom-insert-element child (1+ indent) loadp)))
@@ -827,6 +831,39 @@ widgets, recursively"
     (widget-delete (attr-region-value-widget (cdr attr-name-and-region))))
   (kite--delete-child-widgets node-region))
 
+(defun kite--dom-show-child-nodes (parent-node-id children)
+  (let ((inhibit-read-only t)
+        (node-region
+         (gethash parent-node-id kite-dom-nodes)))
+    (save-excursion
+      (goto-char (node-region-outer-begin node-region))
+      (forward-char)
+      (widget-insert (propertize
+                      "-"
+                      'kite-node-id
+                      (node-region-node-id node-region)))
+      (forward-char -1)
+      (delete-char -1)
+      (kite--delete-child-widgets node-region)
+      (delete-region (node-region-inner-begin node-region)
+                     (node-region-inner-end node-region))
+      (goto-char (node-region-inner-begin node-region))
+      (atomic-change-group
+        (setf (node-region-children node-region)
+              (mapcar
+               (lambda (child)
+                 (let ((new-node-region
+                        (kite--dom-insert-element
+                         child
+                         (1+ (node-region-indent node-region))
+                         nil)))
+                   (setf (node-region-parent new-node-region)
+                         node-region)
+                   new-node-region))
+               children))))
+    (widget-setup)
+    (kite--dom-update-inner-whitespace node-region)))
+
 (defun kite--dom-DOM-setChildNodes (websocket-url packet)
   "Callback invoked for the `DOM.setChildNodes' notification,
 which the remote debugger wants to provide us with missing DOM
@@ -834,32 +871,11 @@ structure, for example in response to a `DOM.requestChildNodes'
 request."
   (kite--log "kite--DOM-setChildNodes got packet %s" packet)
   (with-current-buffer (kite--dom-buffer websocket-url)
-    (let ((inhibit-read-only t)
-          (node-region
-           (gethash (plist-get packet :parentId) kite-dom-nodes)))
-      (puthash (node-region-node-id node-region)
-               packet
-               (kite-session-dom-children-cache kite-session))
-      (save-excursion
-        (goto-char (node-region-outer-begin node-region))
-        (forward-char)
-        (widget-insert (propertize "-"
-                                   'kite-node-id
-                                   (node-region-node-id node-region)))
-        (forward-char -1)
-        (delete-char -1)
-        (kite--delete-child-widgets node-region)
-        (delete-region (node-region-inner-begin node-region) (node-region-inner-end node-region))
-        (goto-char (node-region-inner-begin node-region))
-        (atomic-change-group
-          (setf (node-region-children node-region)
-                (mapcar (lambda (child)
-                          (let ((new-node-region (kite--dom-insert-element child (1+ (node-region-indent node-region)) nil)))
-                            (setf (node-region-parent new-node-region) node-region)
-                            new-node-region))
-                        (plist-get packet :nodes)))))
-      (widget-setup)
-      (kite--dom-update-inner-whitespace node-region))))
+    (puthash (plist-get packet :parentId)
+             (plist-get packet :nodes)
+             (kite-session-dom-children-cache kite-session))
+    (kite--dom-show-child-nodes (plist-get packet :parentId)
+                                (plist-get packet :nodes))))
 
 (defun kite--dom-DOM-childNodeInserted (websocket-url packet)
   "Callback invoked for the `DOM.childNodeInserted' notification,
@@ -1148,8 +1164,8 @@ question."
                   (node-region-node-id node-region)
                   (kite-session-dom-children-cache kite-session))))
             (if cached-children
-                (kite--dom-DOM-setChildNodes
-                 (websocket-url (kite-session-websocket kite-session))
+                (kite--dom-show-child-nodes
+                 (node-region-node-id node-region)
                  cached-children)
               (message "getting children for %s"
                        (node-region-node-id node-region))
