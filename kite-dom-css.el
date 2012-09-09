@@ -69,15 +69,27 @@
   "Face to use for computed vendore-specific properties that are unused."
   :group 'kite)
 
-(defun kite-dom--render-property (property indent)
-  (insert (make-string (* 2 indent) 32))
-  (insert (plist-get property :name))
-  (insert ": ")
-  (insert (plist-get property :value))
-  (insert ";\n"))
+(defun kite-dom--render-property (css-rule property-index property indent)
+  (insert
+   (propertize
+    (concat
+     (make-string (* 2 indent) 32)
+     (propertize
+      (plist-get property :name)
+      'face 'kite-css-property
+      'font-lock-face 'kite-css-property)
+     ": "
+     (plist-get property :value)
+     ";\n")
+    'kite-css-property (list css-rule property-index))))
 
 (defun kite-dom--render-css-rule (css-rule)
-  (insert (format "%s {\n" (plist-get css-rule :selectorText)))
+  (insert (concat
+           (propertize
+            (plist-get css-rule :selectorText)
+            'face 'kite-css-selector
+            'font-lock-face 'kite-css-selector)
+           " {\n" ))
   (let* ((style (plist-get css-rule :style))
          (shorthand-entries
           (let* ((hashtable (make-hash-table :test 'equal))
@@ -104,9 +116,15 @@
                    (gethash shorthand-name
                             shorthand-entries))))
         (when shorthand-property
-          (kite-dom--render-property shorthand-property 1)
+          (kite-dom--render-property css-rule
+                                     property-index
+                                     shorthand-property
+                                     1)
           (remhash shorthand-name shorthand-entries))
-        (kite-dom--render-property property (if shorthand-name 2 1)))
+        (kite-dom--render-property css-rule
+                                   property-index
+                                   property
+                                   (if shorthand-name 2 1)))
       (setq property-index (1+ property-index))))
   (insert "}\n\n"))
 
@@ -124,7 +142,15 @@
       (let ((inhibit-read-only t))
         (erase-buffer)
         (save-excursion
-          (insert "element.style {\n}\n\n")
+          (insert
+           (concat
+            (propertize "element.style"
+                        'face 'kite-css-selector
+                        'font-lock-face 'kite-css-selector)
+            "{\n"
+            "}\n"
+            "\n"))
+
           (let ((rule-index (- (length matched-css-rules) 1)))
             (while (>= rule-index 0)
               (kite-dom--render-css-rule
