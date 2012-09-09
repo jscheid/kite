@@ -788,7 +788,7 @@ using `elt'.  Other member types are not currently implemented."
   "Reset session state.
 
 FIXME: this needs to reset many more state properties."
-  (setf (kite-session-error-count kite-session))
+  (setf (kite-session-error-count kite-session) 0)
   (clrhash (kite-session-source-map-cache kite-session))
   (kite--mode-line-update))
 
