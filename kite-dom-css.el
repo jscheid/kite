@@ -69,6 +69,12 @@
   "Face to use for computed vendor-specific properties that are unused."
   :group 'kite)
 
+(defface kite-css-value-widget-modified
+  `((t :foreground ,(face-foreground 'warning nil t)
+       :background ,(face-background 'widget-field nil t)))
+  "Face to use for CSS value widget with unparseable input."
+  :group 'kite)
+
 (defface kite-css-value-widget-error
   `((t :foreground ,(face-foreground 'error nil t)
        :background ,(face-background 'widget-field nil t)))
@@ -198,6 +204,13 @@
   "CSS 2.1 property completions.  Automatically extracted by
 extract-css2.py")
 
+(defvar kite-css-widget-field-keymap
+  (let ((map (copy-keymap widget-field-keymap)))
+    (define-key map "\C-m" 'kite-css-widget-field-activate)
+    map)
+  "Custom keymap for editing CSS property values.  Overrides RET
+so that it works also at the very end of the field.")
+
 (defun kite-dom--render-property (css-rule property-index property indent)
   (widget-insert
    (make-string (* 2 indent) 32))
@@ -220,19 +233,19 @@ extract-css2.py")
      (plist-get property :name)
      'face 'kite-css-property
      'font-lock-face 'kite-css-property)
-    ": "))
+    ":"))
 
   (let ((color (kite-parse-color
                 (plist-get property :value))))
     (when color
         (let ((inhibit-read-only t))
-          (insert-image (kite--make-color-image (kite--rgba-value color)))
-          (widget-insert " "))))
+          (widget-insert " ")
+          (insert-image (kite--make-color-image (kite--rgba-value color))))))
 
   (widget-create 'editable-field
-                 :format "%v"
+                 :format " %v;"
                  :size 1
-                 :notify (lambda (widget changed-widget &optional event)
+                 :action (lambda (widget changed-widget &optional event)
                            (kite-send
                             "CSS.setPropertyText"
                             (list :styleId (widget-get widget :kite-css-style-id)
@@ -254,14 +267,17 @@ extract-css2.py")
                                                              'kite-css-value-widget-error
                                                            'widget-field))))
                                         (kite--get response :result :style :cssProperties))))))
+                 :notify (lambda (widget &rest ignore)
+                           (overlay-put (widget-get widget :field-overlay)
+                                        'face
+                                        'kite-css-value-widget-modified))
                  :kite-css-style-id (kite--get css-rule :style :styleId)
                  :kite-css-property-index property-index
                  :kite-css-property-name (plist-get property :name)
                  :completions (cdr (assoc (intern (plist-get property :name))
                                           kite-css-completions))
+                 :keymap kite-css-widget-field-keymap
                  (plist-get property :value))
-
-  (widget-insert ";")
 
   (put-text-property (save-excursion (beginning-of-line) (point))
                      (point)
@@ -315,7 +331,6 @@ extract-css2.py")
     (widget-insert "}\n\n")
     (put-text-property begin (point)
                        'kite-css-rule css-rule)))
-
 
 (defvar kite-css-mode-map
   (let ((map (make-composed-keymap
@@ -568,6 +583,16 @@ to store original range information before any property updates."
                              'face 'kite-css-selected-overlay))
               (when end (goto-char end)))))
       (error "Source location not available"))))
+
+(defun kite-css-widget-field-activate (pos &optional event)
+  "Invoke the editable field at point."
+  (interactive "@d")
+  (let ((field (or (widget-field-at pos)
+                   (widget-field-at (- pos 1)))))
+    (if field
+        (widget-apply-action field event)
+      (call-interactively
+       (lookup-key widget-global-map (this-command-keys))))))
 
 (provide 'kite-dom-css)
 
