@@ -49,10 +49,14 @@
     (let ((fg (color-name-to-rgb (face-foreground face nil t)))
           (bg (color-name-to-rgb (or (face-background face nil t)
                                      (cdr (assq 'background-color (frame-parameters)))))))
-      (color-rgb-to-hex
-       (lerp (nth 0 bg) (nth 0 fg) darkness)
-       (lerp (nth 1 bg) (nth 1 fg) darkness)
-       (lerp (nth 2 bg) (nth 2 fg) darkness)))))
+      (or (and
+           fg
+           bg
+           (color-rgb-to-hex
+            (lerp (nth 0 bg) (nth 0 fg) darkness)
+            (lerp (nth 1 bg) (nth 1 fg) darkness)
+            (lerp (nth 2 bg) (nth 2 fg) darkness)))
+          "#888888"))))
 
 (defun kite--longest-prefix (strings)
   "Return the longest prefix common to all the given STRINGS,
