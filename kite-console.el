@@ -795,7 +795,6 @@ ERROR-OBJECT-ID."
   (or (string= string "")
       (string-match-p "\\`[ \t\n]*\\(?:\/\/.*\\)*\\'" string)))
 
-
 (defun kite-console-eval-input (input)
   "Evaluate console input: send it to the remote debugger and
 insert the result or error message, along with a new prompt, into
@@ -824,7 +823,8 @@ the buffer."
                (kite-console-process)
                (concat stack-trace
                        kite-console-prompt-internal)))))
-         (kite--release-object (kite--get result :result :objectId)))))))
+         (kite--release-object
+          (kite--get result :result :objectId)))))))
 
 (defun kite--contexts-by-unique-name (context-and-frame-list)
   "Given CONTEXT-AND-FRAME-LIST, an alist of (CONTEXT-ID
