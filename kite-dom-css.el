@@ -275,7 +275,6 @@
                                       style-to-rule-map)) style-to-rule-map))
             (setq style-index (1+ style-index))))
         (setq matched-rule-index (1+ matched-rule-index))))
-    (message "style-to-rule-map is %s" style-to-rule-map)
     style-to-rule-map))
 
 (defun kite--dom-insert-computed-style-value (value)
@@ -288,8 +287,6 @@
       (insert value))))
 
 (defun kite--dom-render-computed-css (computed-styles-response matched-styles-response)
-  (message "kite--dom-render-computed-css have matched styles %s" matched-styles-response)
-
   (let* ((style-to-rule-map (kite--dom-make-style-to-rule-map matched-styles-response))
          (arr (plist-get (plist-get computed-styles-response :result) :computedStyle))
          (index 0)
