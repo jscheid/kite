@@ -155,6 +155,21 @@
       (setq property-index (1+ property-index))))
   (widget-insert "}\n\n"))
 
+(defvar kite-css-mode-map
+  (let ((map (make-composed-keymap
+              (copy-keymap widget-keymap)
+              (copy-keymap special-mode-map)))
+        (menu-map (make-sparse-keymap)))
+    (suppress-keymap map t)
+    (kite--define-global-mode-keys map)
+    map))
+  "Local keymap for `kite-css-mode' buffers.")
+
+(define-derived-mode kite-css-mode special-mode "kite-css"
+  "Toggle Kite CSS mode."
+  :group 'kite
+  (setq kite-buffer-type 'css))
+
 (defun kite--dom-create-css-buffer (matched-css-rules)
   (kite--log
    (concat "kite--dom-create-css-buffer called with rules:\n"
@@ -166,7 +181,7 @@
                   node-region-buffer
                   '((display-buffer-pop-up-window . nil)))))
     (with-current-buffer node-region-buffer
-      (special-mode)
+      (kite-css-mode)
       (set (make-local-variable 'kite-session) -kite-session)
       (let ((inhibit-read-only t))
         (erase-buffer)
@@ -186,7 +201,6 @@
               (kite-dom--render-css-rule
                (elt matched-css-rules rule-index))
               (setq rule-index (- rule-index 1)))))
-        (use-local-map widget-keymap)
         (widget-setup)))))
 
 (defun kite-dom-show-matched-css ()
