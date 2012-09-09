@@ -70,10 +70,25 @@
   :group 'kite)
 
 (defun kite-dom--render-property (css-rule property-index property indent)
-  (insert
+  (widget-insert
+   (propertize
+    (make-string (* 2 indent) 32)
+    'kite-css-property (list css-rule property-index)))
+  (when (not (null (plist-get property :text)))
+    (widget-create 'checkbox
+                   :notify (lambda (widget &rest ignore)
+                             (kite-send "CSS.toggleProperty"
+                                        (list :styleId (widget-get widget :kite-css-style-id)
+                                              :propertyIndex  (widget-get widget :kite-css-property-index)
+                                              :disable (if (widget-value widget) :json-false t))))
+                   :help-echo "Enable/disable this CSS property"
+                   :kite-css-style-id (kite--get css-rule :style :styleId)
+                   :kite-css-property-index property-index
+                   t))
+  (widget-insert
    (propertize
     (concat
-     (make-string (* 2 indent) 32)
+     " "
      (propertize
       (plist-get property :name)
       'face 'kite-css-property
@@ -84,7 +99,7 @@
     'kite-css-property (list css-rule property-index))))
 
 (defun kite-dom--render-css-rule (css-rule)
-  (insert (concat
+  (widget-insert (concat
            (propertize
             (plist-get css-rule :selectorText)
             'face 'kite-css-selector
@@ -126,23 +141,26 @@
                                    property
                                    (if shorthand-name 2 1)))
       (setq property-index (1+ property-index))))
-  (insert "}\n\n"))
+  (widget-insert "}\n\n"))
 
 (defun kite--dom-create-css-buffer (matched-css-rules)
   (kite--log
    (concat "kite--dom-create-css-buffer called with rules:\n"
            (pp-to-string matched-css-rules)))
-  (let* ((node-region-buffer (get-buffer-create "*kite css*"))
+  (let* ((-kite-session kite-session)
+         (node-region-buffer (get-buffer-create "*kite css*"))
          (max-width 0)
          (window (display-buffer
                   node-region-buffer
                   '((display-buffer-pop-up-window . nil)))))
     (with-current-buffer node-region-buffer
       (special-mode)
+      (set (make-local-variable 'kite-session) -kite-session)
       (let ((inhibit-read-only t))
         (erase-buffer)
+        (remove-overlays)
         (save-excursion
-          (insert
+          (widget-insert
            (concat
             (propertize "element.style"
                         'face 'kite-css-selector
@@ -155,7 +173,9 @@
             (while (>= rule-index 0)
               (kite-dom--render-css-rule
                (elt matched-css-rules rule-index))
-              (setq rule-index (- rule-index 1)))))))))
+              (setq rule-index (- rule-index 1)))))
+        (use-local-map widget-keymap)
+        (widget-setup)))))
 
 (defun kite-dom-show-matched-css ()
   (interactive)
