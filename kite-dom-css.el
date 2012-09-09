@@ -75,11 +75,15 @@
   "Face to use for CSS value widget with unparseable input."
   :group 'kite)
 
+(defface kite-css-selected-overlay
+  `((t :inherit secondary-selection))
+  "Face to use for highlighting selected CSS property."
+  :group 'kite)
+
 (defun kite-dom--render-property (css-rule property-index property indent)
   (widget-insert
-   (propertize
-    (make-string (* 2 indent) 32)
-    'kite-css-property (list css-rule property-index)))
+   (make-string (* 2 indent) 32))
+
   (when (not (null (plist-get property :text)))
     (widget-create 'checkbox
                    :notify (lambda (widget &rest ignore)
@@ -92,15 +96,13 @@
                    :kite-css-property-index property-index
                    t))
   (widget-insert
-   (propertize
-    (concat
-     " "
-     (propertize
-      (plist-get property :name)
-      'face 'kite-css-property
-      'font-lock-face 'kite-css-property)
-     ": ")
-    'kite-css-property (list css-rule property-index)))
+   (concat
+    " "
+    (propertize
+     (plist-get property :name)
+     'face 'kite-css-property
+     'font-lock-face 'kite-css-property)
+    ": "))
 
   (let ((color (kite-parse-color
                 (plist-get property :value))))
@@ -139,55 +141,61 @@
                  :kite-css-property-name (plist-get property :name)
                  (plist-get property :value))
 
-  (widget-insert
-   (propertize
-    ";\n"
-    'kite-css-property (list css-rule property-index))))
+  (widget-insert ";")
+
+  (put-text-property (save-excursion (beginning-of-line) (point))
+                     (point)
+                     'kite-css-property-index property-index)
+  (widget-insert "\n"))
 
 (defun kite-dom--render-css-rule (css-rule)
-  (widget-insert (concat
-           (propertize
-            (plist-get css-rule :selectorText)
-            'face 'kite-css-selector
-            'font-lock-face 'kite-css-selector)
-           " {\n" ))
-  (let* ((style (plist-get css-rule :style))
-         (shorthand-entries
-          (let* ((hashtable (make-hash-table :test 'equal))
-                 (entries (plist-get style :shorthandEntries))
-                 (index 0)
-                 (count (length entries)))
-            (while (< index count)
-              (let ((element (elt entries index)))
-                (puthash (plist-get element :name)
-                         element
-                         hashtable))
-              (setq index (1+ index)))
-            hashtable))
-         (properties (plist-get style :cssProperties))
-         (property-index 0)
-         (property-count (length properties)))
+  (let ((begin (point)))
+    (widget-insert (concat
+                    (propertize
+                     (plist-get css-rule :selectorText)
+                     'face 'kite-css-selector
+                     'font-lock-face 'kite-css-selector)
+                    " {\n" ))
+    (let* ((style (plist-get css-rule :style))
+           (shorthand-entries
+            (let* ((hashtable (make-hash-table :test 'equal))
+                   (entries (plist-get style :shorthandEntries))
+                   (index 0)
+                   (count (length entries)))
+              (while (< index count)
+                (let ((element (elt entries index)))
+                  (puthash (plist-get element :name)
+                           element
+                           hashtable))
+                (setq index (1+ index)))
+              hashtable))
+           (properties (plist-get style :cssProperties))
+           (property-index 0)
+           (property-count (length properties)))
 
-    (kite--log "shorthand-entries %s" shorthand-entries)
-    (while (< property-index property-count)
-      (let* ((property (elt properties property-index))
-             (shorthand-name (plist-get property :shorthandName))
-             (shorthand-property
-              (and shorthand-name
-                   (gethash shorthand-name
-                            shorthand-entries))))
-        (when shorthand-property
+      (kite--log "shorthand-entries %s" shorthand-entries)
+      (while (< property-index property-count)
+        (let* ((property (elt properties property-index))
+               (shorthand-name (plist-get property :shorthandName))
+               (shorthand-property
+                (and shorthand-name
+                     (gethash shorthand-name
+                              shorthand-entries))))
+          (when shorthand-property
+            (kite-dom--render-property css-rule
+                                       property-index
+                                       shorthand-property
+                                       1)
+            (remhash shorthand-name shorthand-entries))
           (kite-dom--render-property css-rule
                                      property-index
-                                     shorthand-property
-                                     1)
-          (remhash shorthand-name shorthand-entries))
-        (kite-dom--render-property css-rule
-                                   property-index
-                                   property
-                                   (if shorthand-name 2 1)))
-      (setq property-index (1+ property-index))))
-  (widget-insert "}\n\n"))
+                                     property
+                                     (if shorthand-name 2 1)))
+        (setq property-index (1+ property-index))))
+    (widget-insert "}\n\n")
+    (put-text-property begin (point)
+                       'kite-css-rule css-rule)))
+
 
 (defvar kite-css-mode-map
   (let ((map (make-composed-keymap
@@ -196,7 +204,8 @@
         (menu-map (make-sparse-keymap)))
     (suppress-keymap map t)
     (kite--define-global-mode-keys map)
-    map))
+    (define-key map "\C-cg" 'kite--css-goto-source)
+    map)
   "Local keymap for `kite-css-mode' buffers.")
 
 (define-derived-mode kite-css-mode special-mode "kite-css"
@@ -395,6 +404,50 @@ Transitions Module Level 3 section 2.3"
     )
    'svg
    t))
+
+(defun kite--css-goto-source ()
+  "Open the CSS source stylesheet in a buffer, highlight the
+region corresponding to the rule or property under point, and
+place point at region end.
+
+FIXME: the range information seems to change when updating
+property values, causing a mismatch with the source CSS text if
+that wasn't updated as well.  Need to investigate whether we need
+to store original range information before any property updates."
+  (interactive)
+  (let* ((css-rule (get-text-property (point) 'kite-css-rule))
+         (url (kite--get css-rule :sourceURL))
+         (rule-range (kite--get css-rule
+                               :style
+                               :range))
+         (property-index (get-text-property
+                          (point)
+                          'kite-css-property-index)))
+
+    (if url
+        (progn
+          (kite--visit-remote-file url)
+          (remove-overlays)
+          (when rule-range
+            (let* ((property-range (when property-index
+                                     (kite--get css-rule
+                                                :style
+                                                :cssProperties
+                                                property-index
+                                                :range)))
+                   (start (+ (plist-get rule-range :start)
+                             (or (plist-get property-range :start) 0)
+                             1))
+                   (end (+ (if property-range
+                               (+ (plist-get rule-range :start)
+                                  (plist-get property-range :end))
+                             (plist-get rule-range :end))
+                           1)))
+              (when (and start end)
+                (overlay-put (make-overlay start end)
+                             'face 'kite-css-selected-overlay))
+              (when end (goto-char end)))))
+      (error "Source location not available"))))
 
 (provide 'kite-dom-css)
 
