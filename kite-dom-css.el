@@ -66,7 +66,7 @@
 (defface kite-css-computed-proprietary-unused-property
   `((t :inherit kite-css-proprietary-property
        :foreground ,(kite--dimmed-face-foreground 'kite-css-property 0.5)))
-  "Face to use for computed vendore-specific properties that are unused."
+  "Face to use for computed vendor-specific properties that are unused."
   :group 'kite)
 
 (defface kite-css-value-widget-error
