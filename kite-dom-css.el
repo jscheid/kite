@@ -177,7 +177,7 @@
             (propertize "element.style"
                         'face 'kite-css-selector
                         'font-lock-face 'kite-css-selector)
-            "{\n"
+            " {\n"
             "}\n"
             "\n"))
 
