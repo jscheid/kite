@@ -53,6 +53,7 @@
   attribute-regions
   widget
   parent
+  child-count
   children
   node-id
   node-type)
@@ -353,7 +354,7 @@ The delimiters are <! and >."
         (set-keymap-parent map widget-keymap)
         (suppress-keymap map t)
         (kite--define-global-mode-keys map)
-        (define-key map (kbd "RET") 'undefined)
+        (define-key map (kbd "RET") 'kite-dom-toggle-node)
         (define-key map (kbd "DEL") 'kite-dom-delete-node)
         (define-key map "p" 'kite-dom-pick-node)
         (define-key map "h" 'kite-dom-highlight-node)
@@ -442,7 +443,7 @@ ROOT-PLIST as received in the response to `DOM.getDocument'."
           (plist-get root-plist :children))))
     (if html-plist
         (progn
-          (kite--dom-insert-element html-plist 0 t)
+          (kite--dom-insert-element html-plist 0 nil)
           (insert "\n"))
       (error "Document doesn't seem to contain html element"))))
 
@@ -554,7 +555,7 @@ is the last child."
     "")
    ((null node2)
     (concat
-     "\n"
+     "\n "
      (make-string (* kite-dom-offset (- (node-region-indent node1) 1)) 32)))
    (t
     "")))
@@ -629,11 +630,16 @@ FIXME: this needs to be smarter about when to load children."
       (setf (node-region-indent node-region) indent)
 
       (setf (node-region-line-begin node-region) (point-marker))
+      (setf (node-region-child-count node-region)
+            (plist-get element :childNodeCount))
 
       (cond
        ((and (eq nodeType kite-dom-element-node)
              (or (eq 0 (plist-get element :childNodeCount))
                  (plist-member element :children)))
+        (if (> (plist-get element :childNodeCount) 0)
+            (widget-insert (if (plist-member element :children) "-" "+"))
+          (widget-insert " "))
         (widget-insert (propertize "<"
                                    'kite-node-id node-id
                                    'face 'kite-tag-delimiter-face))
@@ -680,6 +686,7 @@ FIXME: this needs to be smarter about when to load children."
                            node-id))
 
        ((eq nodeType kite-dom-element-node)
+        (widget-insert "+")
         (widget-insert (propertize "<"
                                    'face 'kite-tag-delimiter-face))
         (setf (node-region-widget node-region)
@@ -830,14 +837,24 @@ request."
     (let ((inhibit-read-only t)
           (node-region
            (gethash (plist-get packet :parentId) kite-dom-nodes)))
+      (puthash (node-region-node-id node-region)
+               packet
+               (kite-session-dom-children-cache kite-session))
       (save-excursion
+        (goto-char (node-region-outer-begin node-region))
+        (forward-char)
+        (widget-insert (propertize "-"
+                                   'kite-node-id
+                                   (node-region-node-id node-region)))
+        (forward-char -1)
+        (delete-char -1)
         (kite--delete-child-widgets node-region)
         (delete-region (node-region-inner-begin node-region) (node-region-inner-end node-region))
         (goto-char (node-region-inner-begin node-region))
         (atomic-change-group
           (setf (node-region-children node-region)
                 (mapcar (lambda (child)
-                          (let ((new-node-region (kite--dom-insert-element child (1+ (node-region-indent node-region)) t)))
+                          (let ((new-node-region (kite--dom-insert-element child (1+ (node-region-indent node-region)) nil)))
                             (setf (node-region-parent new-node-region) node-region)
                             new-node-region))
                         (plist-get packet :nodes)))))
@@ -1120,6 +1137,40 @@ question."
         (narrow-to-region
          (node-region-line-begin node-region)
          (node-region-line-end node-region))))))
+
+(defun kite-dom-toggle-node ()
+  (interactive)
+  (let ((node-region (kite--dom-node-region-at-point)))
+    (when (> (node-region-child-count node-region) 0)
+      (if (null (node-region-children node-region))
+          (let ((cached-children
+                 (gethash
+                  (node-region-node-id node-region)
+                  (kite-session-dom-children-cache kite-session))))
+            (if cached-children
+                (kite--dom-DOM-setChildNodes
+                 (websocket-url (kite-session-websocket kite-session))
+                 cached-children)
+              (message "getting children for %s"
+                       (node-region-node-id node-region))
+              (kite-send
+               "DOM.requestChildNodes"
+               `((nodeId . ,(node-region-node-id node-region))))))
+        (save-excursion
+          (kite--delete-child-widgets node-region)
+          (setf (node-region-children node-region))
+          (let ((inhibit-read-only t))
+            (goto-char (node-region-inner-begin node-region))
+            (insert "...")
+            (delete-region (point)
+                           (node-region-inner-end node-region))
+            (goto-char (1+ (node-region-outer-begin node-region)))
+            (widget-insert
+             (propertize "+"
+                         'kite-node-id
+                         (node-region-node-id node-region)))
+            (forward-char -1)
+            (delete-char -1)))))))
 
 (add-hook 'kite-DOM-attributeModified-hooks 'kite--dom-DOM-attributeModified)
 (add-hook 'kite-DOM-attributeRemoved-hooks 'kite--dom-DOM-attributeRemoved)

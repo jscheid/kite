@@ -88,7 +88,9 @@ remote WebKit debugger instance."
   current-context
   (error-count 0)
   last-message
-  (source-map-cache (make-hash-table :test 'equal)))
+  (source-map-cache (make-hash-table :test 'equal))
+  (dom-children-cache (make-hash-table))
+  (open-dom-nodes (make-hash-table)))
 
 (defstruct (kite-script-info)
   "Information about a script used in a debugging session.  Used
@@ -790,6 +792,7 @@ using `elt'.  Other member types are not currently implemented."
 FIXME: this needs to reset many more state properties."
   (setf (kite-session-error-count kite-session) 0)
   (clrhash (kite-session-source-map-cache kite-session))
+  (clrhash (kite-session-dom-children-cache kite-session))
   (kite--mode-line-update))
 
 (add-hook 'kite-Runtime-isolatedContextCreated-hooks
