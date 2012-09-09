@@ -69,6 +69,13 @@
   "Face to use for computed vendore-specific properties that are unused."
   :group 'kite)
 
+(defface kite-css-value-widget-error
+  `((t :foreground ,(face-foreground 'error nil t)
+       :background ,(face-background 'widget-field nil t)))
+  "Face to use for CSS value widget with unparseable input."
+  :group 'kite)
+
+
 (defun kite-dom--render-property (css-rule property-index property indent)
   (widget-insert
    (propertize
@@ -79,7 +86,7 @@
                    :notify (lambda (widget &rest ignore)
                              (kite-send "CSS.toggleProperty"
                                         (list :styleId (widget-get widget :kite-css-style-id)
-                                              :propertyIndex  (widget-get widget :kite-css-property-index)
+                                              :propertyIndex (widget-get widget :kite-css-property-index)
                                               :disable (if (widget-value widget) :json-false t))))
                    :help-echo "Enable/disable this CSS property"
                    :kite-css-style-id (kite--get css-rule :style :styleId)
@@ -103,11 +110,39 @@
           (insert-image (kite--make-color-image (kite--rgba-value color)))
           (widget-insert " "))))
 
+  (widget-create 'editable-field
+                 :format "%v"
+                 :size 1
+                 :notify (lambda (widget changed-widget &optional event)
+                           (kite-send
+                            "CSS.setPropertyText"
+                            (list :styleId (widget-get widget :kite-css-style-id)
+                                  :propertyIndex (widget-get widget :kite-css-property-index)
+                                  :text (concat (widget-get widget :kite-css-property-name)
+                                                ": "
+                                                (widget-value widget)
+                                                ";")
+                                  :overwrite t)
+                            (lexical-let ((lex-property-name (widget-get widget :kite-css-property-name))
+                                          (lex-widget widget))
+                              (lambda (response)
+                                (mapcar (lambda (property)
+                                          (when (string= (plist-get property :name)
+                                                         lex-property-name)
+                                            (overlay-put (widget-get lex-widget :field-overlay)
+                                                         'face
+                                                         (if (eq (plist-get property :parsedOk) :json-false)
+                                                             'kite-css-value-widget-error
+                                                           'widget-field))))
+                                        (kite--get response :result :style :cssProperties))))))
+                 :kite-css-style-id (kite--get css-rule :style :styleId)
+                 :kite-css-property-index property-index
+                 :kite-css-property-name (plist-get property :name)
+                 (plist-get property :value))
+
   (widget-insert
    (propertize
-    (concat
-     (plist-get property :value)
-     ";\n")
+    ";\n"
     'kite-css-property (list css-rule property-index))))
 
 (defun kite-dom--render-css-rule (css-rule)
@@ -168,7 +203,8 @@
 (define-derived-mode kite-css-mode special-mode "kite-css"
   "Toggle Kite CSS mode."
   :group 'kite
-  (setq kite-buffer-type 'css))
+  (setq kite-buffer-type 'css)
+  (toggle-read-only nil))
 
 (defun kite--dom-create-css-buffer (matched-css-rules)
   (kite--log
