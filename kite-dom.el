@@ -35,6 +35,8 @@
 (require 'kite-color)
 (require 'kite-dom-css)
 (require 'widget)
+;; Try loading nxml-mode so we can steal their faces
+(require 'nxml-mode nil t)
 
 (eval-when-compile
   (require 'cl)
@@ -62,9 +64,6 @@
   value-end
   name-widget
   value-widget)
-
-;; Try loading nxml-mode so we can steal their faces
-(require 'nxml-mode nil t)
 
 ;; Per https://developer.mozilla.org/en-US/docs/DOM/Node.nodeType
 (defconst kite-dom-element-node 1)
