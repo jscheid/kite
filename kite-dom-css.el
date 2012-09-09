@@ -80,6 +80,124 @@
   "Face to use for highlighting selected CSS property."
   :group 'kite)
 
+(defconst kite-css-completions
+  '((azimuth . [far-left left center-left center center-right right
+                         far-right leftwards rightwards inherit])
+    (background . [inherit])
+    (background-attachment . [scroll fixed inherit])
+    (background-color . [transparent inherit])
+    (background-image . [none inherit])
+    (background-position . [left center top center center center
+                                 inherit])
+    (background-repeat . [repeat repeat-x repeat-y no-repeat inherit])
+    (border . [inherit])
+    (border-collapse . [collapse separate inherit])
+    (border-color . [inherit])
+    (border-left . [inherit])
+    (border-left-color . [transparent inherit])
+    (border-left-style . [inherit])
+    (border-left-width . [inherit])
+    (border-spacing . [inherit])
+    (border-style . [inherit])
+    (border-width . [inherit])
+    (bottom . [auto inherit])
+    (caption-side . [top bottom inherit])
+    (clear . [none left right both inherit])
+    (clip . [auto inherit])
+    (color . [inherit])
+    (content . [normal none open-quote close-quote no-open-quote
+                       inherit])
+    (counter-increment . [none inherit])
+    (counter-reset . [none inherit])
+    (cue . [inherit])
+    (cue-after . [none inherit])
+    (cue-before . [none inherit])
+    (cursor . [crosshair default pointer move e-resize ne-resize
+                         nw-resize n-resize se-resize sw-resize s-resize
+                         w-resize text wait help inherit])
+    (direction . [ltr rtl inherit])
+    (display . [inline block list-item inline-block table inline-table
+                       table-row-group table-header-group
+                       table-footer-group table-row table-column-group
+                       table-column table-cell table-caption none
+                       inherit])
+    (elevation . [below level above higher lower inherit])
+    (empty-cells . [show hide inherit])
+    (float . [left right none inherit])
+    (font . [caption icon menu message-box small-caption status-bar
+                     inherit])
+    (font-family . [inherit])
+    (font-size . [inherit])
+    (font-style . [normal italic oblique inherit])
+    (font-variant . [normal small-caps inherit])
+    (font-weight . [normal bold bolder lighter 100 200 300 400 500 600
+                           700 800 900 inherit])
+    (height . [auto inherit])
+    (left . [auto inherit])
+    (letter-spacing . [normal inherit])
+    (line-height . [normal inherit])
+    (list-style . [inherit])
+    (list-style-image . [none inherit])
+    (list-style-position . [inside outside inherit])
+    (list-style-type . [disc circle square decimal decimal-leading-zero
+                             lower-roman upper-roman lower-greek
+                             lower-latin upper-latin armenian georgian
+                             lower-alpha upper-alpha none inherit])
+    (margin . [inherit])
+    (margin-bottom . [inherit])
+    (margin-left . [inherit])
+    (max-height . [none inherit])
+    (max-width . [none inherit])
+    (min-height . [inherit])
+    (min-width . [inherit])
+    (orphans . [inherit])
+    (outline . [inherit])
+    (outline-color . [invert inherit])
+    (outline-style . [inherit])
+    (outline-width . [inherit])
+    (overflow . [visible hidden scroll auto inherit])
+    (padding . [inherit])
+    (padding-left . [inherit])
+    (page-break-after . [auto always avoid left right inherit])
+    (page-break-before . [auto always avoid left right inherit])
+    (page-break-inside . [avoid auto inherit])
+    (pause . [inherit])
+    (pause-after . [inherit])
+    (pause-before . [inherit])
+    (pitch . [x-low low medium high x-high inherit])
+    (pitch-range . [inherit])
+    (play-during . [auto none inherit])
+    (position . [static relative absolute fixed inherit])
+    (quotes . [none inherit])
+    (richness . [inherit])
+    (right . [auto inherit])
+    (speak . [normal none spell-out inherit])
+    (speak-header . [once always inherit])
+    (speak-numeral . [digits continuous inherit])
+    (speak-punctuation . [code none inherit])
+    (speech-rate . [x-slow slow medium fast x-fast faster slower
+                           inherit])
+    (stress . [inherit])
+    (table-layout . [auto fixed inherit])
+    (text-align . [left right center justify inherit])
+    (text-decoration . [none overline line-through inherit])
+    (text-indent . [inherit])
+    (text-transform . [capitalize uppercase lowercase none inherit])
+    (top . [auto inherit])
+    (unicode-bidi . [normal embed bidi-override inherit])
+    (vertical-align . [baseline sub super top text-top middle bottom
+                                text-bottom inherit])
+    (visibility . [visible hidden collapse inherit])
+    (voice-family . [inherit])
+    (volume . [silent x-soft soft medium loud x-loud inherit])
+    (white-space . [normal pre nowrap pre-wrap pre-line inherit])
+    (widows . [inherit])
+    (width . [auto inherit])
+    (word-spacing . [normal inherit])
+    (z-index . [auto inherit]))
+  "CSS 2.1 property completions.  Automatically extracted by
+extract-css2.py")
+
 (defun kite-dom--render-property (css-rule property-index property indent)
   (widget-insert
    (make-string (* 2 indent) 32))
@@ -139,6 +257,8 @@
                  :kite-css-style-id (kite--get css-rule :style :styleId)
                  :kite-css-property-index property-index
                  :kite-css-property-name (plist-get property :name)
+                 :completions (cdr (assoc (intern (plist-get property :name))
+                                          kite-css-completions))
                  (plist-get property :value))
 
   (widget-insert ";")
