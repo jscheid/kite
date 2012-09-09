@@ -93,7 +93,19 @@
       (plist-get property :name)
       'face 'kite-css-property
       'font-lock-face 'kite-css-property)
-     ": "
+     ": ")
+    'kite-css-property (list css-rule property-index)))
+
+  (let ((color (kite-parse-color
+                (plist-get property :value))))
+    (when color
+        (let ((inhibit-read-only t))
+          (insert-image (kite--make-color-image (kite--rgba-value color)))
+          (widget-insert " "))))
+
+  (widget-insert
+   (propertize
+    (concat
      (plist-get property :value)
      ";\n")
     'kite-css-property (list css-rule property-index))))
