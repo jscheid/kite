@@ -206,7 +206,7 @@ extract-css2.py")
 
 (defvar kite-css-widget-field-keymap
   (let ((map (copy-keymap widget-field-keymap)))
-    (define-key map "\C-m" 'kite-css-widget-field-activate)
+    (define-key map "\C-m" 'kite--widget-field-activate)
     map)
   "Custom keymap for editing CSS property values.  Overrides RET
 so that it works also at the very end of the field.")
@@ -583,16 +583,6 @@ to store original range information before any property updates."
                              'face 'kite-css-selected-overlay))
               (when end (goto-char end)))))
       (error "Source location not available"))))
-
-(defun kite-css-widget-field-activate (pos &optional event)
-  "Invoke the editable field at point."
-  (interactive "@d")
-  (let ((field (or (widget-field-at pos)
-                   (widget-field-at (- pos 1)))))
-    (if field
-        (widget-apply-action field event)
-      (call-interactively
-       (lookup-key widget-global-map (this-command-keys))))))
 
 (provide 'kite-dom-css)
 

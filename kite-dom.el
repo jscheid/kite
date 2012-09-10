@@ -341,6 +341,7 @@ The delimiters are <! and >."
   (let ((map (copy-keymap widget-field-keymap)))
     (define-key map "\M-\C-n" 'kite-dom-forward-element)
     (define-key map "\M-\C-p" 'kite-dom-backward-element)
+    (define-key map "\C-m" 'kite--widget-field-activate)
     map))
 
 (defvar kite-dom-mode-map
@@ -492,15 +493,34 @@ describing the buffer region where the attribute was inserted."
     (widget-insert "=")
     (setf (attr-region-value-begin attr-region) (point-marker))
     (setf (attr-region-value-widget attr-region)
-          (widget-create 'editable-field
-                         :size 0
-                         :format (propertize "\"%v\"" 'face 'kite-attribute-value-delimiter-face)
-                         :value-face 'kite-attribute-value-face
-                         :modified-value-face 'kite-modified-attribute-value-face
-                         :notify (function kite--notify-widget)
-                         :kite-node-id node-id
-                         :keymap kite--dom-widget-field-keymap
-                         attr-value))
+          (widget-create
+           'editable-field
+           :size 0
+           :format (propertize
+                    "\"%v\""
+                    'face 'kite-attribute-value-delimiter-face)
+           :value-face 'kite-attribute-value-face
+           :modified-value-face 'kite-modified-attribute-value-face
+           :notify (function kite--notify-widget)
+           :kite-node-id node-id
+           :kite-attr-name attr-name
+           :keymap kite--dom-widget-field-keymap
+           :action (lambda (widget &rest ignore)
+                     (lexical-let ((lex-widget widget))
+                       (kite-send
+                        "DOM.setAttributeValue"
+                        `((nodeId . ,(widget-get widget :kite-node-id))
+                          (name . ,(widget-get widget :kite-attr-name))
+                          (value . ,(widget-value widget)))
+                        (lambda (response)
+                          (when (plist-member response :result)
+                            (widget-put lex-widget
+                                        :value-face
+                                        'kite-attribute-value-face)
+                            (overlay-put
+                             (widget-get lex-widget :field-overlay)
+                             'face 'kite-attribute-value-face))))))
+           attr-value))
     (setf (attr-region-value-end attr-region) (point-marker))
     (setf (attr-region-outer-end attr-region) (point-marker))
 

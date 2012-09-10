@@ -126,6 +126,16 @@ major mode more reliably."
         (normal-mode))
       new-buffer))))
 
+(defun kite--widget-field-activate (pos &optional event)
+  "Invoke the editable field at point."
+  (interactive "@d")
+  (let ((field (or (widget-field-at pos)
+                   (widget-field-at (- pos 1)))))
+    (if field
+        (widget-apply-action field event)
+      (call-interactively
+       (lookup-key widget-global-map (this-command-keys))))))
+
 (provide 'kite-util)
 
 ;;; kite-util.el ends here
