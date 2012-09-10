@@ -201,7 +201,7 @@ when the user customizes `kite-console-prompt'.")
     (define-key map "\C-cg" 'kite-console-visit-source)
     (define-key map "\C-ci" 'kite-show-log-entry)
     (define-key map "\C-j" 'kite-console-send-input)
-    (define-key map (kbd "RET") 'kite-console-send-input)
+    (define-key map (kbd "RET") 'kite-console-send-input-or-visit-object)
     map)
   "Local keymap for `kite-console-mode' buffers.")
 
@@ -1020,6 +1020,15 @@ doesn't support asynchronicity."
                 lex-completion-begin
                 lex-completion-end
                 completions)))))))))
+
+(defun kite-console-send-input-or-visit-object ()
+  "If point is on a widget, activate the widget.  Otherwise,
+evaluate console input."
+  (interactive)
+  (let ((widget (widget-at (point))))
+    (if widget
+        (widget-apply-action widget nil)
+      (kite-console-send-input))))
 
 (add-hook 'kite-Console-messageAdded-hooks
           'kite--console-messageAdded)
