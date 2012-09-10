@@ -842,19 +842,26 @@ widgets, recursively"
     (widget-delete (attr-region-value-widget (cdr attr-name-and-region))))
   (kite--delete-child-widgets node-region))
 
+(defun kite--dom-set-element-toggle-char (node-region char)
+  "Set the character denoting whether an element is opened,
+closed, or doesn't have any child nodes, for NODE-REGION to
+CHARACTER."
+  (save-excursion
+    (goto-char (node-region-outer-begin node-region))
+    (forward-char)
+    (widget-insert (propertize
+                    char
+                    'kite-node-id
+                    (node-region-node-id node-region)))
+    (forward-char -1)
+    (delete-char -1)))
+
 (defun kite--dom-show-child-nodes (parent-node-id children)
   (let ((inhibit-read-only t)
         (node-region
          (gethash parent-node-id kite-dom-nodes)))
     (save-excursion
-      (goto-char (node-region-outer-begin node-region))
-      (forward-char)
-      (widget-insert (propertize
-                      "-"
-                      'kite-node-id
-                      (node-region-node-id node-region)))
-      (forward-char -1)
-      (delete-char -1)
+      (kite--dom-set-element-toggle-char node-region "-")
       (kite--delete-child-widgets node-region)
       (delete-region (node-region-inner-begin node-region)
                      (node-region-inner-end node-region))
@@ -901,6 +908,8 @@ child node into a DOM element."
              (node-region (gethash parent-node-id kite-dom-nodes))
              (previous-node-region
               (gethash previous-node-id kite-dom-nodes)))
+
+        (kite--dom-set-element-toggle-char node-region "-")
 
         (goto-char (if (eq previous-node-id 0)
                        (node-region-inner-begin node-region)
@@ -949,6 +958,9 @@ node from a DOM element."
         (setf (node-region-children (node-region-parent node-region))
               (delete node-region
                       (node-region-children (node-region-parent node-region))))
+        (when (eq 0 (length (node-region-children (node-region-parent node-region))))
+          (kite--dom-set-element-toggle-char node-region " "))
+
         (kite--dom-update-inner-whitespace (node-region-parent node-region)))
       (widget-setup))))
 
