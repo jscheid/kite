@@ -338,35 +338,30 @@ The delimiters are <! and >."
 ;;; End of stolen nxml colors and faces.
 
 (defvar kite--dom-widget-field-keymap
-  (let ((map (make-sparse-keymap)))
-    (set-keymap-parent map widget-field-keymap)
+  (let ((map (copy-keymap widget-field-keymap)))
     (define-key map "\M-\C-n" 'kite-dom-forward-element)
     (define-key map "\M-\C-p" 'kite-dom-backward-element)
     map))
 
-(defvar kite-dom-mode-map nil
+(defvar kite-dom-mode-map
+  (let ((map (make-composed-keymap
+              (copy-keymap widget-keymap)
+              (copy-keymap special-mode-map))))
+    (suppress-keymap map t)
+    (kite--define-global-mode-keys map)
+    (define-key map (kbd "RET") 'kite-dom-toggle-node)
+    (define-key map (kbd "DEL") 'kite-dom-delete-node)
+    (define-key map "\C-Cp" 'kite-dom-pick-node)
+    (define-key map "\C-Ch" 'kite-dom-highlight-node)
+    (define-key map "\C-CH" 'kite-dom-hide-highlight)
+    (define-key map "\C-Cc" 'kite-dom-show-matched-css)
+    (define-key map "\C-CC" 'kite-dom-show-computed-css)
+    (define-key map "\C-xnd" 'kite-dom-narrow-to-node)
+    (define-key map "\M-\C-n" 'kite-dom-forward-element)
+    (define-key map "\M-\C-p" 'kite-dom-backward-element)
+    (define-key map [mouse-movement] 'kite-mouse-movement)
+    map)
   "Local keymap for `kite-dom-mode' buffers.")
-
-(setq kite-dom-mode-map
-      (let ((map (make-sparse-keymap))
-            (menu-map (make-sparse-keymap)))
-        ;;(define-key map [remap self-insert-command] 'kite-dom-no-edit)
-        (set-keymap-parent map widget-keymap)
-        (suppress-keymap map t)
-        (kite--define-global-mode-keys map)
-        (define-key map (kbd "RET") 'kite-dom-toggle-node)
-        (define-key map (kbd "DEL") 'kite-dom-delete-node)
-        (define-key map "p" 'kite-dom-pick-node)
-        (define-key map "h" 'kite-dom-highlight-node)
-        (define-key map "H" 'kite-dom-hide-highlight)
-        (define-key map "c" 'kite-dom-show-matched-css)
-        (define-key map "C" 'kite-dom-show-computed-css)
-        (define-key map "\C-xnd" 'kite-dom-narrow-to-node)
-        (define-key map "\M-\C-n" 'kite-dom-forward-element)
-        (define-key map "\M-\C-p" 'kite-dom-backward-element)
-        (define-key map [mouse-movement] 'kite-mouse-movement)
-
-        map))
 
 (defun kite-mouse-movement (event)
   "Called on mouse movement in a kite-dom buffer.  Highlights the
@@ -402,6 +397,7 @@ line under mouse and the corresponding DOM node in the browser."
   :group 'kite
   (setq kite-buffer-type 'dom)
   (set (make-local-variable 'kill-buffer-hook) 'kite--kill-dom)
+  (toggle-read-only nil)
   (setq buffer-read-only nil)
   (set (make-local-variable 'kite-dom-nodes) (make-hash-table))
   (set (make-local-variable 'kite--dom-highlighted-node-id) nil)
@@ -491,7 +487,7 @@ describing the buffer region where the attribute was inserted."
                          :validate (function kite--validate-widget)
                          :match (lambda (x) (> (length (widget-value x)) 0))
                          :kite-node-id node-id
-                         :keymap 'kite--dom-widget-field-keymap
+                         :keymap kite--dom-widget-field-keymap
                          attr-name))
     (widget-insert "=")
     (setf (attr-region-value-begin attr-region) (point-marker))
@@ -503,7 +499,7 @@ describing the buffer region where the attribute was inserted."
                          :modified-value-face 'kite-modified-attribute-value-face
                          :notify (function kite--notify-widget)
                          :kite-node-id node-id
-                         :keymap 'kite--dom-widget-field-keymap
+                         :keymap kite--dom-widget-field-keymap
                          attr-value))
     (setf (attr-region-value-end attr-region) (point-marker))
     (setf (attr-region-outer-end attr-region) (point-marker))
@@ -653,7 +649,7 @@ FIXME: this needs to be smarter about when to load children."
                :validate (function kite--validate-widget)
                :match (lambda (x) (> (length (widget-value x)) 0))
                :kite-node-id node-id
-               :keymap 'kite--dom-widget-field-keymap
+               :keymap kite--dom-widget-field-keymap
                localName))
         (setq attributes (kite--dom-render-attribute-regions element))
         (widget-insert (concat (propertize ">"
@@ -702,7 +698,7 @@ FIXME: this needs to be smarter about when to load children."
                              :validate (function kite--validate-widget)
                              :match (lambda (x) (> (length (widget-value x)) 0))
                              :kite-node-id node-id
-                             :keymap 'kite--dom-widget-field-keymap
+                             :keymap kite--dom-widget-field-keymap
                              localName))
         (setq attributes (kite--dom-render-attribute-regions element))
         (widget-insert (propertize ">"
@@ -734,7 +730,7 @@ FIXME: this needs to be smarter about when to load children."
                              :notify (function kite--notify-widget)
                              :validate (function kite--validate-widget)
                              :kite-node-id node-id
-                             :keymap 'kite--dom-widget-field-keymap
+                             :keymap kite--dom-widget-field-keymap
                              (plist-get element :nodeValue))))
 
        ((eq nodeType kite-dom-comment-node)
@@ -751,7 +747,7 @@ FIXME: this needs to be smarter about when to load children."
                              :notify (function kite--notify-widget)
                              :validate (function kite--validate-widget)
                              :kite-node-id node-id
-                             :keymap 'kite--dom-widget-field-keymap
+                             :keymap kite--dom-widget-field-keymap
                              (plist-get element :nodeValue)))
         (widget-insert
          (propertize
