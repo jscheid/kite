@@ -63,7 +63,6 @@
   outer-end
   value-begin
   value-end
-  name-widget
   value-widget)
 
 ;; Per https://developer.mozilla.org/en-US/docs/DOM/Node.nodeType
@@ -351,7 +350,7 @@ The delimiters are <! and >."
     (suppress-keymap map t)
     (kite--define-global-mode-keys map)
     (define-key map (kbd "RET") 'kite-dom-toggle-node)
-    (define-key map (kbd "DEL") 'kite-dom-delete-node)
+    (define-key map (kbd "DEL") 'kite-dom-delete-node-or-attribute)
     (define-key map "\C-Cp" 'kite-dom-pick-node)
     (define-key map "\C-Ch" 'kite-dom-highlight-node)
     (define-key map "\C-CH" 'kite-dom-hide-highlight)
@@ -478,19 +477,12 @@ describing the buffer region where the attribute was inserted."
         (attr-region (make-attr-region)))
 
     (setf (attr-region-outer-begin attr-region) (point-marker))
-    (widget-insert " ")
-    (setf (attr-region-name-widget attr-region)
-          (widget-create 'editable-field
-                         :size 1
-                         :value-face 'kite-attribute-local-name-face
-                         :modified-value-face 'kite-modified-attribute-local-name-face
-                         :notify (function kite--notify-widget)
-                         :validate (function kite--validate-widget)
-                         :match (lambda (x) (> (length (widget-value x)) 0))
-                         :kite-node-id node-id
-                         :keymap kite--dom-widget-field-keymap
-                         attr-name))
-    (widget-insert "=")
+    (widget-insert (concat
+                    " "
+                    (propertize attr-name
+                                'face 'kite-attribute-local-name-face
+                                'font-lock-face 'kite-attribute-local-name-face)
+                    "="))
     (setf (attr-region-value-begin attr-region) (point-marker))
     (setf (attr-region-value-widget attr-region)
           (widget-create
@@ -523,6 +515,10 @@ describing the buffer region where the attribute was inserted."
            attr-value))
     (setf (attr-region-value-end attr-region) (point-marker))
     (setf (attr-region-outer-end attr-region) (point-marker))
+
+    (put-text-property (attr-region-outer-begin attr-region)
+                       (attr-region-outer-end attr-region)
+                       'kite-attr-name attr-name)
 
     (cons (intern attr-name) attr-region)))
 
@@ -843,7 +839,6 @@ recursively."
 widgets, recursively"
   (widget-delete (node-region-widget node-region))
   (dolist (attr-name-and-region (node-region-attribute-regions node-region))
-    (widget-delete (attr-region-name-widget (cdr attr-name-and-region)))
     (widget-delete (attr-region-value-widget (cdr attr-name-and-region))))
   (kite--delete-child-widgets node-region))
 
@@ -995,7 +990,7 @@ attribute from a DOM element."
              (attr-name (intern (plist-get packet :name)))
              (node-region (gethash (plist-get packet :nodeId) kite-dom-nodes))
              (attr-region (cdr (assq attr-name (node-region-attribute-regions node-region)))))
-        (widget-delete (attr-region-name-widget attr-region))
+        (kite--log "kite--DOM-attributeRemoved, attr-region=%s (%s)" attr-region (node-region-attribute-regions node-region))
         (widget-delete (attr-region-value-widget attr-region))
         (delete-region (attr-region-outer-begin attr-region)
                        (attr-region-outer-end attr-region))
@@ -1153,12 +1148,17 @@ question."
   (interactive)
   (gethash (kite--dom-node-at-point arg) kite-dom-nodes))
 
-(defun kite-dom-delete-node ()
-  "Delete node at point."
+(defun kite-dom-delete-node-or-attribute ()
+  "Delete node or attribute at point."
   (interactive)
   (let ((node-id (kite--dom-node-at-point)))
     (when node-id
-      (kite-send "DOM.removeNode" (list (cons 'nodeId node-id))))))
+      (let ((attr-name (get-text-property (point) 'kite-attr-name)))
+        (if attr-name
+            (kite-send "DOM.removeAttribute"
+                       `((nodeId . ,node-id)
+                         (name . ,attr-name)))
+          (kite-send "DOM.removeNode" `((nodeId . ,node-id))))))))
 
 (defun kite-dom-narrow-to-node (&optional arg)
   "Narrow buffer to node at point."
