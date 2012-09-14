@@ -83,7 +83,7 @@ remote WebKit debugger instance."
   (pending-requests (make-hash-table))
   buffers
   frame-tree
-  isolated-context-list
+  execution-context-list
   default-context
   current-context
   (error-count 0)
@@ -716,18 +716,18 @@ used kite session."
 
 (add-hook 'post-command-hook 'kite-remember-recent-session)
 
-(defun kite--isolated-context-created (websocket-url packet)
-  "Callback invoked for the `Runtime.isolatedContextCreated' notification,
+(defun kite--execution-context-created (websocket-url packet)
+  "Callback invoked for the `Runtime.executionContextCreated' notification,
 which the remote debugger sends when a new JavaScript execution
 context is created."
-  (let ((isolated-context (plist-get packet :context)))
-    (push isolated-context
-          (kite-session-isolated-context-list kite-session))
+  (let ((execution-context (plist-get packet :context)))
+    (push execution-context
+          (kite-session-execution-context-list kite-session))
     (when (null (kite-session-default-context kite-session))
       (setf (kite-session-default-context kite-session)
-            isolated-context)
+            execution-context)
       (setf (kite-session-current-context kite-session)
-            isolated-context))))
+            execution-context))))
 
 (defun kite--find-frame-recursive (frame-tree frame-id)
   (if (string= frame-id (plist-get (plist-get frame-tree :frame) :id))
@@ -795,8 +795,8 @@ FIXME: this needs to reset many more state properties."
   (clrhash (kite-session-dom-children-cache kite-session))
   (kite--mode-line-update))
 
-(add-hook 'kite-Runtime-isolatedContextCreated-hooks
-          'kite--isolated-context-created)
+(add-hook 'kite-Runtime-executionContextCreated-hooks
+          'kite--execution-context-created)
 (add-hook 'kite-Console-messageAdded-hooks
           'kite--messageAdded)
 (add-hook 'kite-Console-messageRepeatCountUpdated-hooks

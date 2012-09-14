@@ -842,7 +842,7 @@ the buffer."
       (cons context
             (list context (kite--frame-by-id
                            (plist-get context :frameId)))))
-    (kite-session-isolated-context-list kite-session))))
+    (kite-session-execution-context-list kite-session))))
 
 (defvar kite-context-history)
 
@@ -916,7 +916,7 @@ invoked after execution context changes."
                    (car (rassq current-context
                                unique-names))))))))))))))
 
-(defun kite--console-isolated-context-created (websocket-url packet)
+(defun kite--console-execution-context-created (websocket-url packet)
   (kite--console-update-mode-line)
   (force-mode-line-update))
 
@@ -1030,14 +1030,28 @@ evaluate console input."
         (widget-apply-action widget nil)
       (kite-console-send-input))))
 
+(defun kite-visit-dom-node (object-id)
+  "Open the DOM buffer and move point to the node corresponding
+to the given OBJECT-ID."
+  (kite-send "DOM.requestNode"
+             `((objectId . ,object-id))
+             (lambda (response)
+               (lexical-let ((lex-node-id (kite--get response :result :nodeId)))
+                 (kite--get-buffer-create
+                  (websocket-url (kite-session-websocket kite-session))
+                  'dom
+                  (lambda ()
+                    (kite-dom-goto-node
+                     lex-node-id)))))))
+
 (add-hook 'kite-Console-messageAdded-hooks
           'kite--console-messageAdded)
 (add-hook 'kite-Console-messageRepeatCountUpdated-hooks
           'kite--console-messageRepeatCountUpdated)
 (add-hook 'kite-Debugger-globalObjectCleared-hooks
           'kite--console-globalObjectCleared)
-(add-hook 'kite-Runtime-isolatedContextCreated-hooks
-          'kite--console-isolated-context-created)
+(add-hook 'kite-Runtime-executionContextCreated-hooks
+          'kite--console-execution-context-created)
 
 (provide 'kite-console)
 
