@@ -32,6 +32,7 @@
 ;;; Code:
 
 (require 'kite-global)
+(require 'kite-util)
 (require 'font-lock)
 (require 'comint)
 (require 'js) ; for syntax highlighting
