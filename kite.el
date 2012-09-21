@@ -804,6 +804,27 @@ FIXME: this needs to reset many more state properties."
 (add-hook 'kite-Debugger-globalObjectCleared-hooks
           'kite--globalObjectCleared)
 
+(defun kite--reload ()
+  "Force reloading kite and all dependent modules after closing
+any running sessions.
+
+FIXME: there must be a more elegant way to do this."
+  (interactive)
+  (kite-close-all-sessions)
+  (unload-feature 'kite)
+  (unload-feature 'kite-debug)
+  (unload-feature 'kite-dom)
+  (unload-feature 'kite-memory)
+  (unload-feature 'kite-net)
+  (unload-feature 'kite-repl)
+  (unload-feature 'kite-object)
+  (unload-feature 'kite-console)
+  (unload-feature 'kite-breakpoint)
+  (unload-feature 'kite-modeline)
+  (unload-feature 'kite-sourcemap)
+  (unload-feature 'kite-global)
+  (require 'kite))
+
 (provide 'kite)
 
 ;;; kite.el ends here
