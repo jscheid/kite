@@ -828,12 +828,27 @@ the buffer."
 
 (defun kite--contexts-by-unique-name (context-and-frame-list)
   "Given CONTEXT-AND-FRAME-LIST, an alist of (CONTEXT-ID
-  . CONTEXT-PLIST FRAME-PLIST), return an alist of (CONTEXT-ID
-  . UNIQUE-CONTEXT-NAME)."
-  (mapcar (lambda (context-and-frame)
-            (cons (plist-get (nth 1 (cdr context-and-frame)) :url)
-                  (car context-and-frame)))
-          context-and-frame-list))
+. CONTEXT-PLIST FRAME-PLIST), return an alist
+of (UNIQUE-CONTEXT-NAME . CONTEXT-ID).
+
+FIXME: This does not yet ensure that the returned name is
+unique."
+  (mapcar
+   (lambda (context-and-frame)
+     (let* ((context-id (car context-and-frame))
+            (context (nth 0 (cdr context-and-frame)))
+            (frame (nth 1 (cdr context-and-frame)))
+            (context-name (plist-get context :name)))
+       (cons
+        (cond
+         ;; Use given context name if available
+         ((not (string= context-name ""))
+          context-name)
+         ;; Otherwise, fall back to frame URL
+         (t
+          (plist-get frame :url)))
+        context-id)))
+   context-and-frame-list))
 
 (defun kite--session-contexts-by-unique-name ()
   (kite--contexts-by-unique-name
