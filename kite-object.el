@@ -122,7 +122,7 @@ record."
      ;; Boolean
      ((string= type "boolean")
       (propertize
-       (if (plist-get object-plist :value) "true" "false")
+       (if (eq (plist-get object-plist :value) t) "true" "false")
        'face 'kite-boolean
        'font-lock-face 'kite-boolean))
      ;; Unknown
