@@ -4,5 +4,6 @@ misc/
 *.texinfo
 *.html
 *.tar.gz
+*.elc
 dir
 TODO.org
