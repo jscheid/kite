@@ -41,10 +41,10 @@
   (flet ((websocket-open (&rest ignore))
          (kite--console-update-mode-line ())
          (websocket-url (&rest ignore))
-         (kite-send (method params callback)
+         (kite-send (method &rest keyword-args)
                     (when (string= method "Page.getResourceTree")
-                      (funcall callback
-                               '(:id 7 :result (:frameTree (:childFrames [(:resources [] :frame (:securityOrigin null :name "" :parentId "12583.1" :mimeType "text/html" :url "file:///Users/julians/src/kite/misc/page1.html" :loaderId "12583.4" :id "12583.2"))] :resources [] :frame (:securityOrigin null :mimeType "text/html" :url "file:///Users/julians/src/kite/misc/twoframes.html" :loaderId "12583.3" :id "12583.1"))))))))
+                      (funcall (plist-get keyword-args :success-function)
+                               '(:frameTree (:childFrames [(:resources [] :frame (:securityOrigin null :name "" :parentId "12583.1" :mimeType "text/html" :url "file:///Users/julians/src/kite/misc/page1.html" :loaderId "12583.4" :id "12583.2"))] :resources [] :frame (:securityOrigin null :mimeType "text/html" :url "file:///Users/julians/src/kite/misc/twoframes.html" :loaderId "12583.3" :id "12583.1")))))))
 
     (kite--connect-webservice (list :webSocketDebuggerUrl "dummy"))
     )

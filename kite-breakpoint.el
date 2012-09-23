@@ -372,15 +372,17 @@
         (ewoc-collect breakpoint-ewoc 'kite-next-instruction-breakpoint-p)))
     (if old-breakpoints
         (kite--remove-breakpoint (car old-breakpoints)
-                                 (lambda (response)
+                                 (lambda (result)
                                    (ewoc-filter breakpoint-ewoc
                                                 (lambda (breakpoint)
                                                   (not (kite-next-instruction-breakpoint-p
                                                         breakpoint))))
                                    (ewoc-invalidate breakpoint-ewoc)))
       (lexical-let ((new-breakpoint (make-kite-next-instruction-breakpoint)))
+        (message "setting breakpoint")
         (kite--set-breakpoint new-breakpoint
-                              (lambda (response)
+                              (lambda (result)
+                                (message "breakpoint set")
                                 (kite--add-breakpoint breakpoint-ewoc new-breakpoint)
                                 (ewoc-invalidate breakpoint-ewoc)))))))
 

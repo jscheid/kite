@@ -1,5 +1,4 @@
 ;;; kite-dom-tests.el --- Kite test suite for DOM module
-
 ;; Copyright (C) 2012 Julian Scheid
 
 ;; Author: Julian Scheid <julians37@gmail.com>
@@ -34,8 +33,12 @@
 
 (defmacro with--kite-dom-test-buffer (&rest body)
   `(with-temp-buffer
-     (let ((kite-session (make-kite-session))
-           (inhibit-read-only t))
+     (let* ((kite-session (make-kite-session))
+            (kite-active-sessions
+             (let ((result (make-hash-table)))
+               (puthash nil kite-session result)
+               result))
+            (inhibit-read-only t))
        (flet ((kite--find-buffer (websocket-url type) (current-buffer))
               (kite-send (&rest ignore)))
          (kite-dom-mode)
@@ -180,9 +183,10 @@
 
   (with--kite-dom-test-buffer
 
-   (flet ((kite-send (command params callback)
+   (flet ((kite-send (command &rest keyword-args)
                      (should (string= command "DOM.requestChildNodes"))
-                     (should (equal params '((nodeId . 2))))))
+                     (should (equal (plist-get keyword-args :params)
+                                    '(:nodeId 2)))))
 
      (let ((inhibit-read-only t))
        (kite--dom-insert-element
@@ -224,9 +228,10 @@
 
   (with--kite-dom-test-buffer
 
-   (flet ((kite-send (command params callback)
+   (flet ((kite-send (command &rest keyword-args)
                      (should (string= command "DOM.requestChildNodes"))
-                     (should (equal params '((nodeId . 2))))))
+                     (should (equal (plist-get keyword-args :params)
+                                    '(:nodeId 2)))))
 
      (let ((inhibit-read-only t))
        (kite--dom-insert-element
@@ -244,9 +249,6 @@
                       "+<empty>...</empty>"))
 
      (flet ((kite--dom-buffer (websocket-url) (current-buffer)))
-       (kite--log "kite-dom-nodes now %s" kite-dom-nodes)
-       (kite--log "buffer now %s" (buffer-substring-no-properties (point-min)
-                                                                  (point-max)))
        (kite--dom-DOM-setChildNodes nil
                                     '(:parentId
                                       2
@@ -262,9 +264,6 @@
                                         '(:value "frobnicate" :name "foobar1" :nodeId 3))
        (kite--dom-DOM-attributeModified "dummy"
                                         '(:value "frobnicate" :name "foobar2" :nodeId 3))
-       (kite--log "kite-dom-nodes now %s" kite-dom-nodes)
-       (kite--log "buffer now %s" (buffer-substring-no-properties (point-min)
-                                                                  (point-max)))
        (kite--dom-DOM-setChildNodes nil
                                     '(:parentId
                                       2
@@ -424,7 +423,7 @@
                      "   </head>\n"
                      "   <body></body>\n"
                      " </html>")))
-   (let* ((node-info (gethash 87 kite-dom-nodes))
+   (let* ((node-info (gethash 87 (kite-session-dom-nodes kite-session)))
           (attr-info (cdr (assoc 'href (node-region-attribute-regions node-info)))))
 
      (should (eq (length "\"frobnicate\"")
@@ -453,7 +452,7 @@
                      "   <body></body>\n"
                      " </html>")))
 
-   (let* ((node-info (gethash 87 kite-dom-nodes))
+   (let* ((node-info (gethash 87 (kite-session-dom-nodes kite-session)))
           (attr-info (cdr (assq 'baz (node-region-attribute-regions node-info)))))
      (should (not (null attr-info))))))
 
@@ -479,7 +478,7 @@
                      "   <body></body>\n"
                      " </html>")))
 
-   (let* ((node-info (gethash 87 kite-dom-nodes))
+   (let* ((node-info (gethash 87 (kite-session-dom-nodes kite-session)))
           (attr-info (cdr (assq 'href (node-region-attribute-regions node-info)))))
      (should (null attr-info)))))
 
@@ -535,31 +534,35 @@
         (kite-dom-mode))
       (let ((inhibit-read-only t))
         (kite--dom-insert-element simple-element 0 nil))
-      (flet ((kite-send (command params callback)
+      (flet ((kite-send (command &rest keyword-args)
                         (should (string= command "DOM.highlightNode"))
                         (should (kite--equal-wildcard
-                                 params
-                                 '((nodeId . 88)
-                                   (highlightConfig
-                                    . ((showInfo . nil)
-                                       (contentColor . ((r . *) (g . *) (b . *) (a . *)))
-                                       (paddingColor . ((r . *) (g . *) (b . *) (a . *)))
-                                       (borderColor . ((r . *) (g . *) (b . *) (a . *)))
-                                       (marginColor . ((r . *) (g . *) (b . *) (a . *))))))))))
+                                 (plist-get keyword-args :params)
+                                 '(:nodeId
+                                   88
+                                   :highlightConfig
+                                   ((showInfo . nil)
+                                    (contentColor . ((r . *) (g . *) (b . *) (a . *)))
+                                    (paddingColor . ((r . *) (g . *) (b . *) (a . *)))
+                                    (borderColor . ((r . *) (g . *) (b . *) (a . *)))
+                                    (marginColor . ((r . *) (g . *) (b . *) (a . *)))))))))
         (goto-char (point-min))
         (kite-dom-highlight-node)))))
+
 (ert-deftest kite-test-dom-inspect ()
-  (let (sent-packets kite-session)
+  (let (sent-packets
+        (kite-session (make-kite-session)))
     (with-temp-buffer
       (flet ((kite--dom-buffer (websocket-url) (current-buffer))
              (kite--websocket-url () t)
-             (kite-send (command params callback)
-                        (setq sent-packets (cons (list command params callback)
+             (kite-send (command &rest keyword-args)
+                        (setq sent-packets (cons (list command
+                                                       (plist-get keyword-args :params)
+                                                       (plist-get keyword-args :success-function))
                                                  sent-packets))))
         (kite-dom-mode)))
     (should (kite--equal-wildcard sent-packets
-                                  '(("DOM.getDocument" nil *)
-                                    ("CSS.enable" nil *))))))
+                                  '(("CSS.enable" nil *))))))
 
 (defun kite-run-tests ()
   (interactive)

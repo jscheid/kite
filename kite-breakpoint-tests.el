@@ -36,11 +36,16 @@
                                 (lambda (command params)
                                   '(ok))))
         sent-packets)
-    (flet ((kite-send (command params callback)
-                      (setq sent-packets (cons (list command params callback)
+    (flet ((kite-send (command &rest keyword-args)
+                      (setq sent-packets (cons (list command
+                                                     (plist-get keyword-args :params)
+                                                     (plist-get keyword-args :success-function))
                                                sent-packets))
-                      (when callback
-                        (funcall callback (funcall response-function* command params)))))
+                      (when (plist-get keyword-args :success-function)
+                        (funcall (plist-get keyword-args :success-function)
+                                 (funcall response-function*
+                                          command
+                                          (plist-get keyword-args :params))))))
       (funcall body))
     (should (kite--equal-wildcard sent-packets
                                    expected-packets))))
@@ -91,7 +96,7 @@
      (kite--set-breakpoint
       (make-kite-all-exceptions-breakpoint) nil))
    '(("Debugger.setPauseOnExceptions"
-      ((state . "all"))
+      (:state "all")
       nil)))
 
   ;; Test removing breakpoints
@@ -101,7 +106,7 @@
      (kite--remove-breakpoint
       (make-kite-all-exceptions-breakpoint) nil))
    '(("Debugger.setPauseOnExceptions"
-      ((state . "none"))
+      (:state "none")
       nil))))
 
 (ert-deftest kite-uncaught-exceptions-breakpoint-test ()
@@ -121,7 +126,7 @@
      (kite--set-breakpoint
       (make-kite-uncaught-exceptions-breakpoint) nil))
    '(("Debugger.setPauseOnExceptions"
-      ((state . "uncaught"))
+      (:state "uncaught")
       nil)))
 
   ;; Test removing breakpoints
@@ -131,7 +136,7 @@
      (kite--remove-breakpoint
       (make-kite-uncaught-exceptions-breakpoint) nil))
    '(("Debugger.setPauseOnExceptions"
-      ((state . "none"))
+      (:state "none")
       nil))))
 
 (ert-deftest kite-dom-node-breakpoint-test ()
@@ -170,8 +175,9 @@
        :type 'node-setd)
       nil))
    '(("DOM.setDOMBreakpoint"
-      ((nodeId . 4567)
-       (type . node-setd))
+      (:nodeId
+       4567
+       :type node-setd)
       nil)))
 
   (kite-test--should-send-packets
@@ -182,8 +188,9 @@
        :type 'attribute-modified)
       nil))
    '(("DOM.setDOMBreakpoint"
-      ((nodeId . 5678)
-       (type . attribute-modified))
+      (:nodeId
+       5678
+       :type attribute-modified)
       nil)))
 
   (kite-test--should-send-packets
@@ -194,8 +201,9 @@
        :type 'subtree-modified)
       nil))
    '(("DOM.setDOMBreakpoint"
-      ((nodeId . 6789)
-       (type . subtree-modified))
+      (:nodeId
+       6789
+       :type subtree-modified)
       nil)))
 
   ;; Test removing breakpoints
@@ -208,8 +216,9 @@
        :type 'node-removed)
       nil))
    '(("DOM.removeDOMBreakpoint"
-      ((nodeId . 4567)
-       (type . node-removed))
+      (:nodeId
+       4567
+       :type node-removed)
       nil)))
 
   (kite-test--should-send-packets
@@ -220,8 +229,9 @@
        :type 'attribute-modified)
       nil))
    '(("DOM.removeDOMBreakpoint"
-      ((nodeId . 5678)
-       (type . attribute-modified))
+      (:nodeId
+       5678
+       :type attribute-modified)
       nil)))
 
   (kite-test--should-send-packets
@@ -232,8 +242,9 @@
        :type 'subtree-modified)
       nil))
    '(("DOM.removeDOMBreakpoint"
-      ((nodeId . 6789)
-       (type . subtree-modified))
+      (:nodeId
+       6789
+       :type subtree-modified)
       nil))))
 
 
@@ -255,7 +266,7 @@
        :event-name "foo")
       nil))
    '(("DOM.setEventListenerBreakpoint"
-      ((eventName . "foo"))
+      (:eventName "foo")
       nil)))
 
   (kite-test--should-send-packets
@@ -265,7 +276,7 @@
        :event-name "foo")
       nil))
    '(("DOM.removeEventListenerBreakpoint"
-      ((eventName . "foo"))
+      (:eventName "foo")
       nil))))
 
 
@@ -287,7 +298,7 @@
        :event-name "foo")
       nil))
    '(("DOM.setInstrumentationBreakpoint"
-      ((eventName . "foo"))
+      (:eventName "foo")
       nil)))
 
   (kite-test--should-send-packets
@@ -297,7 +308,7 @@
        :event-name "foo")
       nil))
    '(("DOM.removeInstrumentationBreakpoint"
-      ((eventName . "foo"))
+      (:eventName "foo")
       nil))))
 
 
@@ -319,7 +330,7 @@
        :url-substring "foo")
       nil))
    '(("DOM.setXHRBreakpoint"
-      ((url . "foo"))
+      (:url "foo")
       nil)))
 
   (kite-test--should-send-packets
@@ -329,7 +340,7 @@
        :url-substring "foo")
       nil))
    '(("DOM.removeXHRBreakpoint"
-      ((url . "foo"))
+      (:url "foo")
       nil))))
 
 (ert-deftest kite-breakpoint-ewoc-test ()
@@ -383,7 +394,7 @@
         (kite-test--should-send-packets
          (lambda ()
            (kite-toggle-next-instruction-breakpoint))
-         '(("Debugger.pause" nil *)))
+         '(("Debugger.pause" * *)))
         (should (eq 1 (length invalidate-args)))
         (should (null (ewoc-nth (kite-session-breakpoint-ewoc kite-session) 1)))
         (let ((new-ewoc-element (ewoc-nth (kite-session-breakpoint-ewoc kite-session) 0)))
@@ -392,7 +403,7 @@
         (kite-test--should-send-packets
          (lambda ()
            (kite-toggle-next-instruction-breakpoint))
-         '(("Debugger.resume" nil *)))
+         '(("Debugger.resume" * *)))
         (should (eq 2 (length invalidate-args)))
         (should (null (ewoc-nth (kite-session-breakpoint-ewoc kite-session) 0)))))))
 
