@@ -383,11 +383,11 @@ given PROPERTIES vector."
                     (property-map
                      (make-hash-table :test 'equal
                                       :size (length properties))))
-               (mapcar (lambda (property)
-                         (puthash (plist-get property :name)
-                                  property
-                                  property-map))
-                       properties)
+               (mapc (lambda (property)
+                       (puthash (plist-get property :name)
+                                property
+                                property-map))
+                     properties)
                (puthash object-id property-map all-responses))
              (when (eq (hash-table-count all-responses)
                        (length all-object-ids))
