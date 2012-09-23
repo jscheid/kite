@@ -33,7 +33,7 @@ ELISP_SOURCES = \
 	kite-modeline.el	\
 	kite-net.el		\
 	kite-object.el		\
-	kite-repl.el		\
+	kite-scratch.el		\
 	kite-sourcemap.el	\
 	kite-util.el		\
 	kite.el

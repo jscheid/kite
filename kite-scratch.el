@@ -1,4 +1,4 @@
-;;; kite-repl.el --- Kite REPL implementation
+;;; kite-scratch.el --- Kite scratch buffer implementation
 
 ;; Copyright (C) 2012 Julian Scheid
 
@@ -24,10 +24,8 @@
 
 ;;; Commentary:
 
-;; This package implements a simple JavaScript REPL.  It could
-;; probably use a better name and a better description since the
-;; functionality it implements is more akin to the Emacs *scratch*
-;; buffer than to a true read-eval-print loop.
+;; This package implements a buffer suitable for evaluating JavaScript
+;; code, akin to the Emacs *scratch* buffer for evaluating Lisp code.
 ;;
 ;; It is part of Kite, a WebKit inspector front-end.
 
@@ -44,15 +42,15 @@
   "Face used for links to source code locations."
   :group 'kite-highlighting-faces)
 
-(defvar kite-repl-mode-map
+(defvar kite-scratch-mode-map
   (let ((map (make-keymap))
 	(menu-map (make-sparse-keymap)))
     (define-key map (kbd "C-M-x") 'kite-eval-defun)
-    (define-key map (kbd "C-c C-c") 'kite-repl-eval)
+    (define-key map (kbd "C-c C-c") 'kite-scratch-eval)
     map)
-  "Local keymap for `kite-repl-mode' buffers.")
+  "Local keymap for `kite-scratch-mode' buffers.")
 
-(defvar kite-repl-mode-link-map
+(defvar kite-scratch-mode-link-map
   (let ((map (make-sparse-keymap)))
     (define-key map [mouse-2] 'kite-goto-link)
     (define-key map (kbd "RET") 'kite-goto-link)
@@ -62,11 +60,11 @@
   (interactive)
   (message "kite-goto-link"))
 
-(define-derived-mode kite-repl-mode javascript-mode "kite-repl"
-  "Toggle kite repl mode."
+(define-derived-mode kite-scratch-mode javascript-mode "kite-scratch"
+  "Toggle kite scratch mode."
   :group 'kite
   (set (make-local-variable 'font-lock-extra-managed-props) '(keymap))
-  (run-mode-hooks 'kite-repl-mode-hook))
+  (run-mode-hooks 'kite-scratch-mode-hook))
 
 (defun kite-eval-defun ()
   (save-excursion
@@ -107,7 +105,7 @@
         )))
   (insert "\n"))
 
-(defun kite-repl-eval ()
+(defun kite-scratch-eval ()
   (interactive)
   (save-excursion
 
@@ -160,9 +158,9 @@
                                                   (split-string (plist-get (plist-get result :result) :value) "\n"))))))))
                    (plist-get result :result))))))
 
-(font-lock-add-keywords 'kite-repl-mode '(("(\\([a-zA-Z]+:.*?:[0-9]+:[0-9]+\\))$" 1 `(face kite-link-face keymap ,kite-repl-mode-link-map) t)))
+(font-lock-add-keywords 'kite-scratch-mode '(("(\\([a-zA-Z]+:.*?:[0-9]+:[0-9]+\\))$" 1 `(face kite-link-face keymap ,kite-scratch-mode-link-map) t)))
 
 
-(provide 'kite-repl)
+(provide 'kite-scratch)
 
-;;; kite-repl.el ends here
+;;; kite-scratch.el ends here

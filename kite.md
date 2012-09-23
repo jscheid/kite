@@ -143,7 +143,7 @@ Key Binding     Incantation          Description
 `C-c C-k c`     `kite-console`       View console messages
 `C-c C-k d`     `kite-debugger`      View and manage breakpoints
 `C-c C-k h`     `kite-heap`          Analyze heap usage
-`C-c C-k k`     `kite-repl`          Execute JavaScript code in page context
+`C-c C-k s`     `kite-scratch`       Evaluate JavaScript code in page context
 `C-c C-k m`     `kite-dom`           Inspect and manipulate the DOM
 `C-c C-k n`     `kite-network`       Analyze HTTP requests and responses
 
@@ -199,8 +199,8 @@ to.
 If you have multiple debugging sessions active, Kite will normally
 attempt to keep you within the current session.  For example, if you
 have two session active and you are currently visiting the *kite
-console* buffer for the first session, then doing `M-x kite-repl` will
-take you to the REPL buffer for the first session.
+console* buffer for the first session, then doing `M-x kite-scratch`
+will take you to the scratch buffer for the first session.
 
 If you want to switch to a Kite buffer for a different session, there
 are three ways of doing so.
@@ -360,16 +360,14 @@ bindings.
 * A number of basic debugger commands, such as "execute until here",
   are not yet implemented.
 
-## REPL Buffer
+## Scratch Buffer
 
 Sorry, no documentation available yet.  Use `M-x describe-mode` in a
-_Kite REPL_ buffer to learn about available key bindings.
+_Kite Scratch_ buffer to learn about available key bindings.
 
 **TODO**:
 
-* "REPL" is a misnomer since the buffer works more akin to the Emacs
-  `*scratch*` buffer, i.e. it supports a non-linear workflow.  This
-  mode is currently very experimental.
+* This mode is currently very experimental.
 
 ## Network Buffer
 

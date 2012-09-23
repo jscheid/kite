@@ -42,7 +42,7 @@
 (require 'kite-dom)
 (require 'kite-memory)
 (require 'kite-net)
-(require 'kite-repl)
+(require 'kite-scratch)
 (require 'kite-object)
 (require 'kite-console)
 (require 'kite-breakpoint)
@@ -395,7 +395,7 @@ the title and makes no attempt at uniquifying it."
     (define-key map "p" kite-profiler-keymap)
     (define-key map "r" 'kite-resources)
     (define-key map "t" 'kite-timeline)
-    (define-key map "k" 'kite-repl)
+    (define-key map "s" 'kite-scratch)
     (define-key map "!" 'kite-reload-page)
     map)
   "The keymap associated with the Kite prefix key.")
@@ -512,8 +512,8 @@ created."
   (kite-maybe-goto-buffer prefix 'network))
 
 ;;;###autoload
-(defun kite-repl (prefix)
-  "Go to the Kite REPL buffer for the session specified by
+(defun kite-scratch (prefix)
+  "Go to the Kite scratch buffer for the session specified by
 PREFIX.  Session and buffer are created as needed.  An existing
 session is reused if possible, unless a prefix argument of (4) is
 given in which case a new session is established.  With a prefix
@@ -522,7 +522,7 @@ numeric prefix (1 or higher), Kite will reuse the Nth session,
 where sessions are counted in the order in which they were
 created."
   (interactive "P")
-  (kite-maybe-goto-buffer prefix 'repl))
+  (kite-maybe-goto-buffer prefix 'scratch))
 
 ;;;###autoload
 (defun kite-timeline (prefix)
@@ -667,7 +667,7 @@ FIXME: there must be a more elegant way to do this."
   (unload-feature 'kite-dom)
   (unload-feature 'kite-memory)
   (unload-feature 'kite-net)
-  (unload-feature 'kite-repl)
+  (unload-feature 'kite-scratch)
   (unload-feature 'kite-object)
   (unload-feature 'kite-console)
   (unload-feature 'kite-breakpoint)
