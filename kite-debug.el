@@ -32,6 +32,8 @@
 
 ;;; Code:
 
+(require 'kite-breakpoint)
+(require 'kite-sourcemap)
 (require 'kite-global)
 
 (defconst kite--debugger-state-resumed

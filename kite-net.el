@@ -32,6 +32,7 @@
 ;;; Code:
 
 (require 'kite-global)
+(require 'websocket)
 
 (defvar kite-requests (make-hash-table :test 'equal))
 

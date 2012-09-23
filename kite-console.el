@@ -31,11 +31,17 @@
 
 ;;; Code:
 
+(require 'kite-debug)
+(require 'kite-dom)
 (require 'kite-global)
+(require 'kite-object)
 (require 'kite-util)
 (require 'font-lock)
 (require 'comint)
 (require 'js) ; for syntax highlighting
+
+(eval-when-compile
+  (require 'rx))
 
 (defface kite-log-warning
   '((t :inherit warning))

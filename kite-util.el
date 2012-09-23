@@ -31,6 +31,10 @@
 
 ;;; Code:
 
+(require 'color)
+(eval-when-compile
+  (require 'cl))
+
 (defun kite--dimmed-face-foreground (face darkness)
   "Return a color value string suitable for passing as the value
   for the :foreground face property that represents a

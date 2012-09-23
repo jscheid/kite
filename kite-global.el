@@ -29,6 +29,10 @@
 
 ;;; Code:
 
+(require 'websocket)
+(require 'json)
+(require 'kite-util)
+
 (defvar kite-Console-messageAdded-hooks nil)
 (defvar kite-CSS-mediaQueryResultChanged-hooks nil)
 (defvar kite-DOM-attributeModified-hooks nil)

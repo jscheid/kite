@@ -34,6 +34,11 @@
 
 ;;; Code:
 
+(require 'js)
+
+(require 'kite-global)
+(require 'kite-util)
+
 (defface kite-link-face
   '((t (:inherit change-log-file)))
   "Face used for links to source code locations."
