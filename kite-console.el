@@ -842,8 +842,10 @@ the buffer."
                (kite-console-process)
                (concat stack-trace
                        kite-console-prompt-internal)))))
-         (kite--release-object
-          (kite--get result :result :objectId)))))))
+         (let ((object-id
+                (kite--get result :result :objectId)))
+           (when object-id
+             (kite--release-object object-id))))))))
 
 (defun kite--contexts-by-unique-name (context-and-frame-list)
   "Given CONTEXT-AND-FRAME-LIST, an alist of (CONTEXT-ID
