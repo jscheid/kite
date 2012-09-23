@@ -79,9 +79,7 @@
         (error "Could not locate function definition"))
 
       (setq defun-info (js--guess-eval-defun-info pstate))
-      (setq defun-body (buffer-substring-no-properties begin end))
-
-      (message "defun-info=%s   defun-body: %s"))))
+      (setq defun-body (buffer-substring-no-properties begin end)))))
 
 (defun kite--insert-stack-line (line)
   (insert (format "/// %s" line))
