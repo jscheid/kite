@@ -347,7 +347,7 @@ so that it works also at the very end of the field.")
   "Toggle Kite CSS mode."
   :group 'kite
   (setq kite-buffer-type 'css)
-  (toggle-read-only nil))
+  (setq buffer-read-only nil))
 
 (defun kite--dom-create-css-buffer (matched-css-rules)
   (kite--log
