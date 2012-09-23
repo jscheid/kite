@@ -397,7 +397,6 @@ line under mouse and the corresponding DOM node in the browser."
   :group 'kite
   (setq kite-buffer-type 'dom)
   (set (make-local-variable 'kill-buffer-hook) 'kite--kill-dom)
-  (toggle-read-only nil)
   (setq buffer-read-only nil)
   (set (make-local-variable 'kite-dom-nodes) (make-hash-table))
   (set (make-local-variable 'kite--dom-highlighted-node-id) nil)
