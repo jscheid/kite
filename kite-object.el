@@ -126,7 +126,10 @@ record."
      ;; Boolean
      ((string= type "boolean")
       (propertize
-       (if (eq (plist-get object-plist :value) t) "true" "false")
+       (case (plist-get object-plist :value)
+         ((t) "true")
+         (:json-false "false")
+         (error "Invalid boolean value"))
        'face 'kite-boolean
        'font-lock-face 'kite-boolean))
      ;; Unknown
