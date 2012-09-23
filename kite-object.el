@@ -41,6 +41,8 @@
   representation of an array"
   :group 'kite)
 
+(defvar kite-object-widget)
+
 (defvar kite-object-mode-map
   (let ((map (copy-keymap
               (make-composed-keymap

@@ -363,6 +363,8 @@ The delimiters are <! and >."
     map)
   "Local keymap for `kite-dom-mode' buffers.")
 
+(defvar kite--dom-highlighted-node-id)
+
 (defun kite-mouse-movement (event)
   "Called on mouse movement in a kite-dom buffer.  Highlights the
 line under mouse and the corresponding DOM node in the browser."

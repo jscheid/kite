@@ -225,6 +225,8 @@ when the user customizes `kite-console-prompt'.")
   "Local keymap for `kite-console-mode' buffers.")
 
 (defvar kite-console-input)
+(defvar kite-message-group-level)
+(defvar kite-console-line-count)
 
 (defvar kite-console-header
   "// Welcome to Kite Console. `M-x describe-mode' for help.\n"

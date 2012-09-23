@@ -94,6 +94,12 @@
     map)
   "Local keymap for `kite-network-mode' buffers.")
 
+(defvar kite-dom-content-fired-timestamp)
+(defvar kite-ewoc)
+(defvar kite-min-time)
+(defvar kite-max-time)
+(defvar kite-header-width)
+
 (define-derived-mode kite-network-mode special-mode "kite-network"
   "Toggle kite network mode."
   :group 'kite

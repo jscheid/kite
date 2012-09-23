@@ -67,6 +67,8 @@
     map)
   "Local keymap for `kite-connection-mode' buffers.")
 
+(defvar kite-connection-ewoc)
+
 (define-derived-mode kite-debug-mode special-mode "kite-debug"
   "Toggle kite debug mode."
   :group 'kite
