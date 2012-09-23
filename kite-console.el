@@ -178,10 +178,22 @@
 (defcustom kite-console-log-max 1000
   "Maximum number of lines to keep in the kite console log buffer.
 If nil, disable console logging.  If t, log messages but don't
-truncate the buffer when it becomes large.")
+truncate the buffer when it becomes large."
+  :group 'kite)
 
 (defcustom kite-console-prompt "JS> "
-  "Prompt used in kite-console.")
+  "Prompt used in kite-console."
+  :group 'kite)
+
+(defcustom kite-console-on-reload-function
+  (function kite-insert-page-break)
+  "A function called with no arguments when the page is reloaded,
+  with the message buffer as the current buffer, point placed at
+  the end of the buffer, and read-only-ness inhibited.  The
+  default value `kite-insert-page-break' does just that, insert a
+  page break.  To mimic the behaviour of the WebKit debugger
+  frontend, set this function to `erase-buffer'."
+  :group 'kite)
 
 (defvar kite-console-prompt-internal
   (propertize "JS> " 'font-lock-face 'kite-console-prompt-face)
@@ -570,15 +582,6 @@ FIXME: this could use nicer formatting."
   "Insert a newline and page break character.  Default for
 `kite-console-on-reload-function'."
   (insert "\n\f"))
-
-(defcustom kite-console-on-reload-function
-  (function kite-insert-page-break)
-  "A function called with no arguments when the page is reloaded,
-  with the message buffer as the current buffer, point placed at
-  the end of the buffer, and read-only-ness inhibited.  The
-  default value `kite-insert-page-break' does just that, insert a
-  page break.  To mimic the behaviour of the WebKit debugger
-  frontend, set this function to `erase-buffer'." )
 
 (defun kite--console-goto-last-message ()
   "Put point after the last message printed"

@@ -33,11 +33,13 @@
 
 (defcustom kite-short-object-max-properties 5
   "Maximum number of elements to include in the short string
-  representation of an object")
+  representation of an object"
+  :group 'kite)
 
 (defcustom kite-short-array-max-elements 100
   "Maximum number of elements to include in the short string
-  representation of an array")
+  representation of an array"
+  :group 'kite)
 
 (defvar kite-object-mode-map
   (let ((map (copy-keymap
