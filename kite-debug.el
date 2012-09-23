@@ -95,7 +95,8 @@
                (lambda (response) (kite--log "Page reloaded.")))))
 
 (defun kite--insert-favicon-async (favicon-url)
-  (let ((favicon-marker (point-marker)))
+  (lexical-let ((favicon-marker (point-marker))
+                (buf (current-buffer)))
     (url-retrieve
      favicon-url
      (lambda (status)
