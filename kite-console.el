@@ -653,7 +653,7 @@ debugger.
 FIXME: this is incomplete.
 
 FIXME: this should be consolidated with
-`kite--insert-stack-line' and `kite--format-stack-line'."
+`kite--format-stack-line'."
   (let ((formatted "") (index 0))
     (while (< index (length stacktrace))
       (let ((stackframe (elt stacktrace index)))
