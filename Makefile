@@ -53,12 +53,13 @@ dir: kite.info
 kite.tar.gz: $(ELISP_SOURCES) dir kite.info
 	tar czf $@ $^
 
-# make rules used during  development 
+# make rules used during development
 
 EMACS = emacs
-BATCH = -batch -q -no-site-file  
-DEPS=-l ./kite-load-path.el 
+BATCH = -batch -q -no-site-file
+DEPS=-l ./kite-load-path.el
 COMPILE =  -f batch-byte-compile
+
 # How to compile
 %.elc:  %.el
 	$(EMACS) $(BATCH)  $(DEPS)  $(COMPILE) $<

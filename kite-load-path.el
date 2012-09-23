@@ -41,5 +41,5 @@
 
 
 (setq byte-compile-warnings t)
-      
+
 (provide 'kite-load-path)
