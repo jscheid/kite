@@ -192,6 +192,8 @@ using `elt'.  Other member types are not currently implemented."
 (defun kite--release-object (object-id)
   "Release the object with the given OBJECT-ID on the browser
 side."
+  (when (null object-id)
+    (error "kite--release-object called with null OBJECT-ID"))
   (kite-send "Runtime.releaseObject"
              `((objectId . ,object-id))))
 
