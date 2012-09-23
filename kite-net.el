@@ -334,7 +334,7 @@ individual network resource)."
   "Recalculate the time range for display based on timing
 information received so far and return whether the range has
 changed."
-  (with-current-buffer (kite--find-buffer websocket-url 'network)
+  (with-current-buffer (kite--find-buffer (websocket-url (kite-session-websocket kite-session)) 'network)
     (let (min-time)
       (maphash (lambda (key value)
                  (let ((timestamp (plist-get (cdr (assq 'will-be-sent (ewoc-data (car value)))) :timestamp)))

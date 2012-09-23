@@ -36,12 +36,6 @@
 (require 'kite-sourcemap)
 (require 'kite-global)
 
-(defconst kite--debugger-state-resumed
-  (propertize "Resumed" 'face 'success))
-
-(defconst kite--debugger-state-paused
-  (propertize "Paused" 'face 'warning))
-
 (defvar kite-debug-mode-map
   (let ((map (make-keymap))
 	(ctl-c-b-map (make-keymap))

@@ -50,58 +50,11 @@
 (require 'kite-sourcemap)
 (require 'kite-global)
 
-(make-variable-buffer-local 'kite-buffer-type)
-(set-default 'kite-buffer-type nil)
-
-(make-variable-buffer-local 'kite-session)
-(set-default 'kite-session nil)
-
 (setq websocket-debug t)
 (setq websocket-callback-debug-on-error t)
 
 (defvar kite-tab-history nil
   "Keeps completion history of debugger tabs")
-(defvar kite-most-recent-session nil
-  "Keeps track of the most recently used Kite session.  FIXME:
-  this should be an list instead so that once the most recently
-  used session is closed we can fall back to the second most
-  recently used.")
-
-(defstruct (kite-session)
-  "Represents an active debugging session, i.e. a connection to a
-remote WebKit debugger instance."
-  websocket
-  page-favicon-url
-  page-thumbnail-url
-  page-url
-  page-title
-  breakpoint-ewoc
-  unique-name
-  (script-infos (make-hash-table :test 'equal))
-  (debugger-state kite--debugger-state-resumed)
-  (next-request-id 0)
-  (pending-requests (make-hash-table))
-  buffers
-  frame-tree
-  execution-context-list
-  default-context
-  current-context
-  (error-count 0)
-  last-message
-  (source-map-cache (make-hash-table :test 'equal))
-  (dom-children-cache (make-hash-table))
-  (open-dom-nodes (make-hash-table)))
-
-(defstruct (kite-script-info)
-  "Information about a script used in a debugging session.  Used
-to cache data received via the ` Debugger.scriptParsed'
-notification."
-  url
-  start-line
-  start-column
-  end-line
-  end-column
-  source-map-url)
 
 (defface kite-session-closed
   '((((class color) (min-colors 88) (background light))
@@ -118,45 +71,6 @@ notification."
   "Face for displaying 'session closed' message in kite buffers."
   :version "24.1"
   :group 'kite)
-
-(defvar kite-active-sessions
-  (make-hash-table :test 'equal :weakness 'value)
-  "Maps webservice URL to kite-session structs for each active
-  debugging session")
-
-(defvar kite-active-session-list nil
-  "List of kite-session structs.  Maintains order for
-  kite-active-sessions, with most recently opened session last")
-
-(defun kite-send (method &optional params callback callback-args)
-  "Send a JSON-RPC 2.0 packet to the remote debugger for the
-current session.  The current session is retrieved from variable
-`kite-session', which is buffer-local or taken from a let
-binding.
-
-METHOD is the method to be set for the JSON-RPC request.  PARAMS
-is a plist of parameters to be set for the JSON-RPC request.
-CALLBACK is a function invoked with the JSON-RPC server response.
-CALLBACK-ARGS are passed as the second argument to CALLBACK.
-CALLBACK is invoked with the same current buffer that was current
-when `kite-send' was invoked."
-  (if (websocket-openp (kite-session-websocket kite-session))
-    (let ((callback-buffer (current-buffer))
-          (request-id (incf (kite-session-next-request-id kite-session))))
-      (puthash request-id (list (or callback (lambda (response) nil))
-                                callback-buffer
-                                callback-args)
-               (kite-session-pending-requests kite-session))
-      (let ((json-request (json-encode
-                           (list
-                            (cons :jsonrpc "2.0")
-                            (cons :method method)
-                            (cons :params params)
-                            (cons :id request-id)))))
-        (kite--log "Sending request: %s" json-request)
-        (websocket-send-text (kite-session-websocket kite-session)
-                             json-request)))
-    (error "This kite session is closed")))
 
 (defun kite--session-remove-current-buffer ()
   "Remove the current buffer from the list of the current
@@ -301,47 +215,6 @@ and :title."
                    (when console-buffer
                      (with-current-buffer console-buffer
                        (kite--console-update-mode-line))))))))
-
-(defun kite--find-buffer (websocket-url type)
-  "Return the buffer corresponding to the given WEBSOCKET-URL and
-buffer TYPE and return it, or nil if no such buffer is currently
-open."
-  (let ((buffer-iterator (buffer-list))
-        found)
-    (while (and buffer-iterator (not found))
-      (let ((buffer-kite-session (buffer-local-value
-                                  'kite-session
-                                  (car buffer-iterator))))
-        (when (and buffer-kite-session
-                   (string= (websocket-url (kite-session-websocket buffer-kite-session))
-                            websocket-url)
-                   (eq type (buffer-local-value 'kite-buffer-type (car buffer-iterator))))
-          (setq found (car buffer-iterator))))
-      (setq buffer-iterator (cdr buffer-iterator)))
-    found))
-
-(defun kite--get-buffer-create (websocket-url type mode)
-  "Return the buffer corresponding to the given WEBSOCKET-URL and
-buffer TYPE and return it.  If no such buffer is currently open,
-create one with the given MODE."
-  (or (let ((buf (kite--find-buffer websocket-url type)))
-        (when buf
-          (switch-to-buffer buf)))
-      (lexical-let*
-          ((-kite-session (gethash websocket-url kite-active-sessions))
-           (buf (generate-new-buffer
-                 (format "*kite %s %s*"
-                         type
-                         (kite-session-unique-name -kite-session)))))
-        (push buf (kite-session-buffers -kite-session))
-        (switch-to-buffer buf)
-        (with-current-buffer buf
-          (let ((kite-session -kite-session))
-            (funcall mode))
-          (setq kite-session -kite-session)
-          (set (make-local-variable 'kite-buffer-type) type)
-          (add-hook 'kill-buffer-hook 'kite--kill-buffer nil t)
-        buf))))
 
 (defun kite-connect (&optional host port)
   "Connect to the remote debugger instance running on the given
@@ -728,47 +601,6 @@ context is created."
             execution-context)
       (setf (kite-session-current-context kite-session)
             execution-context))))
-
-(defun kite--find-frame-recursive (frame-tree frame-id)
-  (if (string= frame-id (plist-get (plist-get frame-tree :frame) :id))
-      (plist-get frame-tree :frame)
-    (let* ((children (plist-get frame-tree :childFrames))
-           (num-children (length children))
-           (child-index 0)
-           found-frame)
-      (while (and (< child-index num-children)
-                  (null found-frame))
-        (setq found-frame (kite--find-frame-recursive (elt children child-index) frame-id))
-        (setq child-index (1+ child-index)))
-      found-frame)))
-
-(defun kite--frame-by-id (frame-id)
-  (kite--find-frame-recursive (kite-session-frame-tree kite-session) frame-id))
-
-(defun kite--release-object (object-id)
-  "Release the object with the given OBJECT-ID on the browser
-side."
-  (kite-send "Runtime.releaseObject"
-             `((objectId . ,object-id))))
-
-(defun kite--get (object &rest members)
-  "Convenience function for getting members of nested data
-structures.  For each item of MEMBERS, retrieves an item from
-OBJECT and applies subsequent members to that item.  Returns the
-last item yielded by this operation.  A keyword member looks up
-the item using `plist-get'. A number members looks up the item
-using `elt'.  Other member types are not currently implemented."
-  (let ((result object))
-    (while members
-      (cond
-       ((keywordp (car members))
-        (setq result (plist-get result (car members))))
-       ((numberp (car members))
-        (setq result (elt result (car members))))
-       (t
-        (error "Don't know how to interpret member: %s" (car members))))
-      (setq members (cdr members)))
-    result))
 
 (defun kite--messageAdded (websocket-url packet)
   "Update session error count if message is on error level."
