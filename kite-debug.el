@@ -319,7 +319,9 @@ is available, go to the original location instead."
          (url (plist-get original-source :url))
          (url-parts (url-generic-parse-url url)))
     (flet ((after-load ()
-                       (goto-line (plist-get original-source :line))
+                       (goto-char (point-min))
+                       (forward-line
+                        (1- (plist-get original-source :line)))
                        (beginning-of-line)
                        (forward-char
                         (plist-get original-source :column))
