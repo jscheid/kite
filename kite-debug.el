@@ -218,7 +218,7 @@
                  (url-parts (url-generic-parse-url url))
                  (after-load-function after-load-function)
                  (new-buffer (generate-new-buffer url)))
-    (kite-send "Debugger.getScriptSource" (list (cons 'scriptId (plist-get location :scriptId)))
+    (kite-send "Debugger.getScriptSource" (list (cons 'scriptId (plist-get script-info :scriptId)))
                (lambda (response)
                  (with-current-buffer new-buffer
                    (setq buffer-file-name (url-filename url-parts))
