@@ -89,7 +89,7 @@ This will enable debugging of WebKit instances embedded via the Emacs
 ## Enabling Remote Debugging on Chromium and Google Chrome
 
 You can enable remote debugging for Chromium and Google Chrome by
-passing the `--enable-remote-debugging=<port>` command line option.
+passing the `--remote-debugging-port=<port>` command line option.
 You may have to use the Google Chrome beta or development channel for
 this to work.
 
