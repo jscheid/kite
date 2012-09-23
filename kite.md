@@ -99,8 +99,8 @@ command:
 
 ~~~~
 
-    /Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome \
-        --remote-debugging-port=9222
+    open /Applications/Google\ Chrome.app --args --remote-debugging-port=9222
+
 ~~~~
 
 For more information, see here:
