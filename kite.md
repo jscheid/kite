@@ -68,7 +68,7 @@ execute `M-x package-install RET kite RET`.~~
 Ensure that all kite source files as well as
 [json.el](http://edward.oconnor.cx/2006/03/json.el) and a recent
 version of [websocket.el](https://github.com/ahyatt/emacs-websocket)
-are on `load-path` and add `(require 'kite)` to your `.emacs` file. 
+are on `load-path` and add `(require 'kite)` to your `.emacs` file.
 
 # Starting the Host Browser
 
@@ -267,8 +267,12 @@ emitted using the
 The console buffer can be opened using `M-x kite-console` or by typing
 `C-c C-k c` with default key bindings.
 
-**TODO**: the console buffer does not yet display DOM
-  fragments (DOM node references.)
+### Evaluating JavaScript code
+
+You can type JavaScript code at the prompt and hit `RET` or `C-j` to
+send it to the remote debugger.  The result of the evaluation or the
+stack trace (in case of error) will be displayed.  The prompt supports
+basic identifier completion via the `TAB` key.
 
 ### Special Items in Messages
 
@@ -287,15 +291,16 @@ node in question.
 
 ### Message Details
 
-In the console view, type `i` to bring up an detail view for the
-message under point (`kite-show-log-entry`).  The detail view show
-all available information on the log message, some of which is elided
-from the console view for brevity's sake.
+In the console view, type `C-c i` to bring up an detail view for the
+message under point (`kite-show-log-entry`).  The detail view show all
+available information on the log message, some of which is elided from
+the console view for brevity's sake.
 
 ### Message Source
 
-In the console view, type `s` to go to the source location at which
-the message under point was emitted.
+In the console view, type `C-c g` to go to the source location at
+which the message at point was emitted.  If point is on a stack trace,
+go to the source location for the stack frame at point.
 
 ### Tail Follow
 
@@ -376,6 +381,9 @@ _Kite Network_ buffer to learn about available key bindings.
 * The Network inspector doesn't yet sorting the table by criteria
   other than resource load order.
 
+* The Network inspector doesn't provide access to request and response
+  headers, cookies, etc.
+
 * The code for the Network inspector is pretty convoluted; it should
   be rewritten using CL structs so that the intermediate
   representation is less obtuse and can be more easily reused for
@@ -392,7 +400,7 @@ _Kite DOM_ buffer to learn about available key bindings.
   modification is partially implemented, changes can not yet be sent
   to the remote debugger.
 
-* Likewise, CSS mutation isn't implemented yet.
+* Likewise, CSS mutation isn't only partially implemented.
 
 ## Heap Buffer
 
