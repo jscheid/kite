@@ -539,8 +539,11 @@ latter by sending a `Console.clearMessages' message."
   (save-excursion
     (let ((inhibit-read-only t))
       (erase-buffer))
-    (kite-send "Console.clearMessages" nil
-               (lambda (response) (kite--log "Console cleared.")))))
+    (comint-output-filter (kite-console-process)
+                          kite-console-prompt-internal))
+  (goto-char (kite-console-pm))
+  (kite-send "Console.clearMessages" nil
+             (lambda (response) (kite--log "Console cleared."))))
 
 (defun kite-console-visit-source ()
   "Visit the JavaScript source where the console message at point
