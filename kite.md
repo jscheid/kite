@@ -220,8 +220,8 @@ buffer for the second session.
 Finally, you can use a numeric prefix with the buffer access commands
 and Kite will take you straight to the buffer for the corresponding
 session, where the first session you opened is numbered 1, the second
-session 2, and so on.  For example, `M-2 C-c k c` will take you to the
-console buffer for the second session.  Note that numeric session
+session 2, and so on.  For example, `M-2 C-c C-k c` will take you to
+the console buffer for the second session.  Note that numeric session
 designators will change as you close debugging sessions.  Use the
 `Kite Session List` if you ever lose track.
 
@@ -229,7 +229,7 @@ designators will change as you close debugging sessions.  Use the
 
 ## Managing Kite Sessions
 
-Use `M-x kite-sessions` or `C-c k s` to access the Kite session list
+Use `M-x kite-sessions` or `C-c C-k s` to access the Kite session list
 buffer.  Here you can get an overview of which debugging sessions are
 active and which numeric designator is assigned to them.  You can also
 use the following key bindings to manage sessions:
