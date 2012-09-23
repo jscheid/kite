@@ -192,7 +192,22 @@ and :title."
 
     (kite-send "Page.enable" nil
                (lambda (response) (kite--log "Page notifications enabled.")))
-    (kite-send "Runtime.setReportExecutionContextCreation" '(:enabled t)
+    (kite-send "DOM.getDocument" nil
+               (lambda (response)
+                 (setf (kite-session-document-root kite-session)
+                       (kite--get response :result :root))
+                 (let ((dom-buffer
+                        (kite--dom-buffer
+                         (websocket-url
+                          (kite-session-websocket kite-session)))))
+                   (when dom-buffer
+                     (with-current-buffer dom-buffer
+                       (save-excursion
+                         (kite--dom-insert-document
+                          (kite--get response :result :root))
+                         (widget-setup)))))
+                 (kite--log "DOM initialized.")))
+   (kite-send "Runtime.setReportExecutionContextCreation" '(:enabled t)
                (lambda (response) (kite--log "ExecutionContextCreation reporting enabled.")))
     (kite-send "Inspector.enable" nil
                (lambda (response) (kite--log "Inspector enabled.")))
@@ -438,8 +453,7 @@ to the buffer of the given TYPE for that session, creating it if
 it doesn't exist yet."
   (let ((session (kite--find-default-session prefix)))
     (when session
-      (kite--get-buffer-create session type
-                               (intern (format "kite-%s-mode" type))))))
+      (kite--get-buffer-create session type))))
 
 ;;;###autoload
 (defun kite-console (prefix)
@@ -625,6 +639,7 @@ FIXME: this needs to reset many more state properties."
   (setf (kite-session-error-count kite-session) 0)
   (clrhash (kite-session-source-map-cache kite-session))
   (clrhash (kite-session-dom-children-cache kite-session))
+  (clrhash (kite-session-dom-parents kite-session))
   (kite--mode-line-update))
 
 (add-hook 'kite-Runtime-executionContextCreated-hooks

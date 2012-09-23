@@ -340,10 +340,14 @@ marker at which the temporary placeholder is located."
             (insert (kite--format-array
                      (kite--get response :result :result))))
            ((string= (plist-get object-plist :subtype) "node")
-            (insert (propertize
-                     (plist-get object-plist :description)
-                     'face 'kite-object
-                     'font-lock-face 'kite-object)))
+            (widget-create
+             'link
+             :kite-object-id (plist-get object-plist :objectId)
+             :button-face 'kite-object
+             :notify (lambda (widget &rest ignore)
+                       (kite-visit-dom-node
+                        (widget-get widget :kite-object-id)))
+                     (plist-get object-plist :description)))
            ((null (plist-get object-plist :subtype))
             (widget-create
              'link

@@ -109,7 +109,9 @@ remote WebKit debugger instance."
   last-message
   (source-map-cache (make-hash-table :test 'equal))
   (dom-children-cache (make-hash-table))
-  (open-dom-nodes (make-hash-table)))
+  (dom-parents (make-hash-table))
+  (dom-nodes (make-hash-table))
+  document-root)
 
 (defstruct (kite-script-info)
   "Information about a script used in a debugging session.  Used
@@ -211,13 +213,17 @@ open."
       (setq buffer-iterator (cdr buffer-iterator)))
     found))
 
-(defun kite--get-buffer-create (websocket-url type mode)
+(defun kite--get-buffer-create (websocket-url type &optional
+                                              after-load-function)
   "Return the buffer corresponding to the given WEBSOCKET-URL and
 buffer TYPE and return it.  If no such buffer is currently open,
 create one with the given MODE."
   (or (let ((buf (kite--find-buffer websocket-url type)))
         (when buf
-          (switch-to-buffer buf)))
+          (prog1
+              (switch-to-buffer buf)
+            (when after-load-function
+              (funcall after-load-function)))))
       (lexical-let*
           ((-kite-session (gethash websocket-url kite-active-sessions))
            (buf (generate-new-buffer
@@ -227,8 +233,11 @@ create one with the given MODE."
         (push buf (kite-session-buffers -kite-session))
         (switch-to-buffer buf)
         (with-current-buffer buf
-          (let ((kite-session -kite-session))
+          (let ((kite-session -kite-session)
+                (mode (intern (format "kite-%s-mode" type))))
             (funcall mode))
+          (when after-load-function
+            (add-hook 'kite-async-init-hook after-load-function nil t))
           (setq kite-session -kite-session)
           (set (make-local-variable 'kite-buffer-type) type)
           (add-hook 'kill-buffer-hook 'kite--kill-buffer nil t)

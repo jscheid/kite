@@ -377,7 +377,7 @@ line under mouse and the corresponding DOM node in the browser."
           (remove-overlays nil nil 'kite-dom-node-highlight t)
           (if (null node-id)
               (kite-send "DOM.hideHighlight")
-            (let* ((node-region (gethash node-id kite-dom-nodes))
+            (let* ((node-region (kite--dom-node-for-id node-id))
                    (overlay (make-overlay
                              (node-region-line-begin node-region)
                              (node-region-line-end node-region))))
@@ -400,14 +400,19 @@ line under mouse and the corresponding DOM node in the browser."
   (setq kite-buffer-type 'dom)
   (set (make-local-variable 'kill-buffer-hook) 'kite--kill-dom)
   (setq buffer-read-only nil)
-  (set (make-local-variable 'kite-dom-nodes) (make-hash-table))
   (set (make-local-variable 'kite--dom-highlighted-node-id) nil)
   (set (make-local-variable 'track-mouse) t)
 
   (let ((inhibit-read-only t))
-    (erase-buffer))
-  (remove-overlays)
-  (widget-setup)
+    (erase-buffer)
+    (remove-overlays)
+    (save-excursion
+      (when (kite-session-document-root kite-session)
+        (kite--dom-insert-document
+         (kite-session-document-root kite-session))
+        (widget-setup))))
+
+  (run-mode-hooks 'kite-dom-mode-hook)
 
   (kite-send
    "CSS.enable"
@@ -417,18 +422,8 @@ line under mouse and the corresponding DOM node in the browser."
       "CSS.getAllStyleSheets"
       nil
       (lambda (response)
-        (kite--log "CSS.getAllStyleSheets got response %s" response)))))
-
-  (kite-send "DOM.getDocument" nil
-             (lambda (response)
-               (kite--log "DOM.getDocument got response %s" response)
-               (save-excursion
-                 (let ((inhibit-read-only t))
-                   (kite--dom-insert-document
-                    (kite--get response :result :root)))
-                 (widget-setup))))
-
-  (run-mode-hooks 'kite-dom-mode-hook))
+        (kite--log "CSS.getAllStyleSheets got response %s" response)
+        (run-hooks 'kite-async-init-hook))))))
 
 (defun kite--dom-insert-document (root-plist)
   "Insert the whole HTML document into the DOM buffer, given the
@@ -683,6 +678,10 @@ FIXME: this needs to be smarter about when to load children."
                  (plist-get element :children)
                  (kite-session-dom-children-cache kite-session))
 
+        (puthash node-id
+                 (plist-get element :parentId)
+                 (kite-session-dom-parents kite-session))
+
         (setf (node-region-children node-region)
               (mapcar (lambda (child)
                         (let ((new-node-region (kite--dom-insert-element child (1+ indent) loadp)))
@@ -799,7 +798,9 @@ FIXME: this needs to be smarter about when to load children."
       (when (node-region-line-begin node-region)
         (set-marker-insertion-type (node-region-line-begin node-region) t)
         (set-marker-insertion-type (node-region-line-end node-region) nil))
-      (puthash (plist-get element :nodeId) node-region kite-dom-nodes)
+      (puthash (plist-get element :nodeId)
+               node-region
+               (kite-session-dom-nodes kite-session))
       node-region)))
 
 (defun kite--kill-dom ()
@@ -859,8 +860,7 @@ CHARACTER."
 
 (defun kite--dom-show-child-nodes (parent-node-id children)
   (let ((inhibit-read-only t)
-        (node-region
-         (gethash parent-node-id kite-dom-nodes)))
+        (node-region (kite--dom-node-for-id parent-node-id)))
     (save-excursion
       (kite--dom-set-element-toggle-char node-region "-")
       (kite--delete-child-widgets node-region)
@@ -889,12 +889,22 @@ which the remote debugger wants to provide us with missing DOM
 structure, for example in response to a `DOM.requestChildNodes'
 request."
   (kite--log "kite--DOM-setChildNodes got packet %s" packet)
-  (with-current-buffer (kite--dom-buffer websocket-url)
+
+  (let ((kite-session (gethash websocket-url kite-active-sessions)))
     (puthash (plist-get packet :parentId)
              (plist-get packet :nodes)
              (kite-session-dom-children-cache kite-session))
-    (kite--dom-show-child-nodes (plist-get packet :parentId)
-                                (plist-get packet :nodes))))
+
+    (dotimes (index (length (plist-get packet :nodes)))
+      (puthash (kite--get packet :nodes index :nodeId)
+               (plist-get packet :parentId)
+               (kite-session-dom-parents kite-session))))
+
+  (let ((dom-buffer (kite--dom-buffer websocket-url)))
+    (when dom-buffer
+      (with-current-buffer dom-buffer
+        (kite--dom-show-child-nodes (plist-get packet :parentId)
+                                    (plist-get packet :nodes))))))
 
 (defun kite--dom-DOM-childNodeInserted (websocket-url packet)
   "Callback invoked for the `DOM.childNodeInserted' notification,
@@ -906,9 +916,9 @@ child node into a DOM element."
       (let* ((inhibit-read-only t)
              (previous-node-id (plist-get packet :previousNodeId))
              (parent-node-id (plist-get packet :parentNodeId))
-             (node-region (gethash parent-node-id kite-dom-nodes))
+             (node-region (kite--dom-node-for-id parent-node-id))
              (previous-node-region
-              (gethash previous-node-id kite-dom-nodes)))
+              (kite--dom-node-for-id previous-node-id)))
 
         (kite--dom-set-element-toggle-char node-region "-")
 
@@ -951,7 +961,8 @@ node from a DOM element."
   (with-current-buffer (kite--dom-buffer websocket-url)
     (save-excursion
       (let ((inhibit-read-only t)
-            (node-region (gethash (plist-get packet :nodeId) kite-dom-nodes)))
+            (node-region (kite--dom-node-for-id
+                          (plist-get packet :nodeId))))
         (kite--delete-widgets node-region)
         (delete-region
          (node-region-line-begin node-region)
@@ -975,7 +986,7 @@ value of an attribute in a DOM element."
       (let* ((inhibit-read-only t)
              (node-id (plist-get packet :nodeId))
              (attr-name (intern (plist-get packet :name)))
-             (node-region (gethash node-id kite-dom-nodes))
+             (node-region (kite--dom-node-for-id node-id))
              (attr-region (cdr (assq attr-name (node-region-attribute-regions node-region)))))
         (if attr-region
             ;; Modify existing attribute
@@ -1001,7 +1012,8 @@ attribute from a DOM element."
     (save-excursion
       (let* ((inhibit-read-only t)
              (attr-name (intern (plist-get packet :name)))
-             (node-region (gethash (plist-get packet :nodeId) kite-dom-nodes))
+             (node-region (kite--dom-node-for-id
+                           (plist-get packet :nodeId)))
              (attr-region (cdr (assq attr-name (node-region-attribute-regions node-region)))))
         (kite--log "kite--DOM-attributeRemoved, attr-region=%s (%s)" attr-region (node-region-attribute-regions node-region))
         (widget-delete (attr-region-value-widget attr-region))
@@ -1121,20 +1133,6 @@ selected element in the DOM view."
              (lambda (response)
                (message kite--dom-pick-node-message))))
 
-(defun kite-dom-goto-node (node-id)
-  "Move point to the node with the given NODE-ID.  Clears any
-existing message, in order to remove the message put there by
-`kite-dom-pick-node'.
-
-FIXME: the latter should be moved into
-`kite--dom-Inspector-inspect'."
-  (interactive)
-  (let ((node-region (gethash node-id kite-dom-nodes)))
-    (goto-char (node-region-line-begin node-region))
-    (when (string= (current-message)
-                   kite--dom-pick-node-message)
-      (message nil))))
-
 (defun kite--dom-Inspector-inspect (websocket-url packet)
   "Callback invoked for the `Inspector.inspect' notification,
 which the remote debugger sends when the user selects an element
@@ -1145,7 +1143,15 @@ question."
                (lambda (response)
                  (with-current-buffer (kite--dom-buffer websocket-url)
                    (kite-dom-goto-node
-                    (plist-get (plist-get response :result) :nodeId)))))))
+                    (plist-get (plist-get response :result) :nodeId))
+                   (when (string= (current-message)
+                                  kite--dom-pick-node-message)
+                     (message nil)))))))
+
+(defun kite--dom-node-for-id (node-id)
+  (gethash
+   node-id
+   (kite-session-dom-nodes kite-session)))
 
 (defun kite--dom-node-at-point (&optional arg)
   "Return the `nodeId' for node at point."
@@ -1159,7 +1165,7 @@ question."
 (defun kite--dom-node-region-at-point (&optional arg)
   "Return then node region for node at point."
   (interactive)
-  (gethash (kite--dom-node-at-point arg) kite-dom-nodes))
+  (kite--dom-node-for-id (kite--dom-node-at-point arg)))
 
 (defun kite-dom-delete-node-or-attribute ()
   "Delete node or attribute at point."
@@ -1178,29 +1184,34 @@ question."
   (interactive)
   (let ((node-id (kite--dom-node-at-point)))
     (when node-id
-      (let ((node-region (gethash node-id kite-dom-nodes)))
+      (let ((node-region (kite--dom-node-for-id node-id)))
         (narrow-to-region
          (node-region-line-begin node-region)
          (node-region-line-end node-region))))))
+
+(defun kite--dom-show-element-children (node-region)
+  (when (and (> (node-region-child-count node-region) 0)
+             (null (node-region-children node-region)))
+    (let ((cached-children
+           (gethash
+            (node-region-node-id node-region)
+            (kite-session-dom-children-cache kite-session))))
+      (if cached-children
+          (kite--dom-show-child-nodes
+           (node-region-node-id node-region)
+           cached-children)
+        (message "getting children for %s"
+                 (node-region-node-id node-region))
+        (kite-send
+         "DOM.requestChildNodes"
+         `((nodeId . ,(node-region-node-id node-region))))))))
 
 (defun kite-dom-toggle-node ()
   (interactive)
   (let ((node-region (kite--dom-node-region-at-point)))
     (when (> (node-region-child-count node-region) 0)
       (if (null (node-region-children node-region))
-          (let ((cached-children
-                 (gethash
-                  (node-region-node-id node-region)
-                  (kite-session-dom-children-cache kite-session))))
-            (if cached-children
-                (kite--dom-show-child-nodes
-                 (node-region-node-id node-region)
-                 cached-children)
-              (message "getting children for %s"
-                       (node-region-node-id node-region))
-              (kite-send
-               "DOM.requestChildNodes"
-               `((nodeId . ,(node-region-node-id node-region))))))
+          (kite--dom-show-element-children node-region)
         (save-excursion
           (kite--delete-child-widgets node-region)
           (setf (node-region-children node-region))
@@ -1216,6 +1227,23 @@ question."
                          (node-region-node-id node-region)))
             (forward-char -1)
             (delete-char -1)))))))
+
+(defun kite--dom-ensure-node-visible (node-id)
+  "Ensure that node with given NODE-ID is visible.
+First (recursively) ensures that any parent nodes are visible."
+  (let ((node-region (kite--dom-node-for-id node-id)))
+    (if node-region
+        node-region
+      (kite--dom-show-element-children
+       (kite--dom-ensure-node-visible
+        (gethash node-id (kite-session-dom-parents
+                          kite-session)))))))
+
+(defun kite-dom-goto-node (node-id)
+  "Ensure that node with given NODE-ID is visible and move point
+to its beginning."
+  (kite--dom-ensure-node-visible node-id)
+  (goto-char (1+ (node-region-outer-begin (kite--dom-node-for-id node-id)))))
 
 (add-hook 'kite-DOM-attributeModified-hooks 'kite--dom-DOM-attributeModified)
 (add-hook 'kite-DOM-attributeRemoved-hooks 'kite--dom-DOM-attributeRemoved)
