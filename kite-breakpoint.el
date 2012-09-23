@@ -32,6 +32,8 @@
 
 ;;; Code:
 
+(require 'kite-global)
+
 (require 'browse-url nil t)
 
 (defstruct
