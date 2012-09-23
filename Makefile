@@ -30,9 +30,11 @@ ELISP_SOURCES = \
 	kite-dom.el		\
 	kite-global.el		\
 	kite-memory.el		\
+	kite-modeline.el	\
 	kite-net.el		\
 	kite-object.el		\
 	kite-repl.el		\
+	kite-sourcemap.el	\
 	kite-util.el		\
 	kite.el
 
