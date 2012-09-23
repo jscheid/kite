@@ -266,7 +266,7 @@ source map is loaded and parsed only once."
        ((kite-source-map-p cached-entry)
         cached-entry)
        ((consp cached-entry)
-        (signal (car err) (cdr err)))
+        (signal (car cached-entry) (cdr cached-entry)))
        (t
         (condition-case err
             (puthash (kite-script-info-source-map-url script-info)
