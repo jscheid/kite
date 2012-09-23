@@ -311,10 +311,10 @@ can be updated later on."
         'kite-repeat-count t)))
 
 (defun kite--console-replace-object-async
-  (response object-plist buffer-point longp)
+  (result object-plist buffer-point longp)
   "Replace a previously inserted simple object representation
 with a more detailed representation after receiving additional
-data from the server.  RESPONSE is the JSON-RPC response received
+data from the server.  RESULT is the JSON-RPC result received
 from the server.  OBJECT-PLIST is a plist describing the message
 parameter for which the request was sent.  BUFFER-POINT is a
 marker at which the temporary placeholder is located."
@@ -336,7 +336,7 @@ marker at which the temporary placeholder is located."
           (cond
            ((string= (plist-get object-plist :subtype) "array")
             (insert (kite--format-array
-                     (kite--get response :result :result))))
+                     (plist-get result :result))))
            ((string= (plist-get object-plist :subtype) "node")
             (widget-create
              'link
@@ -360,7 +360,7 @@ marker at which the temporary placeholder is located."
                         (widget-get widget :kite-object-description)))
              (if longp
                  (kite--format-object-with-props
-                  (kite--get response :result :result))
+                  (plist-get result :result))
                (plist-get object-plist :description))))
            (t
             (insert "UNKNOWN")))
@@ -429,18 +429,17 @@ function f() { \
                      (1+ kite-short-object-max-properties))
              :arguments [])
        :success-function
-       (lambda (response)
+       (lambda (result)
          (kite-send
           "Runtime.getProperties"
           :params
-          (list :objectId (kite--get response
-                                     :result
+          (list :objectId (kite--get result
                                      :result
                                      :objectId)
                 :ownProperties t)
           :success-function
-          (lambda (response)
-            (kite--console-replace-object-async response
+          (lambda (result)
+            (kite--console-replace-object-async result
                                                 object-plist
                                                 buffer-point
                                                 longp)))))))
@@ -799,13 +798,12 @@ ERROR-OBJECT-ID."
            :functionDeclaration "function f() { return this.stack; }"
            :arguments [])
      :success-function
-     (lambda (response)
+     (lambda (result)
        (funcall lex-callback-function
                 (concat
                  (mapconcat
                   (function kite--format-stack-line)
-                  (split-string (kite--get response
-                                           :result
+                  (split-string (kite--get result
                                            :result
                                            :value)
                                 "\n")
@@ -830,27 +828,26 @@ the buffer."
                                   kite-session)
                                  :id))
      :success-function
-     (lambda (response)
-       (let ((result (plist-get response :result)))
-         (if (eq :json-false (plist-get result :wasThrown))
-             (comint-output-filter
-              (kite-console-process)
-              (concat (kite--console-format-object
-                       (plist-get result :result)
-                       t)
-                      "\n"
-                      kite-console-prompt-internal))
-           (kite--get-formatted-stack-trace
-            (kite--get result :result :objectId)
-            (lambda (stack-trace)
-              (comint-output-filter
-               (kite-console-process)
-               (concat stack-trace
-                       kite-console-prompt-internal)))))
-         (let ((object-id
-                (kite--get result :result :objectId)))
-           (when object-id
-             (kite--release-object object-id))))))))
+     (lambda (result)
+       (if (eq :json-false (plist-get result :wasThrown))
+           (comint-output-filter
+            (kite-console-process)
+            (concat (kite--console-format-object
+                     (plist-get result :result)
+                     t)
+                    "\n"
+                    kite-console-prompt-internal))
+         (kite--get-formatted-stack-trace
+          (kite--get result :result :objectId)
+          (lambda (stack-trace)
+            (comint-output-filter
+             (kite-console-process)
+             (concat stack-trace
+                     kite-console-prompt-internal)))))
+       (let ((object-id
+              (kite--get result :result :objectId)))
+         (when object-id
+           (kite--release-object object-id)))))))
 
 (defun kite--contexts-by-unique-name (context-and-frame-list)
   "Given CONTEXT-AND-FRAME-LIST, an alist of (CONTEXT-ID
@@ -981,9 +978,8 @@ FIXME: no error handling."
                                   kite-session)
                                  :id))
      :success-function
-     (lambda (response)
-       (lexical-let ((object-id (kite--get response
-                                           :result
+     (lambda (result)
+       (lexical-let ((object-id (kite--get result
                                            :result
                                            :objectId)))
          (kite-send
@@ -1003,11 +999,10 @@ function f(regex_str) {
 }"
                 :arguments `[ ( :value ,lex-js-regex ) ])
           :success-function
-          (lambda (response)
+          (lambda (result)
             (kite--release-object object-id)
             (funcall lex-callback
-                     (split-string (kite--get response
-                                              :result
+                     (split-string (kite--get result
                                               :result
                                               :value)
                                    ";")))))))))
@@ -1082,8 +1077,8 @@ to the given OBJECT-ID."
              :params
              (list :objectId object-id)
              :success-function
-             (lambda (response)
-               (lexical-let ((lex-node-id (kite--get response :result :nodeId)))
+             (lambda (result)
+               (lexical-let ((lex-node-id (plist-get result :nodeId)))
                  (kite--get-buffer-create
                   (websocket-url (kite-session-websocket kite-session))
                   'dom

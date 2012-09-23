@@ -65,11 +65,11 @@
   (interactive)
   (kite-send "Memory.getProcessMemoryDistribution"
              :success-function
-             (lambda (response)
+             (lambda (result)
                (let ((inhibit-read-only t))
                  (erase-buffer)
                  (kite--memory-render-graph
-                  (plist-get (plist-get response :result) :distribution) 0)))))
+                  (plist-get result :distribution) 0)))))
 
 (defun kite-memory ()
   (interactive)

@@ -124,8 +124,8 @@ notification."
   end-column
   source-map-url)
 
-(defun kite--default-success-handler (response)
-  (kite--log "Ignored success response: %s" response))
+(defun kite--default-success-handler (result)
+  (kite--log "Ignored success result: %s" result))
 
 (defun kite--default-error-handler (response)
   (error "Kite: %s" (kite--get response :error :message)))
@@ -140,10 +140,10 @@ METHOD is the method to be set for the JSON-RPC request.  PARAMS
 is a plist of parameters to be set for the JSON-RPC request.
 
 SUCCESS-FUNCTION is a function invoked with the JSON-RPC server
-response in case of success.  ERROR-FUNCTION is a function
-invoked with the JSON-RPC server response in case of error.
-CALLBACK-ARGS are passed as the second argument to
-SUCCESS-FUNCTION or ERROR-FUNCTION.
+result in case of success.  ERROR-FUNCTION is a function invoked
+with the JSON-RPC server error in case of error.  CALLBACK-ARGS
+are passed as the second argument to SUCCESS-FUNCTION or
+ERROR-FUNCTION.
 
 SUCCESS-FUNCTION or ERROR-FUNCTION are invoked with the same
 current buffer that was current when `kite-send' was invoked."

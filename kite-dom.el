@@ -418,12 +418,12 @@ line under mouse and the corresponding DOM node in the browser."
   (kite-send
    "CSS.enable"
    :success-function
-   (lambda (response)
+   (lambda (result)
      (kite-send
       "CSS.getAllStyleSheets"
       :success-function
-      (lambda (response)
-        (kite--log "CSS.getAllStyleSheets got response %s" response)
+      (lambda (result)
+        (kite--log "CSS.getAllStyleSheets got result" result)
         (run-hooks 'kite-async-init-hook))))))
 
 (defun kite--dom-insert-document (root-plist)
@@ -503,8 +503,8 @@ describing the buffer region where the attribute was inserted."
                           (name . ,(widget-get widget :kite-attr-name))
                           (value . ,(widget-value widget)))
                         :success-function
-                        (lambda (response)
-                          (when (plist-member response :result)
+                        (lambda (result)
+                          (when result
                             (widget-put lex-widget
                                         :value-face
                                         'kite-attribute-value-face)
@@ -811,7 +811,7 @@ FIXME: this needs to be smarter about when to load children."
   t)
 ;  (ignore-errors
 ;    (kite-send "CSS.disable" nil
-;               (lambda (response) (message "CSS disabled.")))))
+;               (lambda (result) (message "CSS disabled.")))))
 
 (defun kite--websocket-url ()
   "Obsolete. FIXME"
@@ -1133,7 +1133,7 @@ selected element in the DOM view."
                      (borderColor . ,(kite--rgba 0 0 255 0.5))
                      (marginColor . ,(kite--rgba 255 255 0 0.5))))
              :success-function
-             (lambda (response)
+             (lambda (result)
                (message kite--dom-pick-node-message))))
 
 (defun kite--dom-Inspector-inspect (websocket-url packet)
@@ -1146,10 +1146,10 @@ question."
                :params
                (list :objectId (kite--get packet :object :objectId))
                :success-function
-               (lambda (response)
+               (lambda (result)
                  (with-current-buffer (kite--dom-buffer websocket-url)
                    (kite-dom-goto-node
-                    (plist-get (plist-get response :result) :nodeId))
+                    (plist-get result :nodeId))
                    (when (string= (current-message)
                                   kite--dom-pick-node-message)
                      (message nil)))))))

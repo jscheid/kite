@@ -385,9 +385,9 @@ given PROPERTIES vector."
            (list :objectId object-id
                  :ownProperties t)
            :success-function
-           (lambda (response)
+           (lambda (result)
              (let* ((properties
-                     (plist-get (plist-get response :result) :result))
+                     (plist-get result :result))
                     (property-map
                      (make-hash-table :test 'equal
                                       :size (length properties))))

@@ -196,11 +196,8 @@
   (interactive)
   (kite-send "Debugger.pause"
              :success-function
-             (lambda (response)
-               (kite--log "Response to Debugger.pause is %s" response)
-               (kite-send "Debugger.stepInto" nil
-                          (lambda (response)
-                            (kite--log "Response to Debugger.stepInto is %s" response))))))
+             (lambda (result)
+               (kite-send "Debugger.stepInto"))))
 
 (defun kite-step-over ()
   (interactive)
@@ -219,10 +216,10 @@
                :params
                (list :scriptId (plist-get script-info :scriptId))
                :success-function
-               (lambda (response)
+               (lambda (result)
                  (with-current-buffer new-buffer
                    (setq buffer-file-name (url-filename url-parts))
-                   (insert (plist-get (plist-get response :result) :scriptSource))
+                   (insert (plist-get result :scriptSource))
                    (setq buffer-read-only t)
                    (set-buffer-modified-p nil)
                    (normal-mode)

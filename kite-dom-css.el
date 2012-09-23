@@ -260,7 +260,7 @@ so that it works also at the very end of the field.")
                             :success-function
                             (lexical-let ((lex-property-name (widget-get widget :kite-css-property-name))
                                           (lex-widget widget))
-                              (lambda (response)
+                              (lambda (result)
                                 (mapcar (lambda (property)
                                           (when (string= (plist-get property :name)
                                                          lex-property-name)
@@ -269,7 +269,7 @@ so that it works also at the very end of the field.")
                                                          (if (eq (plist-get property :parsedOk) :json-false)
                                                              'kite-css-value-widget-error
                                                            'widget-field))))
-                                        (kite--get response :result :style :cssProperties))))))
+                                        (kite--get result :style :cssProperties))))))
                  :notify (lambda (widget &rest ignore)
                            (overlay-put (widget-get widget :field-overlay)
                                         'face
@@ -393,16 +393,15 @@ so that it works also at the very end of the field.")
    :params
    (list :nodeId (get-char-property (point) 'kite-node-id))
    :success-function
-   (lambda (response)
-     (kite--log (pp-to-string response))
+   (lambda (result)
+     (kite--log (pp-to-string result))
      (kite--dom-create-css-buffer
-      (plist-get (plist-get response :result)
-                 :matchedCSSRules)))))
+      (plist-get result :matchedCSSRules)))))
 
-(defun kite--dom-make-style-to-rule-map (matched-styles-response)
+(defun kite--dom-make-style-to-rule-map (matched-styles-result)
 
   (let ((style-to-rule-map (make-hash-table)))
-    (let* ((matched-css-rules (plist-get (plist-get matched-styles-response :result) :matchedCSSRules))
+    (let* ((matched-css-rules (plist-get matched-styles-result :matchedCSSRules))
            (num-matched-rules (length matched-css-rules))
            (matched-rule-index 0))
       (while (< matched-rule-index num-matched-rules)
@@ -434,9 +433,9 @@ so that it works also at the very end of the field.")
           (insert value))
       (insert value))))
 
-(defun kite--dom-render-computed-css (computed-styles-response matched-styles-response)
-  (let* ((style-to-rule-map (kite--dom-make-style-to-rule-map matched-styles-response))
-         (arr (plist-get (plist-get computed-styles-response :result) :computedStyle))
+(defun kite--dom-render-computed-css (computed-styles-result matched-styles-result)
+  (let* ((style-to-rule-map (kite--dom-make-style-to-rule-map matched-styles-result))
+         (arr (plist-get computed-styles-result :computedStyle))
          (index 0)
          (arr-len (length arr))
          as-list)
@@ -501,8 +500,8 @@ so that it works also at the very end of the field.")
                :params
                (list :nodeId node-id)
                :success-function
-               (lambda (response)
-                 (setcar barrier response)
+               (lambda (result)
+                 (setcar barrier result)
                  (when (and (not (null (car barrier)))
                             (not (null (cdr barrier))))
                    (kite--dom-render-computed-css
@@ -511,8 +510,8 @@ so that it works also at the very end of the field.")
                :params
                (list :nodeId node-id)
                :success-function
-               (lambda (response)
-                 (setcdr barrier response)
+               (lambda (result)
+                 (setcdr barrier result)
                  (when (and (not (null (car barrier)))
                             (not (null (cdr barrier))))
                    (kite--dom-render-computed-css

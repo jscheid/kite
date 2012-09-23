@@ -133,33 +133,32 @@
                  :params
                  (list :expression code)
                  :success-function
-                 (lambda (response)
-                   (let ((result (plist-get response :result)))
-                     (message "result %s" result)
-                     (if (eq :json-false (plist-get result :wasThrown))
-                         (save-excursion
-                           (goto-char end)
-                           (insert (format "\n/// -> %S\n" (or (plist-get (plist-get result :result) :value)
-                                                               (intern (plist-get (plist-get result :result) :type))))))
-                       (kite--log "got thrown exception response: %s" (pp-to-string response))
-                       (lexical-let ((error-object-id (plist-get (plist-get result :result) :objectId)))
+                 (lambda (result)
+                   (message "result %s" result)
+                   (if (eq :json-false (plist-get result :wasThrown))
+                       (save-excursion
+                         (goto-char end)
+                         (insert (format "\n/// -> %S\n" (or (plist-get result :value)
+                                                             (intern (plist-get result :type))))))
+                     (kite--log "got thrown exception response: %s" (pp-to-string result))
+                     (lexical-let ((error-object-id (plist-get result :objectId)))
 
-                         (kite-send "Runtime.callFunctionOn"
-                                    (list
-                                     :objectId error-object-id
-                                     :functionDeclaration "function foo() { return this.stack; }"
-                                     :arguments '[])
-                                    :success-function
-                                    (lambda (response)
-                                      (kite--log "got stack %s"
-                                                 (save-excursion
-                                                   (goto-char end)
-                                                   (when (> (current-column) 0)
-                                                     (insert "\n"))
-                                                   (mapcar
-                                                    (function kite--insert-stack-line)
-                                                    (split-string (plist-get (plist-get (plist-get response :result) :result) :value) "\n"))))))))
-                     (plist-get (plist-get response :result) :result)))))))
+                       (kite-send "Runtime.callFunctionOn"
+                                  (list
+                                   :objectId error-object-id
+                                   :functionDeclaration "function foo() { return this.stack; }"
+                                   :arguments '[])
+                                  :success-function
+                                  (lambda (result)
+                                    (kite--log "got stack %s"
+                                               (save-excursion
+                                                 (goto-char end)
+                                                 (when (> (current-column) 0)
+                                                   (insert "\n"))
+                                                 (mapcar
+                                                  (function kite--insert-stack-line)
+                                                  (split-string (plist-get (plist-get result :result) :value) "\n"))))))))
+                   (plist-get result :result))))))
 
 (font-lock-add-keywords 'kite-repl-mode '(("(\\([a-zA-Z]+:.*?:[0-9]+:[0-9]+\\))$" 1 `(face kite-link-face keymap ,kite-repl-mode-link-map) t)))
 

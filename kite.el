@@ -121,11 +121,13 @@ if the response method is `Page.frameNavigated' then
                                           kite-session))
                     (when (buffer-live-p (nth 2 callback-info))
                       (with-current-buffer (nth 2 callback-info)
-                        (apply (if (plist-member response :error)
-                                   (nth 1 callback-info)
-                                 (nth 0 callback-info))
-                               response
-                               (nth 3 callback-info)))))
+                        (if (plist-member response :error)
+                            (apply (nth 1 callback-info)
+                                   (plist-get response :error)
+                                   (nth 3 callback-info))
+                          (apply (nth 0 callback-info)
+                                 (plist-get response :result)
+                                 (nth 3 callback-info))))))
 
                 (run-hook-with-args
                  (intern
@@ -195,9 +197,9 @@ and :title."
     (kite-send "Page.enable")
     (kite-send "DOM.getDocument"
                :success-function
-               (lambda (response)
+               (lambda (result)
                  (setf (kite-session-document-root kite-session)
-                       (kite--get response :result :root))
+                       (kite--get result :root))
                  (let ((dom-buffer
                         (kite--dom-buffer
                          (websocket-url
@@ -218,10 +220,10 @@ and :title."
     ;;(lambda (response) (kite--log "got response: %s" response)))
     (kite-send "Page.getResourceTree"
                :success-function
-               (lambda (response)
-                 (kite--log "got resource tree response: %s" response)
+               (lambda (result)
+                 (kite--log "got resource tree result: %s" result)
                  (setf (kite-session-frame-tree kite-session)
-                       (plist-get (plist-get response :result) :frameTree))
+                       (plist-get result :frameTree))
                  (let ((console-buffer
                         (kite--find-buffer
                          (websocket-url
@@ -364,7 +366,7 @@ prefix argument ARG, ignore (force-refresh) the browser cache."
                :params
                (list :ignoreCache (if bool-prefix t :json-false))
                :success-function
-               (lambda (response)
+               (lambda (result)
                  (if bool-prefix
                      (message "Page reloaded (with cache ignored)")
                    (message "Page reloaded"))))))
