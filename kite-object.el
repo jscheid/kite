@@ -172,7 +172,7 @@ given PROPERTIES vector."
      "["
      (mapconcat
       (lambda (element)
-        (kite--console-format-object
+        (kite--format-object
          (plist-get element :value)))
       (subseq array-elements 0 (min kite-short-array-max-elements
                                     (length array-elements)))
@@ -350,7 +350,7 @@ given PROPERTIES vector."
         (let* ((button-overlay (widget-get widget :button-overlay))
                (from (and button-overlay (overlay-start button-overlay)))
                (to (and button-overlay (overlay-end button-overlay)))
-               (value (kite--object-format-value property)))
+               (value (kite--format-object property)))
           (kite--log "replacing value at %s to %s with %s" from to value)
           (if (and from to)
               (let ((inhibit-read-only t))
