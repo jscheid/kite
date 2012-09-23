@@ -704,28 +704,28 @@ JavaScript identifier.")
                          (submatch      ; column
                           (1+ (in digit)))))))))
 
-    (rx
-     string-start
-     (or
-      (: (submatch                      ; error type
-          (1+ (in alnum)))
-         ":"
-         (0+ (in space))
-         (submatch                      ; error message
-          (0+ anything)))
-      (: (1+ (in space))
-         "at"
-         (1+ (in space))
+    (rx-to-string
+     '(: string-start
          (or
-          (: file-line-column)
-          (: (submatch                  ; function
-              (1+ (not (in space))))
+          (: (submatch                  ; error type
+              (1+ (in alnum)))
+             ":"
+             (0+ (in space))
+             (submatch                  ; error message
+              (0+ anything)))
+          (: (1+ (in space))
+             "at"
              (1+ (in space))
-             "("
-             file-line-column
-             ")"))))
-     (0+ (in space))
-     string-end)))
+             (or
+              (: file-line-column)
+              (: (submatch              ; function
+                  (1+ (not (in space))))
+                 (1+ (in space))
+                 "("
+                 file-line-column
+                 ")"))))
+         (0+ (in space))
+         string-end))))
 
 (defun kite--format-stack-line (stack-line)
   "Return a prettified version of a line of a WebKit stack trace.
