@@ -64,6 +64,18 @@
   "Toggle kite scratch mode."
   :group 'kite
   (set (make-local-variable 'font-lock-extra-managed-props) '(keymap))
+
+  (set (make-local-variable 'font-lock-fontify-region-function)
+       (lambda (beginning end &optional verbose)
+         "Override to ensure our preset font face isn't changed
+by font locking"
+         (prog1
+             (font-lock-default-fontify-region beginning end verbose)
+           (loop for i from beginning to end do
+                 (let ((face (get-text-property i 'font-lock-face)))
+                   (when face
+                     (put-text-property i (1+ i) 'face face)))))))
+
   (run-mode-hooks 'kite-scratch-mode-hook))
 
 (defun kite-eval-defun ()
