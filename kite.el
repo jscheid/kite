@@ -372,13 +372,13 @@ enters the empty string at the prompt."
 
             ;; Gather debuggers from server response
 
-            (mapcar (lambda (el)
-                      (when (plist-member el :webSocketDebuggerUrl)
-                        (puthash
-                         (plist-get el :webSocketDebuggerUrl)
-                         (cons el nil)
-                         available-debuggers)))
-                    debugger-tabs)
+            (mapc (lambda (el)
+                    (when (plist-member el :webSocketDebuggerUrl)
+                      (puthash
+                       (plist-get el :webSocketDebuggerUrl)
+                       (cons el nil)
+                       available-debuggers)))
+                  debugger-tabs)
 
             ;; Gather debuggers currently open
 
