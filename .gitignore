@@ -1,5 +1,4 @@
 misc/
-*.elc
 *.info
 *.texinfo
 *.html
