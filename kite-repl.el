@@ -39,11 +39,6 @@
   "Face used for links to source code locations."
   :group 'kite-highlighting-faces)
 
-(defun kite-repl ()
-  (interactive)
-  (kite--log "opening repl")
-  (kite--get-buffer-create 'repl 'kite-repl-mode))
-
 (defvar kite-repl-mode-map
   (let ((map (make-keymap))
 	(menu-map (make-sparse-keymap)))
