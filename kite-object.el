@@ -274,7 +274,9 @@ given PROPERTIES vector."
         :notify (lambda (widget &rest ignore)
                   (put-text-property (widget-field-start widget)
                                      (widget-field-end widget)
-                                     'face 'kite-number
+                                     'face 'kite-number)
+                  (put-text-property (widget-field-start widget)
+                                     (widget-field-end widget)
                                      'font-lock-face 'kite-number))
         value))))
 
