@@ -205,9 +205,10 @@ given PROPERTIES vector."
         (lexical-let ((parent-widget widget))
           (kite-send
            "Runtime.getProperties"
-           (list (cons 'objectId
-                       (widget-get widget :kite-object-id))
-                 (cons 'ownProperties t))
+           :params
+           (list :objectId (widget-get widget :kite-object-id)
+                 :ownProperties t)
+           :success-function
            (lambda (response)
              (kite--object-insert-child-props-async
               parent-widget
@@ -380,8 +381,10 @@ given PROPERTIES vector."
         (lexical-let ((object-id object-id))
           (kite-send
            "Runtime.getProperties"
-           (list (cons 'objectId object-id)
-                 (cons 'ownProperties t))
+           :params
+           (list :objectId object-id
+                 :ownProperties t)
+           :success-function
            (lambda (response)
              (let* ((properties
                      (plist-get (plist-get response :result) :result))

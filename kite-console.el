@@ -287,8 +287,7 @@ when the user customizes `kite-console-prompt'.")
                         'comint-output-filter))
 
   (kite--console-update-mode-line)
-  (kite-send "Console.enable" nil
-             (lambda (response) (kite--log "Console enabled.")))
+  (kite-send "Console.enable")
 
   (run-mode-hooks 'kite-console-mode-hook))
 
@@ -297,8 +296,7 @@ when the user customizes `kite-console-prompt'.")
 console logging in the remote debugger by sending the
 `Console.disable' message."
   (ignore-errors
-    (kite-send "Console.disable" nil
-               (lambda (response) (kite--log "Console disabled.")))))
+    (kite-send "Console.disable")))
 
 (defun kite--message-repeat-text (repeat-count)
   "Return a string to be used as a suffix for messages with the
@@ -402,9 +400,10 @@ replacement."
       ;; representation.
       (kite-send
        "Runtime.callFunctionOn"
-       `((objectId . ,(plist-get object-plist :objectId))
-         (functionDeclaration
-          . ,(format "\
+       :params
+       (list :objectId (plist-get object-plist :objectId)
+             :functionDeclaration
+             (format "\
 function f() { \
   if (this instanceof Array) { \
     return this.slice(0, %d); \
@@ -427,16 +426,19 @@ function f() { \
                      ;; kite--format-object-with-props know when to
                      ;; insert an ellipsis at the end.
                      (1+ kite-short-array-max-elements)
-                     (1+ kite-short-object-max-properties)))
-         (arguments . []))
+                     (1+ kite-short-object-max-properties))
+             :arguments [])
+       :success-function
        (lambda (response)
          (kite-send
           "Runtime.getProperties"
-          `((objectId . ,(kite--get response
-                                    :result
-                                    :result
-                                    :objectId))
-            (ownProperties . t))
+          :params
+          (list :objectId (kite--get response
+                                     :result
+                                     :result
+                                     :objectId)
+                :ownProperties t)
+          :success-function
           (lambda (response)
             (kite--console-replace-object-async response
                                                 object-plist
@@ -542,8 +544,7 @@ latter by sending a `Console.clearMessages' message."
     (comint-output-filter (kite-console-process)
                           kite-console-prompt-internal))
   (goto-char (kite-console-pm))
-  (kite-send "Console.clearMessages" nil
-             (lambda (response) (kite--log "Console cleared."))))
+  (kite-send "Console.clearMessages"))
 
 (defun kite-console-visit-source ()
   "Visit the JavaScript source where the console message at point
@@ -692,47 +693,48 @@ FIXME: this should be consolidated with
 JavaScript identifier.")
 
 (defconst kite--stack-line-regexp
-  (let ((rx-constituents
-         (append rx-constituents
-                 (list
-                  (cons 'file-line-column
-                        (rx
-                         (or
-                          (submatch     ; <file>
-                           "<"
-                           (minimal-match (1+ anything))
-                           ">")
-                          (submatch     ; file
-                           (minimal-match (1+ anything))))
-                         ":"
-                         (submatch      ; line
-                          (1+ (in digit)))
-                         ":"
-                         (submatch      ; column
-                          (1+ (in digit)))))))))
+  (eval-when-compile
+    (let ((rx-constituents
+           (append rx-constituents
+                   (list
+                    (cons 'file-line-column
+                          (rx
+                           (or
+                            (submatch     ; <file>
+                             "<"
+                             (minimal-match (1+ anything))
+                             ">")
+                            (submatch     ; file
+                             (minimal-match (1+ anything))))
+                           ":"
+                           (submatch      ; line
+                            (1+ (in digit)))
+                           ":"
+                           (submatch      ; column
+                            (1+ (in digit)))))))))
 
-    (rx-to-string
-     '(: string-start
-         (or
-          (: (submatch                  ; error type
-              (1+ (in alnum)))
-             ":"
-             (0+ (in space))
-             (submatch                  ; error message
-              (0+ anything)))
-          (: (1+ (in space))
-             "at"
-             (1+ (in space))
-             (or
-              (: file-line-column)
-              (: (submatch              ; function
-                  (1+ (not (in space))))
-                 (1+ (in space))
-                 "("
-                 file-line-column
-                 ")"))))
-         (0+ (in space))
-         string-end))))
+      (rx-to-string
+       '(: string-start
+           (or
+            (: (submatch                  ; error type
+                (1+ (in alnum)))
+               ":"
+               (0+ (in space))
+               (submatch                  ; error message
+                (0+ anything)))
+            (: (1+ (in space))
+               "at"
+               (1+ (in space))
+               (or
+                (: file-line-column)
+                (: (submatch              ; function
+                    (1+ (not (in space))))
+                   (1+ (in space))
+                   "("
+                   file-line-column
+                   ")"))))
+           (0+ (in space))
+           string-end)))))
 
 (defun kite--format-stack-line (stack-line)
   "Return a prettified version of a line of a WebKit stack trace.
@@ -792,10 +794,11 @@ ERROR-OBJECT-ID."
   (lexical-let ((lex-callback-function callback-function))
     (kite-send
      "Runtime.callFunctionOn"
-     (list
-      (cons 'objectId error-object-id)
-      (cons 'functionDeclaration "function f() { return this.stack; }")
-      (cons 'arguments '[]))
+     :params
+     (list :objectId error-object-id
+           :functionDeclaration "function f() { return this.stack; }"
+           :arguments [])
+     :success-function
      (lambda (response)
        (funcall lex-callback-function
                 (concat
@@ -821,10 +824,12 @@ the buffer."
   (unless (kite--is-whitespace-or-comment input)
     (kite-send
      "Runtime.evaluate"
-     (list (cons 'expression input)
-           (cons 'contextId (plist-get (kite-session-current-context
-                                        kite-session)
-                                       :id)))
+     :params
+     (list :expression input
+           :contextId (plist-get (kite-session-current-context
+                                  kite-session)
+                                 :id))
+     :success-function
      (lambda (response)
        (let ((result (plist-get response :result)))
          (if (eq :json-false (plist-get result :wasThrown))
@@ -970,10 +975,12 @@ FIXME: no error handling."
                 (lex-callback callback))
     (kite-send
      "Runtime.evaluate"
-     `((expression . ,object-expr)
-       (contextId . ,(plist-get (kite-session-current-context
-                                 kite-session)
-                                :id)))
+     :params
+     (list :expression object-expr
+           :contextId (plist-get (kite-session-current-context
+                                  kite-session)
+                                 :id))
+     :success-function
      (lambda (response)
        (lexical-let ((object-id (kite--get response
                                            :result
@@ -981,8 +988,9 @@ FIXME: no error handling."
                                            :objectId)))
          (kite-send
           "Runtime.callFunctionOn"
-          `((objectId . ,object-id)
-            (functionDeclaration . "
+          :params
+          (list :objectId object-id
+                :functionDeclaration "\
 function f(regex_str) {
     result = [];
     regex = new RegExp(regex_str);
@@ -992,8 +1000,9 @@ function f(regex_str) {
       }
     }
     return result.join(\";\");
-}")
-            (arguments [ ( :value ,lex-js-regex ) ]))
+}"
+                :arguments `[ ( :value ,lex-js-regex ) ])
+          :success-function
           (lambda (response)
             (kite--release-object object-id)
             (funcall lex-callback
@@ -1070,7 +1079,9 @@ evaluate console input."
   "Open the DOM buffer and move point to the node corresponding
 to the given OBJECT-ID."
   (kite-send "DOM.requestNode"
-             `((objectId . ,object-id))
+             :params
+             (list :objectId object-id)
+             :success-function
              (lambda (response)
                (lexical-let ((lex-node-id (kite--get response :result :nodeId)))
                  (kite--get-buffer-create

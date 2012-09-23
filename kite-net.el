@@ -119,8 +119,7 @@
                       "\n"
                       "\nReload the page to show network information\n" t)))
 
-  (kite-send "Network.enable" nil
-             (lambda (response) (kite--log "Network enabled.")))
+  (kite-send "Network.enable")
   (run-mode-hooks 'kite-network-mode-hook))
 
 (defun kite--net-Network-loadingFinished (websocket-url packet)
@@ -437,8 +436,7 @@ and redisplay some or all lines as necessary."
 network notifications in the remote debugger by sending the
 `Network.disable' message."
   (ignore-errors
-    (kite-send "Network.disable" nil
-               (lambda (response) (kite--log "Network disabled.")))))
+    (kite-send "Network.disable")))
 
 (defun kite--net-Page-domContentEventFired (websocket-url packet)
   "Callback invoked when a `Page.domContentEventFired'

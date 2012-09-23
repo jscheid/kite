@@ -119,11 +119,13 @@ if the response method is `Page.frameNavigated' then
                                    kite-session))))
                     (remhash response-id (kite-session-pending-requests
                                           kite-session))
-                    (when (buffer-live-p (nth 1 callback-info))
-                      (with-current-buffer (nth 1 callback-info)
-                        (apply (nth 0 callback-info)
+                    (when (buffer-live-p (nth 2 callback-info))
+                      (with-current-buffer (nth 2 callback-info)
+                        (apply (if (plist-member response :error)
+                                   (nth 1 callback-info)
+                                 (nth 0 callback-info))
                                response
-                               (nth 2 callback-info)))))
+                               (nth 3 callback-info)))))
 
                 (run-hook-with-args
                  (intern
@@ -190,9 +192,9 @@ and :title."
 
     (kite--mode-line-update)
 
-    (kite-send "Page.enable" nil
-               (lambda (response) (kite--log "Page notifications enabled.")))
-    (kite-send "DOM.getDocument" nil
+    (kite-send "Page.enable")
+    (kite-send "DOM.getDocument"
+               :success-function
                (lambda (response)
                  (setf (kite-session-document-root kite-session)
                        (kite--get response :result :root))
@@ -207,17 +209,15 @@ and :title."
                           (kite--get response :result :root))
                          (widget-setup)))))
                  (kite--log "DOM initialized.")))
-   (kite-send "Runtime.setReportExecutionContextCreation" '(:enabled t)
-               (lambda (response) (kite--log "ExecutionContextCreation reporting enabled.")))
-    (kite-send "Inspector.enable" nil
-               (lambda (response) (kite--log "Inspector enabled.")))
-    (kite-send "Debugger.enable" nil
-               (lambda (response) (kite--log "Debugger enabled.")))
-    (kite-send "CSS.enable" nil
-               (lambda (response) (kite--log "CSS enabled.")))
-    (kite-send "Debugger.canSetScriptSource" nil
-               (lambda (response) (kite--log "got response: %s" response)))
-    (kite-send "Page.getResourceTree" nil
+    (kite-send "Runtime.setReportExecutionContextCreation"
+               :params '(:enabled t))
+    (kite-send "Inspector.enable")
+    (kite-send "Debugger.enable")
+    (kite-send "CSS.enable")
+    ;;(kite-send "Debugger.canSetScriptSource" nil
+    ;;(lambda (response) (kite--log "got response: %s" response)))
+    (kite-send "Page.getResourceTree"
+               :success-function
                (lambda (response)
                  (kite--log "got resource tree response: %s" response)
                  (setf (kite-session-frame-tree kite-session)
@@ -361,7 +361,9 @@ prefix argument ARG, ignore (force-refresh) the browser cache."
   (lexical-let ((bool-prefix (not (null arg)))
                 (kite-session (gethash kite-most-recent-session kite-active-sessions)))
     (kite-send "Page.reload"
-               `((ignoreCache . ,(if bool-prefix t :json-false)))
+               :params
+               (list :ignoreCache (if bool-prefix t :json-false))
+               :success-function
                (lambda (response)
                  (if bool-prefix
                      (message "Page reloaded (with cache ignored)")

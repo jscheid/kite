@@ -129,7 +129,10 @@
 
                    (code (buffer-substring-no-properties begin end)))
 
-      (kite-send "Runtime.evaluate" (list (cons 'expression code))
+      (kite-send "Runtime.evaluate"
+                 :params
+                 (list :expression code)
+                 :success-function
                  (lambda (response)
                    (let ((result (plist-get response :result)))
                      (message "result %s" result)
@@ -143,9 +146,10 @@
 
                          (kite-send "Runtime.callFunctionOn"
                                     (list
-                                     (cons 'objectId error-object-id)
-                                     (cons 'functionDeclaration "function foo() { return this.stack; }") ; (plist-get (plist-get x :get) :objectId))
-                                     (cons 'arguments '[]))
+                                     :objectId error-object-id
+                                     :functionDeclaration "function foo() { return this.stack; }"
+                                     :arguments '[])
+                                    :success-function
                                     (lambda (response)
                                       (kite--log "got stack %s"
                                                  (save-excursion

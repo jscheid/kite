@@ -386,13 +386,14 @@ line under mouse and the corresponding DOM node in the browser."
               (overlay-put overlay 'face '(:background "#444")))
             (kite-send
              "DOM.highlightNode"
-             `((nodeId . node-id)
-               (highlightConfig
-                . `((showInfo . nil)
-                    (contentColor . ,(kite--rgba 255 0 0 0.5))
-                    (paddingColor . ,(kite--rgba 0 255 0 0.5))
-                    (borderColor . ,(kite--rgba 0 0 255 0.5))
-                    (marginColor . ,(kite--rgba 255 255 0 0.5))))))))))))
+             :params
+             (list :nodeId node-id
+                   :highlightConfig
+                   `((showInfo . nil)
+                     (contentColor . ,(kite--rgba 255 0 0 0.5))
+                     (paddingColor . ,(kite--rgba 0 255 0 0.5))
+                     (borderColor . ,(kite--rgba 0 0 255 0.5))
+                     (marginColor . ,(kite--rgba 255 255 0 0.5)))))))))))
 
 (define-derived-mode kite-dom-mode special-mode "kite-dom"
   "Toggle kite dom mode."
@@ -416,11 +417,11 @@ line under mouse and the corresponding DOM node in the browser."
 
   (kite-send
    "CSS.enable"
-   nil
+   :success-function
    (lambda (response)
      (kite-send
       "CSS.getAllStyleSheets"
-      nil
+      :success-function
       (lambda (response)
         (kite--log "CSS.getAllStyleSheets got response %s" response)
         (run-hooks 'kite-async-init-hook))))))
@@ -497,9 +498,11 @@ describing the buffer region where the attribute was inserted."
                      (lexical-let ((lex-widget widget))
                        (kite-send
                         "DOM.setAttributeValue"
+                        :params
                         `((nodeId . ,(widget-get widget :kite-node-id))
                           (name . ,(widget-get widget :kite-attr-name))
                           (value . ,(widget-value widget)))
+                        :success-function
                         (lambda (response)
                           (when (plist-member response :result)
                             (widget-put lex-widget
@@ -734,8 +737,8 @@ FIXME: this needs to be smarter about when to load children."
                            node-id)
         (when loadp
           (kite-send "DOM.requestChildNodes"
-                     (list (cons 'nodeId (plist-get element :nodeId)))
-                     (lambda (response) nil))))
+                     :params
+                     (list :nodeId (plist-get element :nodeId)))))
 
        ((eq nodeType kite-dom-text-node)
         (setf (node-region-widget node-region)
@@ -1093,16 +1096,14 @@ debugger API `RGBA' structure format."
 `DOM.highlightNode' message to the remote debugger."
   (interactive)
   (kite-send "DOM.highlightNode"
-             (list (cons 'nodeId
-                         (get-char-property (point) 'kite-node-id))
-                   (cons 'highlightConfig
-                         `((showInfo . nil)
-                           (contentColor . ,(kite--rgba 255 0 0 0.5))
-                           (paddingColor . ,(kite--rgba 0 255 0 0.5))
-                           (borderColor . ,(kite--rgba 0 0 255 0.5))
-                           (marginColor . ,(kite--rgba 255 255 0 0.5)))))
-             (lambda (response)
-               (kite--log "DOM.highlightNode got response %s" response))))
+             :params
+             (list :nodeId (get-char-property (point) 'kite-node-id)
+                   :highlightConfig
+                   `((showInfo . nil)
+                     (contentColor . ,(kite--rgba 255 0 0 0.5))
+                     (paddingColor . ,(kite--rgba 0 255 0 0.5))
+                     (borderColor . ,(kite--rgba 0 0 255 0.5))
+                     (marginColor . ,(kite--rgba 255 255 0 0.5))))))
 
 (defun kite-dom-hide-highlight ()
   "Send the `DOM.hideHighlight' message to the remote debugger,
@@ -1123,13 +1124,15 @@ which in turn invokes `kite-dom-goto-node' to move point to the
 selected element in the DOM view."
   (interactive)
   (kite-send "DOM.setInspectModeEnabled"
-             `((enabled . t)
-               (highlightConfig
-                . ((showInfo . nil)
-                   (contentColor . ,(kite--rgba 255 0 0 0.5))
-                   (paddingColor . ,(kite--rgba 0 255 0 0.5))
-                   (borderColor . ,(kite--rgba 0 0 255 0.5))
-                   (marginColor . ,(kite--rgba 255 255 0 0.5)))))
+             :params
+             (list :enabled t
+                   :highlightConfig
+                   `((showInfo . nil)
+                     (contentColor . ,(kite--rgba 255 0 0 0.5))
+                     (paddingColor . ,(kite--rgba 0 255 0 0.5))
+                     (borderColor . ,(kite--rgba 0 0 255 0.5))
+                     (marginColor . ,(kite--rgba 255 255 0 0.5))))
+             :success-function
              (lambda (response)
                (message kite--dom-pick-node-message))))
 
@@ -1139,7 +1142,10 @@ which the remote debugger sends when the user selects an element
 with the mouse.  Invokes `kite-dom-goto-node' for the element in
 question."
   (lexical-let ((websocket-url websocket-url))
-    (kite-send "DOM.requestNode" (list (assq 'objectId (plist-get packet :object)))
+    (kite-send "DOM.requestNode"
+               :params
+               (list :objectId (kite--get packet :object :objectId))
+               :success-function
                (lambda (response)
                  (with-current-buffer (kite--dom-buffer websocket-url)
                    (kite-dom-goto-node
@@ -1175,9 +1181,12 @@ question."
       (let ((attr-name (get-text-property (point) 'kite-attr-name)))
         (if attr-name
             (kite-send "DOM.removeAttribute"
-                       `((nodeId . ,node-id)
-                         (name . ,attr-name)))
-          (kite-send "DOM.removeNode" `((nodeId . ,node-id))))))))
+                       :params
+                       (list :nodeId node-id
+                             :name attr-name))
+          (kite-send "DOM.removeNode"
+                     :params
+                     (list :nodeId node-id)))))))
 
 (defun kite-dom-narrow-to-node (&optional arg)
   "Narrow buffer to node at point."
@@ -1204,7 +1213,8 @@ question."
                  (node-region-node-id node-region))
         (kite-send
          "DOM.requestChildNodes"
-         `((nodeId . ,(node-region-node-id node-region))))))))
+         :params
+         (list :nodeId (node-region-node-id node-region)))))))
 
 (defun kite-dom-toggle-node ()
   (interactive)

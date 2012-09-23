@@ -72,21 +72,18 @@
 
 (defun kite-debug-pause ()
   (interactive)
-  (kite-send "Debugger.pause" nil
-             (lambda (response) (kite--log "Execution paused."))))
+  (kite-send "Debugger.pause"))
 
 (defun kite-debug-continue ()
   (interactive)
-  (kite-send "Debugger.resume" nil
-             (lambda (response) (kite--log "Execution resumed."))))
+  (kite-send "Debugger.resume"))
 
 (defun kite-debug-reload ()
   (interactive)
   (with-current-buffer (if (boundp 'kite-connection)
                            kite-connection
                          (current-buffer))
-    (kite-send "Page.reload" nil
-               (lambda (response) (kite--log "Page reloaded.")))))
+    (kite-send "Page.reload")))
 
 (defun kite--insert-favicon-async (favicon-url)
   (lexical-let ((favicon-marker (point-marker))
@@ -197,7 +194,8 @@
 
 (defun kite-step-into ()
   (interactive)
-  (kite-send "Debugger.pause" nil
+  (kite-send "Debugger.pause"
+             :success-function
              (lambda (response)
                (kite--log "Response to Debugger.pause is %s" response)
                (kite-send "Debugger.stepInto" nil
@@ -217,7 +215,10 @@
                  (url-parts (url-generic-parse-url url))
                  (after-load-function after-load-function)
                  (new-buffer (generate-new-buffer url)))
-    (kite-send "Debugger.getScriptSource" (list (cons 'scriptId (plist-get script-info :scriptId)))
+    (kite-send "Debugger.getScriptSource"
+               :params
+               (list :scriptId (plist-get script-info :scriptId))
+               :success-function
                (lambda (response)
                  (with-current-buffer new-buffer
                    (setq buffer-file-name (url-filename url-parts))

@@ -124,7 +124,13 @@ notification."
   end-column
   source-map-url)
 
-(defun kite-send (method &optional params callback callback-args)
+(defun kite--default-success-handler (response)
+  (kite--log "Ignored success response: %s" response))
+
+(defun kite--default-error-handler (response)
+  (error "Kite: %s" (kite--get response :error :message)))
+
+(defun* kite-send (method &key params success-function error-function callback-args)
   "Send a JSON-RPC 2.0 packet to the remote debugger for the
 current session.  The current session is retrieved from variable
 `kite-session', which is buffer-local or taken from a let
@@ -132,14 +138,22 @@ binding.
 
 METHOD is the method to be set for the JSON-RPC request.  PARAMS
 is a plist of parameters to be set for the JSON-RPC request.
-CALLBACK is a function invoked with the JSON-RPC server response.
-CALLBACK-ARGS are passed as the second argument to CALLBACK.
-CALLBACK is invoked with the same current buffer that was current
-when `kite-send' was invoked."
+
+SUCCESS-FUNCTION is a function invoked with the JSON-RPC server
+response in case of success.  ERROR-FUNCTION is a function
+invoked with the JSON-RPC server response in case of error.
+CALLBACK-ARGS are passed as the second argument to
+SUCCESS-FUNCTION or ERROR-FUNCTION.
+
+SUCCESS-FUNCTION or ERROR-FUNCTION are invoked with the same
+current buffer that was current when `kite-send' was invoked."
   (if (websocket-openp (kite-session-websocket kite-session))
     (let ((callback-buffer (current-buffer))
           (request-id (incf (kite-session-next-request-id kite-session))))
-      (puthash request-id (list (or callback (lambda (response) nil))
+      (puthash request-id (list (or success-function
+                                    #'kite--default-success-handler)
+                                (or error-function
+                                    #'kite--default-error-handler)
                                 callback-buffer
                                 callback-args)
                (kite-session-pending-requests kite-session))
@@ -195,7 +209,7 @@ side."
   (when (null object-id)
     (error "kite--release-object called with null OBJECT-ID"))
   (kite-send "Runtime.releaseObject"
-             `((objectId . ,object-id))))
+             :params `((objectId . ,object-id))))
 
 (defun kite--find-buffer (websocket-url type)
   "Return the buffer corresponding to the given WEBSOCKET-URL and

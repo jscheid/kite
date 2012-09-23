@@ -62,11 +62,11 @@
 
 (defun kite--set-next-instruction-breakpoint (breakpoint response-handler)
   "Set a breakpoint of type `next-instruction'"
-  (kite-send "Debugger.pause" nil response-handler))
+  (kite-send "Debugger.pause" :success-function response-handler))
 
 (defun kite--remove-next-instruction-breakpoint (breakpoint response-handler)
   "Remove a breakpoint of type `next-instruction'"
-  (kite-send "Debugger.resume" nil response-handler))
+  (kite-send "Debugger.resume" :success-function response-handler))
 
 (defstruct
   (kite-all-exceptions-breakpoint
@@ -86,8 +86,8 @@
 
 (defun kite--set-all-exceptions-breakpoint (breakpoint response-handler)
   (kite-send "Debugger.setPauseOnExceptions"
-             (list (cons 'state "all"))
-             response-handler))
+             :params '(:state "all")
+             :success-function response-handler))
 
 (defstruct
   (kite-uncaught-exceptions-breakpoint
@@ -103,13 +103,13 @@
 
 (defun kite--set-uncaught-exceptions-breakpoint (breakpoint response-handler)
   (kite-send "Debugger.setPauseOnExceptions"
-             (list (cons 'state "uncaught"))
-             response-handler))
+             :params '(:state "uncaught")
+             :success-function response-handler))
 
 (defun kite--remove-exceptions-breakpoint (breakpoint response-handler)
   (kite-send "Debugger.setPauseOnExceptions"
-             (list (cons 'state "none"))
-             response-handler))
+             :params '(:state "none")
+             :success-function response-handler))
 
 (defun kite--uncaught-exceptions-breakpoint-to-string (breakpoint)
   "Return the string representation of breakpoints of type `uncaught-exceptions'"
@@ -166,15 +166,17 @@
 
 (defun kite--set-dom-node-breakpoint (breakpoint response-handler)
   (kite-send "DOM.setDOMBreakpoint"
-             (list (cons 'nodeId (kite-dom-node-breakpoint-node-id breakpoint))
-                   (cons 'type (kite-dom-node-breakpoint-type breakpoint)))
-             response-handler))
+             :params
+             (list :nodeId (kite-dom-node-breakpoint-node-id breakpoint)
+                   :type (kite-dom-node-breakpoint-type breakpoint))
+             :success-function response-handler))
 
 (defun kite--remove-dom-node-breakpoint (breakpoint response-handler)
   (kite-send "DOM.removeDOMBreakpoint"
-             (list (cons 'nodeId (kite-dom-node-breakpoint-node-id breakpoint))
-                   (cons 'type (kite-dom-node-breakpoint-type breakpoint)))
-             response-handler))
+             :params
+             (list :nodeId (kite-dom-node-breakpoint-node-id breakpoint)
+                   :type (kite-dom-node-breakpoint-type breakpoint))
+             :success-function response-handler))
 
 ;; DOM Event breakpoints
 
@@ -198,13 +200,15 @@
 
 (defun kite--set-dom-event-breakpoint (breakpoint response-handler)
   (kite-send "DOM.setEventListenerBreakpoint"
-             (list (cons 'eventName (kite-dom-event-breakpoint-event-name breakpoint)))
-             response-handler))
+             :params
+             (list :eventName (kite-dom-event-breakpoint-event-name breakpoint))
+             :success-function response-handler))
 
 (defun kite--remove-dom-event-breakpoint (breakpoint response-handler)
   (kite-send "DOM.removeEventListenerBreakpoint"
-             (list (cons 'eventName (kite-dom-event-breakpoint-event-name breakpoint)))
-             response-handler))
+             :params
+             (list :eventName (kite-dom-event-breakpoint-event-name breakpoint))
+             :success-function response-handler))
 
 ;; Instrumentation breakpoints
 
@@ -228,13 +232,15 @@
 
 (defun kite--set-instrumentation-breakpoint (breakpoint response-handler)
   (kite-send "DOM.setInstrumentationBreakpoint"
-             (list (cons 'eventName (kite-instrumentation-breakpoint-event-name breakpoint)))
-             response-handler))
+             :params
+             (list :eventName (kite-instrumentation-breakpoint-event-name breakpoint))
+             :success-function response-handler))
 
 (defun kite--remove-instrumentation-breakpoint (breakpoint response-handler)
   (kite-send "DOM.removeInstrumentationBreakpoint"
-             (list (cons 'eventName (kite-instrumentation-breakpoint-event-name breakpoint)))
-             response-handler))
+             :params
+             (list :eventName (kite-instrumentation-breakpoint-event-name breakpoint))
+             :success-function response-handler))
 
 ;; XHR breakpoints
 
@@ -258,13 +264,15 @@
 
 (defun kite--set-xhr-breakpoint (breakpoint response-handler)
   (kite-send "DOM.setXHRBreakpoint"
-             (list (cons 'url (kite-xhr-breakpoint-url-substring breakpoint)))
-             response-handler))
+             :params
+             (list :url (kite-xhr-breakpoint-url-substring breakpoint))
+             :success-function response-handler))
 
 (defun kite--remove-xhr-breakpoint (breakpoint response-handler)
   (kite-send "DOM.removeXHRBreakpoint"
-             (list (cons 'url (kite-xhr-breakpoint-url-substring breakpoint)))
-             response-handler))
+             :params
+             (list :url (kite-xhr-breakpoint-url-substring breakpoint))
+             :success-function response-handler))
 
 ;; Generic functions
 

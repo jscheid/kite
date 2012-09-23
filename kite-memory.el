@@ -63,15 +63,13 @@
 
 (defun kite--memory-refresh ()
   (interactive)
-  (kite-send "Memory.getProcessMemoryDistribution" nil
+  (kite-send "Memory.getProcessMemoryDistribution"
+             :success-function
              (lambda (response)
                (let ((inhibit-read-only t))
                  (erase-buffer)
                  (kite--memory-render-graph
-                  (plist-get (plist-get response :result) :distribution) 0))))
-  (kite-send "Memory.getDOMNodeCount" nil
-             (lambda (response)
-               (kite--log "Memory.getDOMNodeCount got response %s" response))))
+                  (plist-get (plist-get response :result) :distribution) 0)))))
 
 (defun kite-memory ()
   (interactive)

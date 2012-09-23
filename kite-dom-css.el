@@ -219,6 +219,7 @@ so that it works also at the very end of the field.")
     (widget-create 'checkbox
                    :notify (lambda (widget &rest ignore)
                              (kite-send "CSS.toggleProperty"
+                                        :params
                                         (list :styleId (widget-get widget :kite-css-style-id)
                                               :propertyIndex (widget-get widget :kite-css-property-index)
                                               :disable (if (widget-value widget) :json-false t))))
@@ -248,6 +249,7 @@ so that it works also at the very end of the field.")
                  :action (lambda (widget changed-widget &optional event)
                            (kite-send
                             "CSS.setPropertyText"
+                            :params
                             (list :styleId (widget-get widget :kite-css-style-id)
                                   :propertyIndex (widget-get widget :kite-css-property-index)
                                   :text (concat (widget-get widget :kite-css-property-name)
@@ -255,6 +257,7 @@ so that it works also at the very end of the field.")
                                                 (widget-value widget)
                                                 ";")
                                   :overwrite t)
+                            :success-function
                             (lexical-let ((lex-property-name (widget-get widget :kite-css-property-name))
                                           (lex-widget widget))
                               (lambda (response)
@@ -387,8 +390,9 @@ so that it works also at the very end of the field.")
 
   (kite-send
    "CSS.getMatchedStylesForNode"
-   (list (cons 'nodeId
-               (get-char-property (point) 'kite-node-id)))
+   :params
+   (list :nodeId (get-char-property (point) 'kite-node-id))
+   :success-function
    (lambda (response)
      (kite--log (pp-to-string response))
      (kite--dom-create-css-buffer
@@ -494,7 +498,9 @@ so that it works also at the very end of the field.")
   (lexical-let ((barrier (cons nil nil))
                 (node-id (get-char-property (point) 'kite-node-id)))
     (kite-send "CSS.getComputedStyleForNode"
-               (list (cons 'nodeId node-id))
+               :params
+               (list :nodeId node-id)
+               :success-function
                (lambda (response)
                  (setcar barrier response)
                  (when (and (not (null (car barrier)))
@@ -502,7 +508,9 @@ so that it works also at the very end of the field.")
                    (kite--dom-render-computed-css
                     (car barrier) (cdr barrier)))))
     (kite-send "CSS.getMatchedStylesForNode"
-               (list (cons 'nodeId node-id))
+               :params
+               (list :nodeId node-id)
+               :success-function
                (lambda (response)
                  (setcdr barrier response)
                  (when (and (not (null (car barrier)))
