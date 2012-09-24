@@ -143,7 +143,22 @@ files."
     (set (make-local-variable 'kite-ewoc)
          (ewoc-create (symbol-function 'kite--render-network-entry)
                       "\n"
-                      "\nReload the page to show network information\n" t)))
+                      (format "\
+Reload the page to show network information.
+
+You can reload the page using the following key binding(s):
+%s"
+                              (or (mapconcat
+                                   (lambda (str)
+                                     (format "`%s'" (key-description str)))
+                                   (where-is-internal 'kite-reload-page
+                                                      overriding-local-map
+                                                      nil
+                                                      nil)
+                                   ", ")
+                                  "`M-x kite-reload-page'"))
+
+                      t)))
 
   (kite-send "Network.enable")
   (run-mode-hooks 'kite-network-mode-hook))
