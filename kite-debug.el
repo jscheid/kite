@@ -37,6 +37,7 @@
 (require 'kite-sourcemap)
 (require 'kite-global)
 (require 'url-expand)
+(require 'ewoc)
 
 (defvar kite-debug-mode-map
   (let ((map (make-keymap))
