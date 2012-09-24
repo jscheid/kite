@@ -94,7 +94,7 @@ remote WebKit debugger instance."
   page-thumbnail-url
   page-url
   page-title
-  breakpoint-ewoc
+  breakpoint-list
   unique-name
   (script-infos (make-hash-table :test 'equal))
   (debugger-state kite--debugger-state-resumed)
@@ -266,6 +266,20 @@ create one with the given MODE."
     (save-excursion
       (goto-char (point-max))
       (insert (concat (apply 'format format-string args) "\n")))))
+
+(defun kite--select-session ()
+  "Used by global commands to select a session to act upon.  If
+the command is executed in a buffer with a local binding for
+`kite-session', use that.  Otherwise, use the most recent session
+if available.  Otherwise, raise an error."
+  (cond
+   ((and (boundp 'kite-session)
+         kite-session)
+    kite-session)
+   ((not (null kite-most-recent-session))
+    kite-most-recent-session)
+   (t
+    (error "No kite sessions active."))))
 
 (provide 'kite-global)
 

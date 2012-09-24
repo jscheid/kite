@@ -44,6 +44,7 @@
       (defalias 'kite--mapcar 'cl-mapcar)
       (defalias 'kite--position 'cl-position)
       (defalias 'kite--remove-if 'cl-remove-if)
+      (defalias 'kite--stable-sort 'cl-stable-sort)
       (defalias 'kite--subseq 'cl-subseq))
   (require 'cl)
   (defalias 'kite--defstruct 'defstruct)
@@ -55,6 +56,7 @@
   (defalias 'kite--mapcar 'mapcar*)
   (defalias 'kite--position 'position)
   (defalias 'kite--remove-if 'remove-if)
+  (defalias 'kite--stable-sort 'stable-sort)
   (defalias 'kite--subseq 'subseq))
 
 (provide 'kite-cl)

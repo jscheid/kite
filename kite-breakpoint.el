@@ -35,8 +35,44 @@
 (require 'kite-cl)
 (require 'kite-global)
 
-(require 'ewoc)
 (require 'browse-url nil t)
+
+(defconst kite--dom-breakpoint-names
+  '("abort" "beforecopy" "beforecut" "beforeload" "beforepaste"
+    "beforeunload" "blocked" "blur" "cached" "change" "checking" "click"
+    "close" "complete" "compositionend" "compositionstart"
+    "compositionupdate" "connect" "contextmenu" "copy" "cut" "dblclick"
+    "devicemotion" "deviceorientation" "display" "downloading" "drag"
+    "dragend" "dragenter" "dragleave" "dragover" "dragstart" "drop"
+    "error" "focus" "focusin" "focusout" "hashchange" "input" "invalid"
+    "keydown" "keypress" "keyup" "load" "loadstart" "message"
+    "mousedown" "mousemove" "mouseout" "mouseover" "mouseup"
+    "mousewheel" "noupdate" "obsolete" "offline" "online" "open"
+    "overflowchanged" "pagehide" "pageshow" "paste" "popstate"
+    "readystatechange" "reset" "resize" "scroll" "search" "select"
+    "selectstart" "selectionchange" "storage" "submit" "textInput"
+    "unload" "updateready" "versionchange" "webkitvisibilitychange"
+    "write" "writeend" "writestart" "zoom" "DOMActivate" "DOMFocusIn"
+    "DOMFocusOut" "DOMAttrModified" "DOMCharacterDataModified"
+    "DOMNodeInserted" "DOMNodeInsertedIntoDocument" "DOMNodeRemoved"
+    "DOMNodeRemovedFromDocument" "DOMSubtreeModified" "DOMContentLoaded"
+    "webkitBeforeTextInserted" "webkitEditableContentChanged" "canplay"
+    "canplaythrough" "durationchange" "emptied" "ended" "loadeddata"
+    "loadedmetadata" "pause" "play" "playing" "ratechange" "seeked"
+    "seeking" "timeupdate" "volumechange" "waiting" "addtrack"
+    "cuechange" "enter" "exit" "webkitbeginfullscreen"
+    "webkitendfullscreen" "webkitsourceopen" "webkitsourceended"
+    "webkitsourceclose" "progress" "stalled" "suspend"
+    "webkitAnimationEnd" "webkitAnimationStart"
+    "webkitAnimationIteration" "webkitTransitionEnd" "orientationchange"
+    "timeout" "touchstart" "touchmove" "touchend" "touchcancel"
+    "success" "loadend" "webkitfullscreenchange" "webkitfullscreenerror"
+    "webkitspeechchange" "webglcontextlost" "webglcontextrestored"
+    "webglcontextcreationerror" "audioprocess" "connecting"
+    "addstream" "removestream" "statechange" "show"
+    "webkitpointerlocklost")
+  "WebKit DOM breakpoint names, taken from
+  Source/WebCore/dom/EventNames.h")
 
 (kite--defstruct
   (kite-breakpoint
@@ -290,101 +326,119 @@
   (funcall (kite-breakpoint-remove-function breakpoint)
            breakpoint response-handler))
 
-;; EWOC functions
-
-(defun kite--make-breakpoint-ewoc ()
-  (ewoc-create
-   (lambda (breakpoint)
-     (insert (format
-              "* Break on %s"
-              (kite--breakpoint-to-string breakpoint))))
-   "Breakpoints:"))
-
 ;; High-level functions
 
-(defun kite--add-breakpoint (ewoc breakpoint)
-  (let ((insert-after (ewoc-nth ewoc 0)))
-    (if (or (null insert-after)
-            (>= (kite-breakpoint-sort-priority (ewoc-data insert-after))
-                (kite-breakpoint-sort-priority breakpoint)))
-        (ewoc-enter-first ewoc breakpoint)
-      (setq insert-after (ewoc-next ewoc insert-after))
-      (while (and insert-after
-                  (< (kite-breakpoint-sort-priority (ewoc-data insert-after))
-                     (kite-breakpoint-sort-priority breakpoint)))
-        (setq insert-after (ewoc-next ewoc insert-after)))
-      (if insert-after
-          (ewoc-enter-after ewoc insert-after breakpoint)
-        (ewoc-enter-last ewoc breakpoint)))))
+(defun kite--session-has-breakpoint (kite-session predicate)
+  (kite--find-if predicate
+                 (kite-session-breakpoint-list kite-session)))
+
+(defun kite--session-add-breakpoint (kite-session breakpoint)
+  (lexical-let ((lex-kite-session kite-session)
+                (lex-breakpoint breakpoint))
+    (kite--set-breakpoint
+     breakpoint
+     (lambda (result)
+       (setf (kite-session-breakpoint-list lex-kite-session)
+             (kite--stable-sort
+              (cons lex-breakpoint
+                    (kite-session-breakpoint-list lex-kite-session))
+              (lambda (a b)
+                (< (kite-breakpoint-sort-priority a)
+                   (kite-breakpoint-sort-priority b)))))
+       (message "Breakpoint set")))))
+
+(defun kite--session-remove-breakpoints (kite-session predicate)
+  (mapc (lambda (breakpoint)
+          (when (funcall predicate breakpoint)
+            (lexical-let ((lex-breakpoint breakpoint)
+                          (lex-kite-session kite-session))
+              (kite--remove-breakpoint
+               breakpoint
+               (lambda (result)
+                 (setf (kite-session-breakpoint-list lex-kite-session)
+                       (delete lex-breakpoint
+                               (kite-session-breakpoint-list lex-kite-session)))
+                 (message "Breakpoint removed"))))))
+        (copy-seq (kite-session-breakpoint-list kite-session))))
 
 (defun kite-set-xhr-breakpoint ()
   (interactive)
-  (kite--add-breakpoint
-   (kite-session-breakpoint-ewoc kite-session)
-   (make-kite-xhr-breakpoint
-    :url-substring (read-from-minibuffer
-                    "XHR breakpoint on URL substring: "
-                    (and (boundp 'browse-url-url-at-point)
-                         (browse-url-url-at-point))
-                    nil nil 'kite-url-substring-history))))
+  (let ((kite-session (kite--select-session)))
+    (kite--session-add-breakpoint
+     kite-session
+     (make-kite-xhr-breakpoint
+      :url-substring (read-from-minibuffer
+                      "XHR breakpoint on URL substring: "
+                      (and (boundp 'browse-url-url-at-point)
+                           (browse-url-url-at-point))
+                      nil nil 'kite-url-substring-history)))))
 
 (defun kite-set-dom-event-breakpoint ()
   (interactive)
-  (kite--add-breakpoint
-   (kite-session-breakpoint-ewoc kite-session)
-   (make-kite-dom-event-breakpoint
-    :event-name (read-from-minibuffer
-                 "Breakpoint on DOM event: "
-                 nil nil nil 'kite-dom-event-history))))
+  (let ((kite-session (kite--select-session))
+        (event-name (completing-read
+                     "Breakpoint on DOM event: "
+                     kite--dom-breakpoint-names
+                     nil
+                     'confirm
+                     nil
+                     'kite-dom-event-history)))
+    (when event-name
+      (kite--session-add-breakpoint
+       kite-session
+       (make-kite-dom-event-breakpoint
+        :event-name event-name)))))
 
 (defun kite-set-instrumentation-breakpoint ()
   (interactive)
-  (kite--add-breakpoint
-   (kite-session-breakpoint-ewoc kite-session)
-   (make-kite-instrumentation-breakpoint
-    :event-name (read-from-minibuffer
-                 "Breakpoint on native event: "
-                 nil nil nil 'kite-instrumentation-history))))
+  (let ((kite-session (kite--select-session)))
+    (kite--session-add-breakpoint
+     kite-session
+     (make-kite-instrumentation-breakpoint
+      :event-name (read-from-minibuffer
+                   "Breakpoint on native event: "
+                   nil nil nil 'kite-instrumentation-history)))))
 
 (defun kite-toggle-exception-breakpoint ()
   (interactive)
-  (lexical-let ((breakpoint-ewoc (kite-session-breakpoint-ewoc kite-session)))
-    (let ((uncaught-exceptions-breakpoints
-           (ewoc-collect breakpoint-ewoc 'kite-uncaught-exceptions-breakpoint-p))
-          (all-exceptions-breakpoints
-           (ewoc-collect breakpoint-ewoc 'kite-all-exceptions-breakpoint-p)))
-    (cond
-     (uncaught-exceptions-breakpoints
-      (ewoc-filter breakpoint-ewoc (lambda (breakpoint)
-                                     (not (kite-uncaught-exceptions-breakpoint-p breakpoint))))
-      (kite--add-breakpoint breakpoint-ewoc
-                            (make-kite-all-exceptions-breakpoint)))
-     (all-exceptions-breakpoints
-      (ewoc-filter breakpoint-ewoc (lambda (breakpoint)
-                                     (not (kite-all-exceptions-breakpoint-p breakpoint)))))
-     (t
-      (kite--add-breakpoint breakpoint-ewoc
-                            (make-kite-uncaught-exceptions-breakpoint)))))))
+  (cond
+
+   ;; break on uncaught -> break on all
+   ((kite--session-has-breakpoint
+     kite-session
+     #'kite-uncaught-exceptions-breakpoint-p)
+    (kite--session-remove-breakpoints
+     kite-session
+     #'kite-uncaught-exceptions-breakpoint-p)
+    (kite--session-add-breakpoint
+     kite-session
+     (make-kite-all-exceptions-breakpoint)))
+
+   ;; break on all -> don't break on exception
+   ((kite--session-has-breakpoint
+     kite-session
+     #'kite-all-exceptions-breakpoint-p)
+    (kite--session-remove-breakpoints
+     kite-session
+     #'kite-all-exceptions-breakpoint-p))
+
+   ;; don't break -> break on uncaught
+   (t
+    (kite--session-add-breakpoint
+     kite-session
+     (make-kite-uncaught-exceptions-breakpoint)))))
 
 (defun kite-toggle-next-instruction-breakpoint ()
   (interactive)
-  (lexical-let*
-      ((breakpoint-ewoc (kite-session-breakpoint-ewoc kite-session))
-       (old-breakpoints
-        (ewoc-collect breakpoint-ewoc 'kite-next-instruction-breakpoint-p)))
-    (if old-breakpoints
-        (kite--remove-breakpoint (car old-breakpoints)
-                                 (lambda (result)
-                                   (ewoc-filter breakpoint-ewoc
-                                                (lambda (breakpoint)
-                                                  (not (kite-next-instruction-breakpoint-p
-                                                        breakpoint))))
-                                   (ewoc-invalidate breakpoint-ewoc)))
-      (lexical-let ((new-breakpoint (make-kite-next-instruction-breakpoint)))
-        (kite--set-breakpoint new-breakpoint
-                              (lambda (result)
-                                (kite--add-breakpoint breakpoint-ewoc new-breakpoint)
-                                (ewoc-invalidate breakpoint-ewoc)))))))
+  (if (kite--session-has-breakpoint
+       kite-session
+       #'kite-next-instruction-breakpoint-p)
+      (kite--session-remove-breakpoints
+       kite-session
+       #'kite-next-instruction-breakpoint-p)
+    (kite--session-add-breakpoint
+       kite-session
+     (make-kite-next-instruction-breakpoint))))
 
 (provide 'kite-breakpoint)
 
