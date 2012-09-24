@@ -144,23 +144,53 @@ correspond to one.")
              :params
              (list :message "Paused in kite debugger"))
 
-  (let* ((call-frames (plist-get packet :callFrames))
-         (first-call-frame (elt call-frames 0))
-         (location (plist-get first-call-frame :location))
-         (script-info (gethash (plist-get location :scriptId)
-                               (kite-session-script-infos kite-session))))
-    (lexical-let ((line-number (plist-get location :lineNumber))
-                  (column-number (plist-get location :columnNumber))
-                  (kite-session kite-session))
-      (kite-visit-script
-       script-info
-       line-number
-       column-number
-       (lambda ()
-         (kite-debugging-mode)
-         (set (make-local-variable 'kite-script-id) (plist-get location :scriptId))
-         (set (make-local-variable 'kite-session) kite-session))))
-    (message "Execution paused")))
+  (lexical-let* ((call-frames (plist-get packet :callFrames))
+                 (first-call-frame (elt call-frames 0))
+                 (location (plist-get first-call-frame :location))
+                 (script-info (gethash (plist-get location :scriptId)
+                                       (kite-session-script-infos kite-session)))
+                 (line-number (plist-get location :lineNumber))
+                 (column-number (plist-get location :columnNumber))
+                 (kite-session (gethash websocket-url kite-active-sessions)))
+    (kite-visit-script
+     script-info
+     line-number
+     column-number
+     (lambda ()
+       (kite-debugging-mode)
+       (set (make-local-variable 'kite-script-id) (plist-get location :scriptId))
+       (set (make-local-variable 'kite-session) kite-session)
+
+       (let* ((stack-buffer (get-buffer-create "*kite stack*"))
+              (window (display-buffer
+                       stack-buffer
+                       (list (cons 'display-buffer-pop-up-window nil)))))
+         (with-current-buffer stack-buffer
+           (special-mode)
+           (set (make-local-variable 'kite-session) kite-session)
+           (set (make-local-variable 'widget-link-prefix) "")
+           (set (make-local-variable 'widget-link-suffix) "")
+           (let ((inhibit-read-only t))
+             (erase-buffer)
+             (save-excursion
+               (mapc (lambda (call-frame)
+                       (insert (concat (plist-get call-frame :functionName)
+                                       " ("
+                                       (kite-script-info-url script-info)
+                                       ":"
+                                       (number-to-string line-number)
+                                       ")\n"))
+                       (mapc (lambda (scope)
+                               (kite--insert-object-widget
+                                (kite--get scope :object :objectId)
+                                (concat "  " (kite--get scope :type))
+                                2)
+                               (insert "\n"))
+                             (plist-get call-frame :scopeChain)))
+                     call-frames)
+               (use-local-map widget-keymap)
+               (widget-setup)))))
+       (message "Execution paused")))))
 
 (defun kite--Debugger-scriptParsed (websocket-url packet)
   (puthash
