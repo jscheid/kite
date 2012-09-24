@@ -39,6 +39,10 @@
 (require 'url-expand)
 (require 'ewoc)
 
+(defvar kite-script-id nil
+  "Keeps the scriptId in a buffer-local variable in buffers that
+correspond to one.")
+
 (defvar kite-debug-mode-map
   (let ((map (make-keymap))
 	(ctl-c-b-map (make-keymap))
@@ -157,6 +161,7 @@
        column-number
        (lambda ()
          (kite-debugging-mode)
+         (set (make-local-variable 'kite-script-id) (plist-get location :scriptId))
          (set (make-local-variable 'kite-session) kite-session))))
     (message "Execution paused")))
 
