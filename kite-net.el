@@ -91,6 +91,7 @@
     (kite--define-global-mode-keys map)
     (define-key map "r" 'kite-debug-reload)
     (define-key map (kbd "RET") 'kite-show-network-entry)
+    (define-key map (kbd "C-c g") 'kite-net-visit-response)
     map)
   "Local keymap for `kite-network-mode' buffers.")
 
@@ -99,6 +100,31 @@
 (defvar kite-min-time)
 (defvar kite-max-time)
 (defvar kite-header-width)
+
+(defcustom kite--mime-map
+  '(("image/*" image-mode)
+    ("text/plain" fundamental-mode)
+    ("text/enriched" fundamental-mode)
+    ("text/richtext" fundamental-mode)
+    ("text/x-patch" diff-mode)
+    ("text/x-diff" diff-mode)
+    ("application/emacs-lisp" emacs-lisp-mode)
+    ("application/x-emacs-lisp" emacs-lisp-mode)
+    ("application/x-shellscript" sh-mode)
+    ("application/x-sh" sh-mode)
+    ("text/x-sh" sh-mode)
+    ("application/javascript" js-mode)
+    ("text/javascript" js-mode)
+    ("text/css" css-mode)
+    ("text/dns" dns-mode)
+    ("text/x-org" org-mode)
+    ("text/html" html-mode)
+    ("text/x-coffeescript" coffee-mode))
+  "Alist of supported MIME types used when visiting remote
+files."
+  :group 'kite
+  :type '(repeat (list (regexp :tag "MIME type")
+                       (function :tag "Display function"))))
 
 (define-derived-mode kite-network-mode special-mode "kite-network"
   "Toggle kite network mode."
@@ -454,6 +480,65 @@ FIXME: the event time isn't actually rendered yet."
                          (> kite-dom-content-fired-timestamp kite-max-time)))
             (setq kite-max-time kite-dom-content-fired-timestamp)
             (ewoc-refresh kite-ewoc)))))))
+
+(defun kite-net-visit-response ()
+  "Show the response data corresponding to the network request at
+point."
+  (interactive)
+
+  (lexical-let*
+      ((request-data (ewoc-data
+                      (or (and (boundp 'kite-ewoc)
+                               (ewoc-locate kite-ewoc))
+                          (error "Not in a kite network buffer?"))))
+       (request-id (plist-get
+                    (cdr (assq 'will-be-sent request-data))
+                    :requestId))
+       (response (plist-get (cdr (assq 'response-received
+                                       request-data))
+                            :response))
+       (mime-type (plist-get response :mimeType))
+       (buffer-mode
+        (nth 1 (find-if (lambda (candidate)
+                          (string-match (car candidate)
+                                        mime-type))
+                        kite--mime-map)))
+       (buffer-name (format "%s (%s)"
+                            (plist-get response :url)
+                            request-id))
+       (existing-buffer (get-buffer buffer-name))
+       (current-buf (current-buffer)))
+
+    (if existing-buffer
+        (switch-to-buffer existing-buffer)
+      (lexical-let ((new-buffer (generate-new-buffer buffer-name)))
+        (switch-to-buffer new-buffer)
+        (setq buffer-read-only t)
+        (let ((inhibit-read-only t))
+          (erase-buffer)
+          (insert "Loading, please wait...\n"))
+        (with-current-buffer current-buf
+          (kite-send
+           "Network.getResponseBody"
+           :params (list :requestId request-id)
+           :success-function
+           (lambda (result)
+             (with-current-buffer new-buffer
+               (let ((inhibit-read-only t))
+                 (erase-buffer)
+                 (save-excursion
+                   (insert (funcall
+                            (if (eq t
+                                    (plist-get result :base64Encoded))
+                                'base64-decode-string 'identity)
+                            (plist-get result :body)))))
+               (if buffer-mode
+                   (funcall buffer-mode)
+                 (fundamental-mode)
+                 (when mime-type
+                   (message "\
+Kite doesn't know how to display MIME type %s"
+                            mime-type)))))))))))
 
 (add-hook 'kite-Page-domContentEventFired-hooks 'kite--net-Page-domContentEventFired)
 (add-hook 'kite-Network-dataReceived-hooks 'kite--net-Network-dataReceived)
