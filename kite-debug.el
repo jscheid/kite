@@ -135,6 +135,7 @@
   (format "*kite %s*" websocket-url))
 
 (defun kite--Debugger-resumed (websocket-url packet)
+  (kite-send "Debugger.setOverlayMessage")
   (message "Execution resumed"))
 
 (defun kite--Debugger-paused (websocket-url packet)
