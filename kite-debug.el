@@ -128,37 +128,35 @@
 
       (ewoc-enter-last ewoc kite-session)
 
-      (goto-char (point-max))
-      (setf (kite-session-breakpoint-ewoc kite-session)
-            (kite--make-breakpoint-ewoc)))))
+      (goto-char (point-max)))))
 
 (defun kite--connection-buffer (websocket-url)
   (format "*kite %s*" websocket-url))
 
 (defun kite--Debugger-resumed (websocket-url packet)
-  (with-current-buffer (kite--connection-buffer websocket-url)
-    (setf (kite-session-debugger-state kite-session) kite--debugger-state-resumed)))
+  (message "Execution resumed"))
 
 (defun kite--Debugger-paused (websocket-url packet)
-  (with-current-buffer (kite--connection-buffer websocket-url)
-    (setf (kite-session-debugger-state kite-session) kite--debugger-state-paused)
-    (ewoc-refresh kite-connection-ewoc)
-    (let* ((call-frames (plist-get packet :callFrames))
-           (first-call-frame (elt call-frames 0))
-           (location (plist-get first-call-frame :location))
-           (script-info (gethash (plist-get location :scriptId)
-                                 (kite-session-script-infos kite-session))))
-      (lexical-let ((line-number (- (plist-get location :lineNumber)))
-                    (column-number (plist-get location :columnNumber))
-                    (kite-session kite-session))
-        (kite-visit-script
-         script-info
-         line-number
-         column-number
-         (lambda ()
-           (kite-debugging-mode)
-           (set (make-local-variable 'kite-session) kite-session))))
-      (message "Debugger paused"))))
+  (kite-send "Debugger.setOverlayMessage"
+             :params
+             (list :message "Paused in kite debugger"))
+
+  (let* ((call-frames (plist-get packet :callFrames))
+         (first-call-frame (elt call-frames 0))
+         (location (plist-get first-call-frame :location))
+         (script-info (gethash (plist-get location :scriptId)
+                               (kite-session-script-infos kite-session))))
+    (lexical-let ((line-number (plist-get location :lineNumber))
+                  (column-number (plist-get location :columnNumber))
+                  (kite-session kite-session))
+      (kite-visit-script
+       script-info
+       line-number
+       column-number
+       (lambda ()
+         (kite-debugging-mode)
+         (set (make-local-variable 'kite-session) kite-session))))
+    (message "Execution paused")))
 
 (defun kite--Debugger-scriptParsed (websocket-url packet)
   (puthash
@@ -364,7 +362,7 @@ to visit the source file."
         (kite-visit-script
          script-info
          line-number
-         (- column-number 1)
+         column-number
          (lambda ()
            (set (make-local-variable 'kite-session) kite-session)))
       (error "Source is unavailable"))))
