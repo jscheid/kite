@@ -59,9 +59,9 @@ currently no plans for compatibility with older releases.
 **NOTE**: _Kite_ has not yet been uploaded to any package
   repository so these instructions do not apply.
 
-~~_Kite_ comes as a package conforming to Tromey's _package.el_.  Ensure
+_Kite_ comes as a package conforming to Tromey's _package.el_.  Ensure
 that an archive containing Kite is listed in `package-archives` and
-execute `M-x package-install RET kite RET`.~~
+execute `M-x package-install RET kite RET`.
 
 ## Manual Installation
 
