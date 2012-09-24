@@ -50,6 +50,14 @@
 (require 'kite-sourcemap)
 (require 'kite-global)
 
+(defcustom kite-default-remote-host "localhost"
+  "Default host for connection to WebKit remote debugging API."
+  :group 'kite)
+
+(defcustom kite-default-remote-port 9222
+  "Default port for connection to WebKit remote debugging API."
+  :group 'kite)
+
 (setq websocket-debug t)
 (setq websocket-callback-debug-on-error t)
 
@@ -246,8 +254,8 @@ enters the empty string at the prompt."
          (url-package-name "kite.el")
          (url-package-version "0.1")
          (url-http-attempt-keepalives nil)
-         (use-host (or host "127.0.0.1"))
-         (use-port (or port 9222))
+         (use-host (or host kite-default-remote-host))
+         (use-port (or port kite-default-remote-port))
          (url
           (url-parse-make-urlobj
            "http" nil nil use-host use-port "/json")))
@@ -455,17 +463,18 @@ Otherwise, create a new session using default host and port."
    ((equal '(16) prefix)
     (kite-connect
      (read-from-minibuffer "Host: "
-                           "localhost"
+                           kite-default-remote-host
                            nil
                            nil
                            'kite-remote-host-history
-                           "localhost")
-     (let ((port (read-from-minibuffer "Port: "
-                                       "9222"
-                                       nil
-                                       t
-                                       'kite-remote-port-history
-                                       "9222")))
+                           kite-default-remote-host)
+     (let ((port (read-from-minibuffer
+                  "Port: "
+                  (number-to-string kite-default-remote-port)
+                  nil
+                  t
+                  'kite-remote-port-history
+                  (number-to-string kite-default-remote-port))))
        (unless (and (numberp port)
                     (>= port 1)
                     (<= port 65535))
