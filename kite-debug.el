@@ -201,10 +201,7 @@ correspond to one.")
 
 (defun kite-step-into ()
   (interactive)
-  (kite-send "Debugger.pause"
-             :success-function
-             (lambda (result)
-               (kite-send "Debugger.stepInto"))))
+  (kite-send "Debugger.stepInto"))
 
 (defun kite-step-over ()
   (interactive)
@@ -213,6 +210,21 @@ correspond to one.")
 (defun kite-step-out ()
   (interactive)
   (kite-send "Debugger.stepOut"))
+
+(defun kite-resume ()
+  (interactive)
+  (kite-send "Debugger.resume"))
+
+(defun kite-continue-to-location ()
+  (interactive)
+  (kite-send "Debugger.continueToLocation"
+             :params
+             (list :location
+                   (list :scriptId kite-script-id
+                         :lineNumber (save-restriction
+                                       (widen)
+                                       (line-number-at-pos (point)))
+                         :columnNumber (current-column)))))
 
 (defun kite--create-remote-script-buffer (script-info after-load-function)
   (lexical-let* ((url (kite-script-info-url script-info))
