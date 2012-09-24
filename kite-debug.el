@@ -36,8 +36,10 @@
 (require 'kite-cl)
 (require 'kite-sourcemap)
 (require 'kite-global)
+(require 'kite-object)
 (require 'url-expand)
 (require 'ewoc)
+(require 'wid-edit)
 
 (defvar kite-script-id nil
   "Keeps the scriptId in a buffer-local variable in buffers that
