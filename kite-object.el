@@ -53,7 +53,6 @@
                widget-keymap
                special-mode-map))))
     (define-key map "g" 'kite-object-refresh)
-    (define-key map (kbd "RET") 'kite--object-toggle-disclosure)
     map)
   "Local keymap for `kite-object-mode' buffers.")
 
@@ -303,6 +302,24 @@ given PROPERTIES vector."
         (t
          (widget-default-format-handler widget escape))))
 
+(defun kite--insert-object-widget (object-id
+                                   object-description
+                                   &optional indent)
+  "Insert a link widget that opens into an object inspector.
+OBJECT-ID is the ID of the object to inspect.  OBJECT-DESCRIPTION
+is used as the label for the widget.  INDENT is the number of
+extra spaces to indent children, default is 0."
+  (widget-create 'link
+                 :size 1
+                 :offset 2
+                 :indent (or indent 0)
+                 :kite-disclosed nil
+                 :kite-root-object t
+                 :kite-object-id object-id
+                 :notify (lambda (widget &rest ignore)
+                           (kite--object-toggle-widget widget))
+                 object-description))
+
 (defun kite-inspect-object (object-id object-description)
   (lexical-let ((kite-session kite-session)
                 (buffer (get-buffer-create "*kite object inspector*")))
@@ -317,16 +334,10 @@ given PROPERTIES vector."
 
       (save-excursion
         (set (make-local-variable 'kite-object-widget)
-             (widget-create 'item
-                            :size 1
-                            :offset 2
-                            :kite-disclosed nil
-                            :kite-root-object t
-                            :format "%v"
-                            :kite-object-id object-id
-                            object-description))
+             (kite--insert-object-widget object-id object-description))
         (widget-setup)
-        (kite--object-toggle-widget kite-object-widget)))
+        (kite--object-toggle-widget kite-object-widget)
+        ))
     (switch-to-buffer buffer)))
 
 (defun kite--object-toggle-disclosure ()
@@ -334,8 +345,7 @@ given PROPERTIES vector."
   (beginning-of-line)
   (widget-move 1)
   (let ((widget (widget-at)))
-    (when (and widget
-               (not (widget-member widget :kite-root-object)))
+    (when widget
       (kite--object-toggle-widget widget))))
 
 (defun kite--object-find-all-object-ids (widget &optional all-object-ids)
