@@ -39,6 +39,8 @@ ELISP_SOURCES = \
 	kite-util.el		\
 	kite.el
 
+ELC = $(patsubst %.el,%.elc,$(ELISP_SOURCES))
+
 kite.html: kite.md
 	pandoc -s -S --toc -c kite.css -o $@ $<
 
@@ -62,5 +64,10 @@ DEPS = -l ./kite-load-path.el
 COMPILE = -f batch-byte-compile
 
 # How to compile
-%.elc: %.el
-	$(EMACS) $(BATCH) $(DEPS) $(COMPILE) $<
+$(ELC): $(ELISP_SOURCES)
+	$(EMACS) $(BATCH) $(DEPS) $(COMPILE) $^
+
+byte-compile: $(ELC)
+
+test:
+	$(EMACS) $(BATCH) $(DEPS)  -l ert -l kite-tests.el -f ert-run-tests-batch-and-exit
