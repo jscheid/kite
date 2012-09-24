@@ -201,31 +201,46 @@ correspond to one.")
   :keymap kite-debugging-mode-map)
 
 (defun kite-step-into ()
+  "Step into the next instruction in the current or most recent
+session.  Sends `Debugger.stepInto' to the remote debugger."
   (interactive)
-  (kite-send "Debugger.stepInto"))
+  (let ((kite-session (kite--select-session)))
+    (kite-send "Debugger.stepInto")))
 
 (defun kite-step-over ()
+  "Step over the next instruction in the current or most recent
+session.  Sends `Debugger.stepOver' to the remote debugger."
   (interactive)
-  (kite-send "Debugger.stepOver"))
+  (let ((kite-session (kite--select-session)))
+    (kite-send "Debugger.stepOver")))
 
 (defun kite-step-out ()
+  "Step out of the current block in the current or most recent
+session.  Sends `Debugger.stepOut' to the remote debugger."
   (interactive)
-  (kite-send "Debugger.stepOut"))
+  (let ((kite-session (kite--select-session)))
+    (kite-send "Debugger.stepOut")))
 
 (defun kite-resume ()
+  "Resume execution in the current or most recent session.  Sends
+`Debugger.resume' to the remote debugger."
   (interactive)
-  (kite-send "Debugger.resume"))
+  (let ((kite-session (kite--select-session)))
+    (kite-send "Debugger.resume")))
 
 (defun kite-continue-to-location ()
+  "Continue to the instruction at or after point.  Sends
+`Debugger.continueToLocation' to the remote debugger."
   (interactive)
-  (kite-send "Debugger.continueToLocation"
-             :params
-             (list :location
-                   (list :scriptId kite-script-id
-                         :lineNumber (save-restriction
-                                       (widen)
-                                       (line-number-at-pos (point)))
-                         :columnNumber (current-column)))))
+  (let ((kite-session (kite--select-session)))
+    (kite-send "Debugger.continueToLocation"
+               :params
+               (list :location
+                     (list :scriptId kite-script-id
+                           :lineNumber (save-restriction
+                                         (widen)
+                                         (line-number-at-pos (point)))
+                           :columnNumber (current-column))))))
 
 (defun kite--create-remote-script-buffer (script-info after-load-function)
   (lexical-let* ((url (kite-script-info-url script-info))
