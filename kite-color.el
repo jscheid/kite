@@ -33,19 +33,19 @@
 
 ;;; Code:
 
-(require 'kite-cl)
+(require 'cl)
 (require 'color)
 (eval-when-compile
   (require 'rx))
 
-(kite--defun kite--make-color-image
-             (rgba-float-color
-              &key
-              (width 16)
-              (height 16)
-              (checker-size 8)
-              (bg-color-1 (color-hsl-to-rgb 0 0 1))
-              (bg-color-2 (color-hsl-to-rgb 0 0 0.5)))
+(defun* kite--make-color-image
+    (rgba-float-color
+     &key
+     (width 16)
+     (height 16)
+     (checker-size 8)
+     (bg-color-1 (color-hsl-to-rgb 0 0 1))
+     (bg-color-2 (color-hsl-to-rgb 0 0 0.5)))
   "Return an image that visualizes the given RGBA-FLOAT-COLOR,
 which should be a list containing four float values in the range
 0..1.
@@ -72,10 +72,10 @@ for the checkerboard tiles."
                                       (mod (/ row checker-size) 2))
                               bg-color-list)))
                (dolist (component
-                        (kite--mapcar (lambda (fg bg)
-                                        (+ (* fg alpha)
-                                           (* bg (- 1 alpha))))
-                                      rgba-float-color bg-color))
+                        (mapcar* (lambda (fg bg)
+                                   (+ (* fg alpha)
+                                      (* bg (- 1 alpha))))
+                                 rgba-float-color bg-color))
                  (princ (format "%d " (round (* scale component)))))
                (setq column (1+ column)))))
          (princ "\n")
@@ -411,7 +411,7 @@ four float values in the range 0..1 corresponding to red, green,
 blue, and alpha otherwise.  This function does not deal in color
 spaces or color profiles and thus its result should be treated as
 a 'raw' color value."
-  (kite--flet
+  (flet
    ((clamp (n)
            (max 0.0 (min 1.0 n)))
     (color-hue-to-rgb (v1 v2 h)

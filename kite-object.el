@@ -31,8 +31,8 @@
 
 ;;; Code:
 
-(require 'kite-cl)
 (require 'kite-global)
+(require 'cl)
 (require 'wid-edit)
 
 (defcustom kite-short-object-max-properties 5
@@ -145,7 +145,7 @@ given PROPERTIES vector.  The representation will look like
 `Object {prop: value, prop: value, ...}'. A maximum of
 `kite-short-object-max-properties' properties will be included."
   (let ((properties-without-proto
-         (kite--remove-if
+         (remove-if
           (lambda (element)
             (string= "__proto__" (plist-get element :name)))
           properties)))
@@ -156,10 +156,10 @@ given PROPERTIES vector.  The representation will look like
                    "%s: %s"
                    (plist-get element :name)
                    (kite--format-object (plist-get element :value))))
-                (kite--subseq properties-without-proto
-                              0
-                              (min kite-short-object-max-properties
-                                   (length properties-without-proto)))
+                (subseq properties-without-proto
+                        0
+                        (min kite-short-object-max-properties
+                             (length properties-without-proto)))
                 ", ")
      (when (> (length properties-without-proto)
               kite-short-object-max-properties)
@@ -170,7 +170,7 @@ given PROPERTIES vector.  The representation will look like
   "Return a short representation of the array described by the
 given PROPERTIES vector."
   (let ((array-elements
-         (kite--remove-if
+         (remove-if
           (lambda (element)
             (or (not (eq t (plist-get element :enumerable)))
                 (string= "length" (plist-get element :name))))
@@ -181,10 +181,10 @@ given PROPERTIES vector."
       (lambda (element)
         (kite--format-object
          (plist-get element :value)))
-      (kite--subseq array-elements
-                    0
-                    (min kite-short-array-max-elements
-                         (length array-elements)))
+      (subseq array-elements
+              0
+              (min kite-short-array-max-elements
+                   (length array-elements)))
       ", ")
      (when (> (length array-elements)
               kite-short-array-max-elements)

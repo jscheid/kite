@@ -29,7 +29,7 @@
 
 ;;; Code:
 
-(require 'kite-cl)
+(require 'cl)
 (require 'websocket)
 (require 'json)
 
@@ -86,7 +86,7 @@
 (defconst kite--debugger-state-paused
   (propertize "Paused" 'face 'warning))
 
-(kite--defstruct (kite-session)
+(defstruct (kite-session)
   "Represents an active debugging session, i.e. a connection to a
 remote WebKit debugger instance."
   websocket
@@ -113,7 +113,7 @@ remote WebKit debugger instance."
   (dom-nodes (make-hash-table))
   document-root)
 
-(kite--defstruct (kite-script-info)
+(defstruct (kite-script-info)
   "Information about a script used in a debugging session.  Used
 to cache data received via the ` Debugger.scriptParsed'
 notification."
@@ -130,7 +130,7 @@ notification."
 (defun kite--default-error-handler (error-result)
   (error "Kite: %s" (plist-get error-result :message)))
 
-(kite--defun kite-send (method &key params success-function error-function callback-args)
+(defun* kite-send (method &key params success-function error-function callback-args)
   "Send a JSON-RPC 2.0 packet to the remote debugger for the
 current session.  The current session is retrieved from variable
 `kite-session', which is buffer-local or taken from a let

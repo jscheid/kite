@@ -33,10 +33,10 @@
 ;;; Code:
 
 (require 'kite-breakpoint)
-(require 'kite-cl)
 (require 'kite-sourcemap)
 (require 'kite-global)
 (require 'kite-object)
+(require 'cl)
 (require 'url-expand)
 (require 'ewoc)
 (require 'wid-edit)
@@ -379,7 +379,7 @@ is available, go to the original location instead."
                            column))
          (url (plist-get original-source :url))
          (url-parts (url-generic-parse-url url)))
-    (kite--flet
+    (flet
      ((after-load ()
                   (goto-char (point-min))
                   (forward-line

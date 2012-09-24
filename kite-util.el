@@ -31,8 +31,8 @@
 
 ;;; Code:
 
-(require 'kite-cl)
 (require 'kite-global)
+(require 'cl)
 (require 'color)
 (require 'url-parse)
 (require 'wid-edit)
@@ -49,7 +49,7 @@
   background color of FACE.  (If FACE doesn't have a background
   color set, the current frame's background color will be used
   instead.)"
-  (kite--flet
+  (flet
    ((lerp (a b w)
           (+ (* a w)
              (* b (- 1 w)))))
@@ -72,13 +72,13 @@ which should be a sequence of strings.  Naive implementation."
       ""
     (let ((max-length (length (car strings))))
       (while (let ((prefix-candidate (substring (car strings) 0 max-length)))
-               (not (kite--every
+               (not (every
                      (apply-partially 'string-prefix-p prefix-candidate)
                      strings)))
         (setq max-length (- max-length 1)))
       (substring (car strings) 0 max-length))))
 
-(kite--defun kite--fill-overflow (string width &key (align 'left) (trim 'right))
+(defun* kite--fill-overflow (string width &key (align 'left) (trim 'right))
   (let ((string-length (length string)))
     (if (> string-length width)
         (if (eq 'right trim)

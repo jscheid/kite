@@ -36,8 +36,8 @@
 (require 'json)
 (require 'websocket)
 (require 'url-parse)
+(require 'cl)
 
-(require 'kite-cl)
 (require 'kite-debug)
 (require 'kite-dom)
 (require 'kite-memory)
@@ -287,7 +287,7 @@ enters the empty string at the prompt."
             ;; For each human readable identifier (url or title), see
             ;; if it is ambiguous
 
-            (kite--flet
+            (flet
              ((add-item (item url)
                         (let ((existing (gethash item available-strings '(0))))
                           (puthash item
@@ -307,7 +307,7 @@ enters the empty string at the prompt."
 
             ;; Final pass, disambiguate and rearrange
 
-            (kite--flet
+            (flet
              ((disambiguate (string websocket-url)
                             (let ((existing
                                    (gethash string available-strings)))
@@ -637,7 +637,7 @@ context is created."
   (setf (kite-session-last-message kite-session)
         (plist-get packet :message))
   (when (string= "error" (kite--get packet :message :level))
-    (kite--incf (kite-session-error-count kite-session)))
+    (incf (kite-session-error-count kite-session)))
   (kite--mode-line-update))
 
 (defun kite--messageRepeatCountUpdated (websocket-url packet)
@@ -645,7 +645,7 @@ context is created."
   (when (string= "error"
                  (plist-get (kite-session-last-message kite-session)
                             :level))
-    (kite--incf (kite-session-error-count kite-session)))
+    (incf (kite-session-error-count kite-session)))
   (kite--mode-line-update))
 
 (defun kite--globalObjectCleared (websocket-url packet)

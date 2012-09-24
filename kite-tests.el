@@ -29,7 +29,6 @@
 ;; It is part of Kite, a WebKit inspector front-end.
 
 (require 'kite)
-(require 'kite-cl)
 (require 'kite-dom-tests)
 (require 'kite-breakpoint-tests)
 (require 'kite-console-tests)

@@ -23,7 +23,6 @@ all: byte-compile
 
 ELISP_SOURCES = \
 	kite-breakpoint.el	\
-	kite-cl.el		\
 	kite-color.el		\
 	kite-console.el		\
 	kite-debug.el		\

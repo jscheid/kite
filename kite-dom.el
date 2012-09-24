@@ -32,9 +32,9 @@
 ;;; Code:
 
 (require 'kite-global)
-(require 'kite-cl)
 (require 'kite-color)
 (require 'kite-dom-css)
+(require 'cl)
 (require 'widget)
 ;; Try loading nxml-mode so we can steal their faces
 (require 'nxml-mode nil t)
@@ -42,7 +42,7 @@
 (eval-when-compile
   (require 'wid-edit))
 
-(kite--defstruct (node-region)
+(defstruct (node-region)
   line-begin
   line-end
   outer-begin
@@ -58,7 +58,7 @@
   node-id
   node-type)
 
-(kite--defstruct (attr-region)
+(defstruct (attr-region)
   outer-begin
   outer-end
   value-begin
@@ -430,7 +430,7 @@ line under mouse and the corresponding DOM node in the browser."
   "Insert the whole HTML document into the DOM buffer, given the
 ROOT-PLIST as received in the response to `DOM.getDocument'."
   (let ((html-plist
-         (kite--find-if
+         (find-if
           (lambda (child-plist)
             (string= (plist-get child-plist :nodeName) "HTML"))
           (plist-get root-plist :children))))
@@ -614,7 +614,7 @@ is the last child."
                 (set-marker (node-region-outer-end child) save-point)
                 (set-marker (node-region-line-end child) (point)))))
 
-      (kite--mapcar
+      (mapcar*
        (lambda (overlay old-length)
          (kite--log "overlay %s old-length %s" overlay old-length)
          (move-overlay overlay (overlay-start overlay) (+ (overlay-start overlay) old-length)))
@@ -625,7 +625,7 @@ is the last child."
 LOADP, recursively and asynchronously load and insert children.
 
 FIXME: this needs to be smarter about when to load children."
-  (kite--flet
+  (flet
    ((indent-prefix (indent node-id)
                    (propertize
                     (make-string (* kite-dom-offset indent) 32)
@@ -938,17 +938,17 @@ child node into a DOM element."
           (if (eq previous-node-id 0)
               (push new-node-region (node-region-children node-region))
             (let ((insert-position
-                   (1+ (kite--position
+                   (1+ (position
                         previous-node-region
                         (node-region-children node-region)))))
               (setf (node-region-children node-region)
                     (append
-                     (kite--subseq
+                     (subseq
                       (node-region-children node-region)
                       0
                       insert-position)
                      (list new-node-region)
-                     (kite--subseq
+                     (subseq
                       (node-region-children node-region)
                       insert-position)))))
           (setf (node-region-parent new-node-region) node-region))
@@ -1053,7 +1053,7 @@ Negative ARG means move backward."
   (let* ((node-region (kite--dom-node-region-at-point))
          (parent-children (node-region-children
                            (node-region-parent node-region)))
-         (node-position (kite--position node-region parent-children))
+         (node-position (position node-region parent-children))
          (new-position (max 0 (min (+ node-position arg)
                                    (- (length parent-children) 1))))
          (next-node-region (nth new-position parent-children)))

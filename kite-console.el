@@ -31,7 +31,7 @@
 
 ;;; Code:
 
-(require 'kite-cl)
+(require 'cl)
 (require 'kite-debug)
 (require 'kite-dom)
 (require 'kite-global)
@@ -919,9 +919,9 @@ doesn't support asynchronicity."
           (kite--get-properties-fast
            (if (> (length components) 1)
                (mapconcat 'identity
-                          (kite--subseq components
-                                        0
-                                        (- (length components) 1))
+                          (subseq components
+                                  0
+                                  (- (length components) 1))
                           ".")
              "window")
            (concat "^" (regexp-quote last-component))

@@ -31,9 +31,9 @@
 
 ;;; Code:
 
-(require 'kite-cl)
 (require 'kite-global)
 (require 'kite-util)
+(require 'cl)
 (require 'ewoc)
 (require 'websocket)
 
@@ -517,10 +517,10 @@ point."
                             :response))
        (mime-type (plist-get response :mimeType))
        (buffer-mode
-        (nth 1 (kite--find-if (lambda (candidate)
-                                (string-match (car candidate)
-                                              mime-type))
-                              kite--mime-map)))
+        (nth 1 (find-if (lambda (candidate)
+                          (string-match (car candidate)
+                                        mime-type))
+                        kite--mime-map)))
        (buffer-name (format "%s (%s)"
                             (plist-get response :url)
                             request-id))

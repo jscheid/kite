@@ -40,7 +40,7 @@
 
 ;;; Code:
 
-(require 'kite-cl)
+(require 'cl)
 
 (defconst kite--vlq-base-shift 5)
 
@@ -60,10 +60,10 @@ ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/")
     (dolist (char
              (string-to-list base64-chars))
       (puthash char index map)
-      (kite--incf index))
+      (incf index))
     map))
 
-(kite--defstruct (kite-source-mapping)
+(defstruct (kite-source-mapping)
   "Holds the parsed mapping coordinates from the source map's
   `mappings' attribute."
   generated-line
@@ -73,7 +73,7 @@ ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/")
   original-column
   name)
 
-(kite--defstruct (kite-source-map)
+(defstruct (kite-source-map)
   "Representation of a parsed source map suitable for fast
 lookup."
   names
@@ -113,8 +113,8 @@ values, that is a list (VALUE STRING-REST)."
         (setq continuation
               (not (eq 0 (logand digit kite--vlq-continuation-bit))))
         (setq digit (logand digit kite--vlq-base-mask))
-        (kite--incf result (lsh digit shift)))
-      (kite--incf shift kite--vlq-base-shift)
+        (incf result (lsh digit shift)))
+      (incf shift kite--vlq-base-shift)
       (setq string-as-list (cdr string-as-list)))
     (list :value (kite--from-vlq-signed result)
           :rest string-as-list)))
@@ -142,7 +142,7 @@ object, and return a `kite-source-map' struct."
          (previous-original-column 0)
          (previous-source 0)
          (previous-name 0))
-    (kite--flet
+    (flet
      ((starts-with-mapping-separator (string)
                                      (or (null string)
                                          (eq (car string) ?,)
@@ -150,7 +150,7 @@ object, and return a `kite-source-map' struct."
      (while string
        (cond
         ((eq (car string) ?\;)
-         (kite--incf generated-line)
+         (incf generated-line)
          (setq string (cdr string))
          (setq previous-generated-column 0))
         ((eq (car string) ?,)
@@ -177,7 +177,7 @@ object, and return a `kite-source-map' struct."
                              (elt sources
                                   (+ previous-source
                                      (plist-get temp :value)))))
-               (kite--incf previous-source (plist-get temp :value))
+               (incf previous-source (plist-get temp :value))
                (setq string (plist-get temp :rest)))
 
              (when (starts-with-mapping-separator string)
@@ -192,7 +192,7 @@ object, and return a `kite-source-map' struct."
                      (kite-source-mapping-original-line mapping))
 
                ;; Lines are stored 0-based
-               (kite--incf (kite-source-mapping-original-line mapping))
+               (incf (kite-source-mapping-original-line mapping))
 
                (setq string (plist-get temp :rest)))
 
@@ -216,7 +216,7 @@ object, and return a `kite-source-map' struct."
                  (setf (kite-source-mapping-name mapping)
                        (elt names (+ previous-name
                                      (plist-get temp :value))))
-                 (kite--incf previous-name (plist-get temp :value))
+                 (incf previous-name (plist-get temp :value))
 
                  (setq string (plist-get temp :rest)))))
 

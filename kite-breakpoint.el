@@ -32,8 +32,8 @@
 
 ;;; Code:
 
-(require 'kite-cl)
 (require 'kite-global)
+(require 'cl)
 
 (require 'browse-url nil t)
 
@@ -74,7 +74,7 @@
   "WebKit DOM breakpoint names, taken from
   Source/WebCore/dom/EventNames.h")
 
-(kite--defstruct
+(defstruct
   (kite-breakpoint
    (:constructor nil))   ; no default constructor
   to-string-function
@@ -82,7 +82,7 @@
   remove-function
   sort-priority)
 
-(kite--defstruct
+(defstruct
   (kite-next-instruction-breakpoint
    (:include kite-breakpoint)
    (:constructor nil)   ; no default constructor
@@ -106,7 +106,7 @@
   "Remove a breakpoint of type `next-instruction'"
   (kite-send "Debugger.resume" :success-function response-handler))
 
-(kite--defstruct
+(defstruct
   (kite-all-exceptions-breakpoint
    (:include kite-breakpoint)
    (:constructor nil)   ; no default constructor
@@ -127,7 +127,7 @@
              :params '(:state "all")
              :success-function response-handler))
 
-(kite--defstruct
+(defstruct
   (kite-uncaught-exceptions-breakpoint
    (:include kite-breakpoint)
    (:constructor nil)   ; no default constructor
@@ -155,7 +155,7 @@
 
 ;; Location breakpoints
 
-(kite--defstruct
+(defstruct
   (kite-location-breakpoint
    (:include kite-breakpoint)
    (:constructor nil)   ; no default constructor
@@ -174,7 +174,7 @@
 
 ;; DOM Node breakpoints
 
-(kite--defstruct
+(defstruct
   (kite-dom-node-breakpoint
    (:include kite-breakpoint)
    (:constructor nil)   ; no default constructor
@@ -218,7 +218,7 @@
 
 ;; DOM Event breakpoints
 
-(kite--defstruct
+(defstruct
   (kite-dom-event-breakpoint
    (:include kite-breakpoint)
    (:constructor nil)   ; no default constructor
@@ -250,7 +250,7 @@
 
 ;; Instrumentation breakpoints
 
-(kite--defstruct
+(defstruct
   (kite-instrumentation-breakpoint
    (:include kite-breakpoint)
    (:constructor nil)   ; no default constructor
@@ -282,7 +282,7 @@
 
 ;; XHR breakpoints
 
-(kite--defstruct
+(defstruct
   (kite-xhr-breakpoint
    (:include kite-breakpoint)
    (:constructor nil)   ; no default constructor
@@ -329,8 +329,8 @@
 ;; High-level functions
 
 (defun kite--session-has-breakpoint (kite-session predicate)
-  (kite--find-if predicate
-                 (kite-session-breakpoint-list kite-session)))
+  (find-if predicate
+           (kite-session-breakpoint-list kite-session)))
 
 (defun kite--session-add-breakpoint (kite-session breakpoint)
   (lexical-let ((lex-kite-session kite-session)
@@ -339,7 +339,7 @@
      breakpoint
      (lambda (result)
        (setf (kite-session-breakpoint-list lex-kite-session)
-             (kite--stable-sort
+             (stable-sort
               (cons lex-breakpoint
                     (kite-session-breakpoint-list lex-kite-session))
               (lambda (a b)
