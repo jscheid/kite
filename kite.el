@@ -686,7 +686,9 @@ FIXME: there must be a more elegant way to do this."
   (unload-feature 'kite-modeline)
   (unload-feature 'kite-sourcemap)
   (unload-feature 'kite-global)
-  (require 'kite))
+
+  ;; Quote this way to avoid the dependency generator picking it up
+  (require (quote kite)))
 
 (provide 'kite)
 

@@ -39,7 +39,9 @@ ELISP_SOURCES = \
 	kite-util.el		\
 	kite.el
 
-ELC = $(patsubst %.el,%.elc,$(ELISP_SOURCES))
+ELC = $(ELISP_SOURCES:.el=.elc)
+
+EL_DEPS = $(ELISP_SOURCES:.el=.P)
 
 kite.html: kite.md
 	pandoc -s -S --toc -c kite.css -o $@ $<
@@ -57,7 +59,7 @@ kite.tar.gz: $(ELISP_SOURCES) dir kite.info
 	tar czf $@ $^
 
 clean:
-	rm -f $(ELC) kite.html kite.info kite.texinfo dir kite.tar.gz
+	rm -f $(ELC) $(EL_DEPS) kite.html kite.info kite.texinfo dir kite.tar.gz
 
 test:
 	$(EMACS) $(BATCH) $(DEPS)  -l ert -l kite-tests.el -f ert-run-tests-batch-and-exit
@@ -68,9 +70,23 @@ EMACS = emacs
 BATCH = -batch -q -no-site-file
 DEPS = -l ./kite-load-path.el
 COMPILE = -f batch-byte-compile
+SHELL = bash
+SED = sed
+XARGS = xargs
 
 # How to compile
-$(ELC): $(ELISP_SOURCES)
-	$(EMACS) $(BATCH) $(DEPS) $(COMPILE) $^
+%.elc: %.el %.P
+	$(EMACS) $(BATCH) $(DEPS) $(COMPILE) $<
 
 byte-compile: $(ELC)
+
+# Automatic dependencies
+
+.DELETE_ON_ERROR:
+%.P: %.el
+	set -o pipefail; \
+	(echo "$<c:" \
+	    && $(SED) -n "s/.*(require '\(kite[a-z-]*\)).*/\1.elc/p" < $^) \
+	    | $(XARGS) > $@
+
+-include $(EL_DEPS)

@@ -4,5 +4,6 @@ misc/
 *.html
 *.tar.gz
 *.elc
+*.P
 dir
 TODO.org
