@@ -249,7 +249,9 @@ given PROPERTIES vector."
 (defun kite--object-create-property-widget (parent-widget property)
   (let* ((value-type (plist-get (plist-get property :value) :type))
          (value-subtype (plist-get (plist-get property :value) :subtype))
-         (value (kite--format-object (plist-get property :value)))
+         (value (car (split-string
+                      (kite--format-object (plist-get property :value))
+                      "\n")))
          (name-face (if (eq (plist-get property :enumerable) t)
                         'kite-property-name
                       'kite-proto-property-name))
