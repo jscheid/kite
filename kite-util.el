@@ -78,7 +78,7 @@ which should be a sequence of strings.  Naive implementation."
         (setq max-length (- max-length 1)))
       (substring (car strings) 0 max-length))))
 
-(defun* kite--fill-overflow (string width &key (align 'left) (trim 'right))
+(kite--defun kite--fill-overflow (string width &key (align 'left) (trim 'right))
   (let ((string-length (length string)))
     (if (> string-length width)
         (if (eq 'right trim)

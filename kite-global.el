@@ -130,7 +130,7 @@ notification."
 (defun kite--default-error-handler (error-result)
   (error "Kite: %s" (plist-get error-result :message)))
 
-(defun* kite-send (method &key params success-function error-function callback-args)
+(kite--defun kite-send (method &key params success-function error-function callback-args)
   "Send a JSON-RPC 2.0 packet to the remote debugger for the
 current session.  The current session is retrieved from variable
 `kite-session', which is buffer-local or taken from a let
