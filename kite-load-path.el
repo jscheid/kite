@@ -29,16 +29,21 @@
 
 
 
+(when (or (< emacs-major-version 24)
+          (and (eq emacs-major-version 24)
+               (< emacs-minor-version 1)))
+  (error "Kite requires Emacs 24.1 or newer.  This is %s" emacs-version))
+
+(require 'package)
+
 (defvar kite--directory
   (expand-file-name (file-name-directory load-file-name))
   "Directory where Kite is installed. ")
 (let ((package-load-list '((websocket t))))
-(package-initialize))
+  (package-initialize))
 
-(unless (member kite--directory load-path )
-  (setq load-path (cons kite--directory load-path )))
-
-
+(unless (member kite--directory load-path)
+  (setq load-path (cons kite--directory load-path)))
 
 (setq byte-compile-warnings t)
 

@@ -35,6 +35,7 @@
 (require 'js)
 
 (require 'kite-global)
+(require 'kite-object)
 (require 'kite-util)
 
 (defface kite-link-face

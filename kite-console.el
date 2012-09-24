@@ -31,6 +31,7 @@
 
 ;;; Code:
 
+(require 'kite-cl)
 (require 'kite-debug)
 (require 'kite-dom)
 (require 'kite-global)
@@ -38,6 +39,7 @@
 (require 'kite-util)
 (require 'font-lock)
 (require 'comint)
+(require 'widget)
 (require 'js) ; for syntax highlighting
 
 (eval-when-compile
@@ -680,136 +682,6 @@ FIXME: this should be consolidated with
     (comint-send-input)			; update history, markers etc.
     (kite-console-eval-input kite-console-input)))
 
-(defconst kite--identifier-part-regexp
-  (rx
-   word-boundary
-   (1+ (or alnum
-           ?.
-           (: "\\x" (repeat 2 xdigit))
-           (: "\\u" (repeat 4 xdigit))))
-   point)
-  "Used by `kite-async-completion-at-point' to find a part of a
-JavaScript identifier.")
-
-(defconst kite--stack-line-regexp
-  (eval-when-compile
-    (let ((rx-constituents
-           (append rx-constituents
-                   (list
-                    (cons 'file-line-column
-                          (rx
-                           (or
-                            (submatch     ; <file>
-                             "<"
-                             (minimal-match (1+ anything))
-                             ">")
-                            (submatch     ; file
-                             (minimal-match (1+ anything))))
-                           ":"
-                           (submatch      ; line
-                            (1+ (in digit)))
-                           ":"
-                           (submatch      ; column
-                            (1+ (in digit)))))))))
-
-      (rx-to-string
-       '(: string-start
-           (or
-            (: (submatch                  ; error type
-                (1+ (in alnum)))
-               ":"
-               (0+ (in space))
-               (submatch                  ; error message
-                (0+ anything)))
-            (: (1+ (in space))
-               "at"
-               (1+ (in space))
-               (or
-                (: file-line-column)
-                (: (submatch              ; function
-                    (1+ (not (in space))))
-                   (1+ (in space))
-                   "("
-                   file-line-column
-                   ")"))))
-           (0+ (in space))
-           string-end)))))
-
-(defun kite--format-stack-line (stack-line)
-  "Return a prettified version of a line of a WebKit stack trace.
-  adds face and font-lock-face properties, and the kite-source
-  property for lines that describe a source location."
-  (when (string-match kite--stack-line-regexp stack-line)
-    (let* ((matches (match-data t))
-           (faces
-            '(nil
-              kite-stack-error-type
-              kite-stack-error-message
-              kite-stack-pseudo-file-name
-              kite-stack-file-name
-              kite-stack-line-number
-              kite-stack-column-number
-              kite-stack-function-name
-              kite-stack-pseudo-file-name
-              kite-stack-file-name
-              kite-stack-line-number
-              kite-stack-column-number)))
-      (loop for i from 1 to (- (/ (length matches) 2) 1) do
-            (dolist (property '(face font-lock-face))
-              (when (nth (* 2 i) matches)
-                (put-text-property (nth (* 2 i) matches)
-                                   (nth (1+ (* 2 i)) matches)
-                                   property
-                                   (nth i faces)
-                                   stack-line))))
-      (let ((file-name
-             (or (match-string-no-properties 4 stack-line)
-                 (match-string-no-properties 9 stack-line)))
-            (line-number-str
-             (or (match-string-no-properties 5 stack-line)
-                 (match-string-no-properties 10 stack-line)))
-            (column-number-str
-             (or (match-string-no-properties 6 stack-line)
-                 (match-string-no-properties 11 stack-line)))
-            (function-name
-             (match-string-no-properties 7 stack-line)))
-        (when file-name
-          (put-text-property
-           0
-           (length stack-line)
-           'kite-source
-           (list :url file-name
-                 :lineNumber (string-to-number line-number-str)
-                 :columnNumber (string-to-number column-number-str)
-                 :functionName function-name)
-           stack-line)))))
-  stack-line)
-
-(defun kite--get-formatted-stack-trace (error-object-id
-                                        callback-function)
-  "Invoke CALLBACK-FUNCTION asynchronously with one argument, the
-full prettified stack trace for the error object with the given
-ERROR-OBJECT-ID."
-  (lexical-let ((lex-callback-function callback-function))
-    (kite-send
-     "Runtime.callFunctionOn"
-     :params
-     (list :objectId error-object-id
-           :functionDeclaration "function f() { return this.stack; }"
-           :arguments [])
-     :success-function
-     (lambda (result)
-       (funcall lex-callback-function
-                (concat
-                 (mapconcat
-                  (function kite--format-stack-line)
-                  (split-string (kite--get result
-                                           :result
-                                           :value)
-                                "\n")
-                  "\n")
-                 "\n"))))))
-
 (defun kite--is-whitespace-or-comment (string)
   "Return non-nil if STRING is all whitespace or a comment."
   (or (string= string "")
@@ -1047,9 +919,9 @@ doesn't support asynchronicity."
           (kite--get-properties-fast
            (if (> (length components) 1)
                (mapconcat 'identity
-                          (subseq components
-                                  0
-                                  (- (length components) 1))
+                          (kite--subseq components
+                                        0
+                                        (- (length components) 1))
                           ".")
              "window")
            (concat "^" (regexp-quote last-component))

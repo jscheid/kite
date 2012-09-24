@@ -31,8 +31,12 @@
 
 ;;; Code:
 
+(require 'kite-color)
+(require 'kite-global)
 (require 'kite-util)
 
+(require 'widget)
+(require 'wid-edit)
 ;; Try loading css-mode so we can steal their faces
 (require 'css-mode nil t)
 

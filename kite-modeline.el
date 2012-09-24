@@ -32,6 +32,8 @@
 
 ;;; Code:
 
+(require 'kite-global)
+
 (defvar kite-mode-line-string nil)
 (defvar kite-mode-line-info nil)
 

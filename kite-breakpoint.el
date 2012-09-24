@@ -32,11 +32,13 @@
 
 ;;; Code:
 
+(require 'kite-cl)
 (require 'kite-global)
 
+(require 'ewoc)
 (require 'browse-url nil t)
 
-(defstruct
+(kite--defstruct
   (kite-breakpoint
    (:constructor nil))   ; no default constructor
   to-string-function
@@ -44,7 +46,7 @@
   remove-function
   sort-priority)
 
-(defstruct
+(kite--defstruct
   (kite-next-instruction-breakpoint
    (:include kite-breakpoint)
    (:constructor nil)   ; no default constructor
@@ -68,7 +70,7 @@
   "Remove a breakpoint of type `next-instruction'"
   (kite-send "Debugger.resume" :success-function response-handler))
 
-(defstruct
+(kite--defstruct
   (kite-all-exceptions-breakpoint
    (:include kite-breakpoint)
    (:constructor nil)   ; no default constructor
@@ -89,7 +91,7 @@
              :params '(:state "all")
              :success-function response-handler))
 
-(defstruct
+(kite--defstruct
   (kite-uncaught-exceptions-breakpoint
    (:include kite-breakpoint)
    (:constructor nil)   ; no default constructor
@@ -117,7 +119,7 @@
 
 ;; Location breakpoints
 
-(defstruct
+(kite--defstruct
   (kite-location-breakpoint
    (:include kite-breakpoint)
    (:constructor nil)   ; no default constructor
@@ -136,7 +138,7 @@
 
 ;; DOM Node breakpoints
 
-(defstruct
+(kite--defstruct
   (kite-dom-node-breakpoint
    (:include kite-breakpoint)
    (:constructor nil)   ; no default constructor
@@ -180,7 +182,7 @@
 
 ;; DOM Event breakpoints
 
-(defstruct
+(kite--defstruct
   (kite-dom-event-breakpoint
    (:include kite-breakpoint)
    (:constructor nil)   ; no default constructor
@@ -212,7 +214,7 @@
 
 ;; Instrumentation breakpoints
 
-(defstruct
+(kite--defstruct
   (kite-instrumentation-breakpoint
    (:include kite-breakpoint)
    (:constructor nil)   ; no default constructor
@@ -244,7 +246,7 @@
 
 ;; XHR breakpoints
 
-(defstruct
+(kite--defstruct
   (kite-xhr-breakpoint
    (:include kite-breakpoint)
    (:constructor nil)   ; no default constructor
@@ -379,10 +381,8 @@
                                                         breakpoint))))
                                    (ewoc-invalidate breakpoint-ewoc)))
       (lexical-let ((new-breakpoint (make-kite-next-instruction-breakpoint)))
-        (message "setting breakpoint")
         (kite--set-breakpoint new-breakpoint
                               (lambda (result)
-                                (message "breakpoint set")
                                 (kite--add-breakpoint breakpoint-ewoc new-breakpoint)
                                 (ewoc-invalidate breakpoint-ewoc)))))))
 

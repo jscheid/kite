@@ -31,9 +31,11 @@
 
 ;;; Code:
 
+(require 'kite-cl)
+(require 'kite-global)
 (require 'color)
-(eval-when-compile
-  (require 'cl))
+(require 'url-parse)
+(require 'wid-edit)
 
 (defun kite--dimmed-face-foreground (face darkness)
   "Return a color value string suitable for passing as the value
@@ -47,20 +49,21 @@
   background color of FACE.  (If FACE doesn't have a background
   color set, the current frame's background color will be used
   instead.)"
-  (flet ((lerp (a b w)
-               (+ (* a w)
-                  (* b (- 1 w)))))
-    (let ((fg (color-name-to-rgb (face-foreground face nil t)))
-          (bg (color-name-to-rgb (or (face-background face nil t)
-                                     (cdr (assq 'background-color (frame-parameters)))))))
-      (or (and
-           fg
-           bg
-           (color-rgb-to-hex
-            (lerp (nth 0 bg) (nth 0 fg) darkness)
-            (lerp (nth 1 bg) (nth 1 fg) darkness)
-            (lerp (nth 2 bg) (nth 2 fg) darkness)))
-          "#888888"))))
+  (kite--flet
+   ((lerp (a b w)
+          (+ (* a w)
+             (* b (- 1 w)))))
+   (let ((fg (color-name-to-rgb (face-foreground face nil t)))
+         (bg (color-name-to-rgb (or (face-background face nil t)
+                                    (cdr (assq 'background-color (frame-parameters)))))))
+     (or (and
+          fg
+          bg
+          (color-rgb-to-hex
+           (lerp (nth 0 bg) (nth 0 fg) darkness)
+           (lerp (nth 1 bg) (nth 1 fg) darkness)
+           (lerp (nth 2 bg) (nth 2 fg) darkness)))
+         "#888888"))))
 
 (defun kite--longest-prefix (strings)
   "Return the longest prefix common to all the given STRINGS,
@@ -69,7 +72,9 @@ which should be a sequence of strings.  Naive implementation."
       ""
     (let ((max-length (length (car strings))))
       (while (let ((prefix-candidate (substring (car strings) 0 max-length)))
-               (not (every (apply-partially 'string-prefix-p prefix-candidate) strings)))
+               (not (kite--every
+                     (apply-partially 'string-prefix-p prefix-candidate)
+                     strings)))
         (setq max-length (- max-length 1)))
       (substring (car strings) 0 max-length))))
 
@@ -91,14 +96,6 @@ which should be a sequence of strings.  Naive implementation."
             (concat (make-string left-fill 32)
                     string
                     (make-string left-fill 32)))))))))
-
-(defun kite--log (format-string &rest args)
-  "Print a message to the kite debug logging buffer"
-  (with-current-buffer
-      (get-buffer-create (format "*kite log*"))
-    (save-excursion
-      (goto-char (point-max))
-      (insert (concat (apply 'format format-string args) "\n")))))
 
 (defun kite--visit-remote-file (url)
   "Synchronously fetch the given URL, create a new read-only
@@ -139,6 +136,135 @@ major mode more reliably."
         (widget-apply-action field event)
       (call-interactively
        (lookup-key widget-global-map (this-command-keys))))))
+(defconst kite--identifier-part-regexp
+  (rx
+   word-boundary
+   (1+ (or alnum
+           ?.
+           (: "\\x" (repeat 2 xdigit))
+           (: "\\u" (repeat 4 xdigit))))
+   point)
+  "Used by `kite-async-completion-at-point' to find a part of a
+JavaScript identifier.")
+
+(defconst kite--stack-line-regexp
+  (eval-when-compile
+    (let ((rx-constituents
+           (append rx-constituents
+                   (list
+                    (cons 'file-line-column
+                          (rx
+                           (or
+                            (submatch     ; <file>
+                             "<"
+                             (minimal-match (1+ anything))
+                             ">")
+                            (submatch     ; file
+                             (minimal-match (1+ anything))))
+                           ":"
+                           (submatch      ; line
+                            (1+ (in digit)))
+                           ":"
+                           (submatch      ; column
+                            (1+ (in digit)))))))))
+
+      (rx-to-string
+       '(: string-start
+           (or
+            (: (submatch                  ; error type
+                (1+ (in alnum)))
+               ":"
+               (0+ (in space))
+               (submatch                  ; error message
+                (0+ anything)))
+            (: (1+ (in space))
+               "at"
+               (1+ (in space))
+               (or
+                (: file-line-column)
+                (: (submatch              ; function
+                    (1+ (not (in space))))
+                   (1+ (in space))
+                   "("
+                   file-line-column
+                   ")"))))
+           (0+ (in space))
+           string-end)))))
+
+(defun kite--format-stack-line (stack-line)
+  "Return a prettified version of a line of a WebKit stack trace.
+  adds face and font-lock-face properties, and the kite-source
+  property for lines that describe a source location."
+  (when (string-match kite--stack-line-regexp stack-line)
+    (let* ((matches (match-data t))
+           (faces
+            '(nil
+              kite-stack-error-type
+              kite-stack-error-message
+              kite-stack-pseudo-file-name
+              kite-stack-file-name
+              kite-stack-line-number
+              kite-stack-column-number
+              kite-stack-function-name
+              kite-stack-pseudo-file-name
+              kite-stack-file-name
+              kite-stack-line-number
+              kite-stack-column-number)))
+      (loop for i from 1 to (- (/ (length matches) 2) 1) do
+            (dolist (property '(face font-lock-face))
+              (when (nth (* 2 i) matches)
+                (put-text-property (nth (* 2 i) matches)
+                                   (nth (1+ (* 2 i)) matches)
+                                   property
+                                   (nth i faces)
+                                   stack-line))))
+      (let ((file-name
+             (or (match-string-no-properties 4 stack-line)
+                 (match-string-no-properties 9 stack-line)))
+            (line-number-str
+             (or (match-string-no-properties 5 stack-line)
+                 (match-string-no-properties 10 stack-line)))
+            (column-number-str
+             (or (match-string-no-properties 6 stack-line)
+                 (match-string-no-properties 11 stack-line)))
+            (function-name
+             (match-string-no-properties 7 stack-line)))
+        (when file-name
+          (put-text-property
+           0
+           (length stack-line)
+           'kite-source
+           (list :url file-name
+                 :lineNumber (string-to-number line-number-str)
+                 :columnNumber (string-to-number column-number-str)
+                 :functionName function-name)
+           stack-line)))))
+  stack-line)
+
+(defun kite--get-formatted-stack-trace (error-object-id
+                                        callback-function)
+  "Invoke CALLBACK-FUNCTION asynchronously with one argument, the
+full prettified stack trace for the error object with the given
+ERROR-OBJECT-ID."
+  (lexical-let ((lex-callback-function callback-function))
+    (kite-send
+     "Runtime.callFunctionOn"
+     :params
+     (list :objectId error-object-id
+           :functionDeclaration "function f() { return this.stack; }"
+           :arguments [])
+     :success-function
+     (lambda (result)
+       (funcall lex-callback-function
+                (concat
+                 (mapconcat
+                  (function kite--format-stack-line)
+                  (split-string (kite--get result
+                                           :result
+                                           :value)
+                                "\n")
+                  "\n")
+                 "\n"))))))
 
 (provide 'kite-util)
 

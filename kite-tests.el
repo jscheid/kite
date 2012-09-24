@@ -29,25 +29,25 @@
 ;; It is part of Kite, a WebKit inspector front-end.
 
 (require 'kite)
+(require 'kite-cl)
 (require 'kite-dom-tests)
 (require 'kite-breakpoint-tests)
 (require 'kite-console-tests)
 (require 'kite-color-tests)
 
-
 (ert-deftest kite-test-find-frame-by-id ()
   "kite--frame-by-id works"
 
-  (flet ((websocket-open (&rest ignore))
-         (kite--console-update-mode-line ())
-         (websocket-url (&rest ignore))
-         (kite-send (method &rest keyword-args)
-                    (when (string= method "Page.getResourceTree")
-                      (funcall (plist-get keyword-args :success-function)
-                               '(:frameTree (:childFrames [(:resources [] :frame (:securityOrigin null :name "" :parentId "12583.1" :mimeType "text/html" :url "file:///Users/julians/src/kite/misc/page1.html" :loaderId "12583.4" :id "12583.2"))] :resources [] :frame (:securityOrigin null :mimeType "text/html" :url "file:///Users/julians/src/kite/misc/twoframes.html" :loaderId "12583.3" :id "12583.1")))))))
-
-    (kite--connect-webservice (list :webSocketDebuggerUrl "dummy"))
-    )
+  (flet
+   ((websocket-open (&rest ignore) (websocket-inner-create :conn t :url t))
+    (kite--console-update-mode-line ())
+    (kite--find-buffer (&rest ignore))
+    (kite-send (method &rest keyword-args)
+               (when (string= method "Page.getResourceTree")
+                 (funcall (plist-get keyword-args :success-function)
+                          '(:frameTree (:childFrames [(:resources [] :frame (:securityOrigin null :name "" :parentId "12583.1" :mimeType "text/html" :url "file:///Users/julians/src/kite/misc/page1.html" :loaderId "12583.4" :id "12583.2"))] :resources [] :frame (:securityOrigin null :mimeType "text/html" :url "file:///Users/julians/src/kite/misc/twoframes.html" :loaderId "12583.3" :id "12583.1")))))))
+   
+   (kite--connect-webservice (list :webSocketDebuggerUrl "dummy")))
 
   (should (kite--equal-wildcard
            (kite--frame-by-id "12583.1")

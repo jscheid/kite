@@ -32,6 +32,7 @@
 ;;; Code:
 
 (require 'kite-global)
+(require 'kite-cl)
 (require 'kite-color)
 (require 'kite-dom-css)
 (require 'widget)
@@ -39,10 +40,9 @@
 (require 'nxml-mode nil t)
 
 (eval-when-compile
-  (require 'cl)
   (require 'wid-edit))
 
-(defstruct (node-region)
+(kite--defstruct (node-region)
   line-begin
   line-end
   outer-begin
@@ -58,7 +58,7 @@
   node-id
   node-type)
 
-(defstruct (attr-region)
+(kite--defstruct (attr-region)
   outer-begin
   outer-end
   value-begin
@@ -430,7 +430,7 @@ line under mouse and the corresponding DOM node in the browser."
   "Insert the whole HTML document into the DOM buffer, given the
 ROOT-PLIST as received in the response to `DOM.getDocument'."
   (let ((html-plist
-         (find-if
+         (kite--find-if
           (lambda (child-plist)
             (string= (plist-get child-plist :nodeName) "HTML"))
           (plist-get root-plist :children))))
@@ -614,197 +614,199 @@ is the last child."
                 (set-marker (node-region-outer-end child) save-point)
                 (set-marker (node-region-line-end child) (point)))))
 
-      (mapcar* (lambda (overlay old-length)
-                 (kite--log "overlay %s old-length %s" overlay old-length)
-                 (move-overlay overlay (overlay-start overlay) (+ (overlay-start overlay) old-length)))
-               overlays overlay-lengths))))
+      (kite--mapcar
+       (lambda (overlay old-length)
+         (kite--log "overlay %s old-length %s" overlay old-length)
+         (move-overlay overlay (overlay-start overlay) (+ (overlay-start overlay) old-length)))
+       overlays overlay-lengths))))
 
 (defun kite--dom-insert-element (element indent loadp)
   "Insert ELEMENT at point, at indentation level INDENT.  If
 LOADP, recursively and asynchronously load and insert children.
 
 FIXME: this needs to be smarter about when to load children."
-  (flet ((indent-prefix (indent node-id)
-                        (propertize
-                         (make-string (* kite-dom-offset indent) 32)
-                         'kite-node-id node-id
-                         'read-only t)))
-    (let ((nodeType (plist-get element :nodeType))
-          (node-id (plist-get element :nodeId))
-          (localName (plist-get element :localName))
-          (inhibit-read-only t)
-          (node-region (make-node-region))
-          attributes)
+  (kite--flet
+   ((indent-prefix (indent node-id)
+                   (propertize
+                    (make-string (* kite-dom-offset indent) 32)
+                    'kite-node-id node-id
+                    'read-only t)))
+   (let ((nodeType (plist-get element :nodeType))
+         (node-id (plist-get element :nodeId))
+         (localName (plist-get element :localName))
+         (inhibit-read-only t)
+         (node-region (make-node-region))
+         attributes)
 
-      (setf (node-region-node-id node-region) node-id)
-      (setf (node-region-node-type node-region) nodeType)
-      (setf (node-region-indent node-region) indent)
+     (setf (node-region-node-id node-region) node-id)
+     (setf (node-region-node-type node-region) nodeType)
+     (setf (node-region-indent node-region) indent)
 
-      (setf (node-region-line-begin node-region) (point-marker))
-      (setf (node-region-child-count node-region)
-            (plist-get element :childNodeCount))
+     (setf (node-region-line-begin node-region) (point-marker))
+     (setf (node-region-child-count node-region)
+           (plist-get element :childNodeCount))
 
-      (cond
-       ((and (eq nodeType kite-dom-element-node)
-             (or (eq 0 (plist-get element :childNodeCount))
-                 (plist-member element :children)))
-        (if (> (plist-get element :childNodeCount) 0)
-            (widget-insert (if (plist-member element :children) "-" "+"))
-          (widget-insert " "))
-        (widget-insert (propertize "<"
-                                   'kite-node-id node-id
-                                   'face 'kite-tag-delimiter-face))
-        (setf (node-region-widget node-region)
-              (widget-create
-               'editable-field
-               :size 1
-               :value-face 'kite-element-local-name-face
-               :modified-value-face 'kite-modified-element-local-name-face
-               :notify (function kite--notify-widget)
-               :validate (function kite--validate-widget)
-               :match (lambda (x) (> (length (widget-value x)) 0))
-               :kite-node-id node-id
-               :keymap kite--dom-widget-field-keymap
-               localName))
-        (setq attributes (kite--dom-render-attribute-regions element))
-        (widget-insert (concat (propertize ">"
-                                           'kite-node-id node-id
-                                           'read-only t
-                                           'face 'kite-tag-delimiter-face)))
-        (setf (node-region-inner-begin node-region) (point-marker))
-        (put-text-property (node-region-line-begin node-region)
-                           (node-region-inner-begin node-region)
-                           'kite-node-id
-                           node-id)
+     (cond
+      ((and (eq nodeType kite-dom-element-node)
+            (or (eq 0 (plist-get element :childNodeCount))
+                (plist-member element :children)))
+       (if (> (plist-get element :childNodeCount) 0)
+           (widget-insert (if (plist-member element :children) "-" "+"))
+         (widget-insert " "))
+       (widget-insert (propertize "<"
+                                  'kite-node-id node-id
+                                  'face 'kite-tag-delimiter-face))
+       (setf (node-region-widget node-region)
+             (widget-create
+              'editable-field
+              :size 1
+              :value-face 'kite-element-local-name-face
+              :modified-value-face 'kite-modified-element-local-name-face
+              :notify (function kite--notify-widget)
+              :validate (function kite--validate-widget)
+              :match (lambda (x) (> (length (widget-value x)) 0))
+              :kite-node-id node-id
+              :keymap kite--dom-widget-field-keymap
+              localName))
+       (setq attributes (kite--dom-render-attribute-regions element))
+       (widget-insert (concat (propertize ">"
+                                          'kite-node-id node-id
+                                          'read-only t
+                                          'face 'kite-tag-delimiter-face)))
+       (setf (node-region-inner-begin node-region) (point-marker))
+       (put-text-property (node-region-line-begin node-region)
+                          (node-region-inner-begin node-region)
+                          'kite-node-id
+                          node-id)
 
-        (puthash node-id
-                 (plist-get element :children)
-                 (kite-session-dom-children-cache kite-session))
+       (puthash node-id
+                (plist-get element :children)
+                (kite-session-dom-children-cache kite-session))
 
-        (puthash node-id
-                 (plist-get element :parentId)
-                 (kite-session-dom-parents kite-session))
+       (puthash node-id
+                (plist-get element :parentId)
+                (kite-session-dom-parents kite-session))
 
-        (setf (node-region-children node-region)
-              (mapcar (lambda (child)
-                        (let ((new-node-region (kite--dom-insert-element child (1+ indent) loadp)))
-                          (setf (node-region-parent new-node-region) node-region)
-                          new-node-region))
-                      (plist-get element :children)))
+       (setf (node-region-children node-region)
+             (mapcar (lambda (child)
+                       (let ((new-node-region (kite--dom-insert-element child (1+ indent) loadp)))
+                         (setf (node-region-parent new-node-region) node-region)
+                         new-node-region))
+                     (plist-get element :children)))
 
-        (setf (node-region-inner-end node-region) (point-marker))
-        (widget-insert
-         (concat
-          (propertize "<" 'face 'kite-tag-delimiter-face)
-          (propertize "/" 'face 'kite-tag-slash-face)
-          (propertize localName 'face 'kite-element-local-name-face)
-          (propertize ">" 'face 'kite-tag-delimiter-face)))
-        (put-text-property (node-region-inner-end node-region)
-                           (point)
-                           'kite-node-id
-                           node-id))
+       (setf (node-region-inner-end node-region) (point-marker))
+       (widget-insert
+        (concat
+         (propertize "<" 'face 'kite-tag-delimiter-face)
+         (propertize "/" 'face 'kite-tag-slash-face)
+         (propertize localName 'face 'kite-element-local-name-face)
+         (propertize ">" 'face 'kite-tag-delimiter-face)))
+       (put-text-property (node-region-inner-end node-region)
+                          (point)
+                          'kite-node-id
+                          node-id))
 
-       ((eq nodeType kite-dom-element-node)
-        (widget-insert "+")
-        (widget-insert (propertize "<"
-                                   'face 'kite-tag-delimiter-face))
-        (setf (node-region-widget node-region)
-              (widget-create 'editable-field
-                             :size 1
-                             :value-face 'kite-element-local-name-face
-                             :modified-value-face 'kite-modified-element-local-name-face
-                             :notify (function kite--notify-widget)
-                             :validate (function kite--validate-widget)
-                             :match (lambda (x) (> (length (widget-value x)) 0))
-                             :kite-node-id node-id
-                             :keymap kite--dom-widget-field-keymap
-                             localName))
-        (setq attributes (kite--dom-render-attribute-regions element))
-        (widget-insert (propertize ">"
-                                   'face 'kite-tag-delimiter-face))
-        (setf (node-region-inner-begin node-region) (point-marker))
-        (widget-insert "...")
-        (setf (node-region-inner-end node-region) (point-marker))
-        (widget-insert
-         (concat
-          (propertize "<" 'face 'kite-tag-delimiter-face)
-          (propertize "/" 'face 'kite-tag-slash-face)
-          (propertize localName 'face 'kite-element-local-name-face)
-          (propertize ">" 'face 'kite-tag-delimiter-face)))
-        (put-text-property (node-region-line-begin node-region)
-                           (point)
-                           'kite-node-id
-                           node-id)
-        (when loadp
-          (kite-send "DOM.requestChildNodes"
-                     :params
-                     (list :nodeId (plist-get element :nodeId)))))
+      ((eq nodeType kite-dom-element-node)
+       (widget-insert "+")
+       (widget-insert (propertize "<"
+                                  'face 'kite-tag-delimiter-face))
+       (setf (node-region-widget node-region)
+             (widget-create 'editable-field
+                            :size 1
+                            :value-face 'kite-element-local-name-face
+                            :modified-value-face 'kite-modified-element-local-name-face
+                            :notify (function kite--notify-widget)
+                            :validate (function kite--validate-widget)
+                            :match (lambda (x) (> (length (widget-value x)) 0))
+                            :kite-node-id node-id
+                            :keymap kite--dom-widget-field-keymap
+                            localName))
+       (setq attributes (kite--dom-render-attribute-regions element))
+       (widget-insert (propertize ">"
+                                  'face 'kite-tag-delimiter-face))
+       (setf (node-region-inner-begin node-region) (point-marker))
+       (widget-insert "...")
+       (setf (node-region-inner-end node-region) (point-marker))
+       (widget-insert
+        (concat
+         (propertize "<" 'face 'kite-tag-delimiter-face)
+         (propertize "/" 'face 'kite-tag-slash-face)
+         (propertize localName 'face 'kite-element-local-name-face)
+         (propertize ">" 'face 'kite-tag-delimiter-face)))
+       (put-text-property (node-region-line-begin node-region)
+                          (point)
+                          'kite-node-id
+                          node-id)
+       (when loadp
+         (kite-send "DOM.requestChildNodes"
+                    :params
+                    (list :nodeId (plist-get element :nodeId)))))
 
-       ((eq nodeType kite-dom-text-node)
-        (setf (node-region-widget node-region)
-              (widget-create 'editable-field
-                             :size 1
-                             :value-face 'kite-text-face
-                             :modified-value-face 'kite-modified-text-face
-                             :notify (function kite--notify-widget)
-                             :validate (function kite--validate-widget)
-                             :kite-node-id node-id
-                             :keymap kite--dom-widget-field-keymap
-                             (plist-get element :nodeValue))))
+      ((eq nodeType kite-dom-text-node)
+       (setf (node-region-widget node-region)
+             (widget-create 'editable-field
+                            :size 1
+                            :value-face 'kite-text-face
+                            :modified-value-face 'kite-modified-text-face
+                            :notify (function kite--notify-widget)
+                            :validate (function kite--validate-widget)
+                            :kite-node-id node-id
+                            :keymap kite--dom-widget-field-keymap
+                            (plist-get element :nodeValue))))
 
-       ((eq nodeType kite-dom-comment-node)
-        (widget-insert
-         (propertize
-          "<!--"
-          'face 'kite-comment-delimiter-face))
+      ((eq nodeType kite-dom-comment-node)
+       (widget-insert
+        (propertize
+         "<!--"
+         'face 'kite-comment-delimiter-face))
 
-        (setf (node-region-widget node-region)
-              (widget-create 'editable-field
-                             :size 1
-                             :value-face 'kite-comment-content-face
-                             :modified-value-face 'kite-modified-comment-content-face
-                             :notify (function kite--notify-widget)
-                             :validate (function kite--validate-widget)
-                             :kite-node-id node-id
-                             :keymap kite--dom-widget-field-keymap
-                             (plist-get element :nodeValue)))
-        (widget-insert
-         (propertize
-          "-->"
-          'face 'kite-comment-delimiter-face)
-         "\n")
-        (put-text-property (node-region-line-begin node-region)
-                           (point)
-                           'kite-node-id
-                           node-id))
+       (setf (node-region-widget node-region)
+             (widget-create 'editable-field
+                            :size 1
+                            :value-face 'kite-comment-content-face
+                            :modified-value-face 'kite-modified-comment-content-face
+                            :notify (function kite--notify-widget)
+                            :validate (function kite--validate-widget)
+                            :kite-node-id node-id
+                            :keymap kite--dom-widget-field-keymap
+                            (plist-get element :nodeValue)))
+       (widget-insert
+        (propertize
+         "-->"
+         'face 'kite-comment-delimiter-face)
+        "\n")
+       (put-text-property (node-region-line-begin node-region)
+                          (point)
+                          'kite-node-id
+                          node-id))
 
-       (t
-        (error "Unknown node type %s" nodeType)))
+      (t
+       (error "Unknown node type %s" nodeType)))
 
-      (setf (node-region-line-end node-region) (point-marker))
+     (setf (node-region-line-end node-region) (point-marker))
 
-      (setf (node-region-outer-begin node-region)
-            (copy-marker (node-region-line-begin node-region)))
-      (setf (node-region-outer-end node-region)
-            (copy-marker (node-region-line-end node-region)))
+     (setf (node-region-outer-begin node-region)
+           (copy-marker (node-region-line-begin node-region)))
+     (setf (node-region-outer-end node-region)
+           (copy-marker (node-region-line-end node-region)))
 
-      (when (eq nodeType kite-dom-element-node)
-        (kite--dom-update-inner-whitespace node-region))
+     (when (eq nodeType kite-dom-element-node)
+       (kite--dom-update-inner-whitespace node-region))
 
-      (setf (node-region-attribute-regions node-region) attributes)
-      (when (node-region-inner-begin node-region)
-        (set-marker-insertion-type (node-region-inner-begin node-region) nil)
-        (set-marker-insertion-type (node-region-inner-end node-region) t))
-      (when (node-region-outer-begin node-region)
-        (set-marker-insertion-type (node-region-outer-begin node-region) t)
-        (set-marker-insertion-type (node-region-outer-end node-region) nil))
-      (when (node-region-line-begin node-region)
-        (set-marker-insertion-type (node-region-line-begin node-region) t)
-        (set-marker-insertion-type (node-region-line-end node-region) nil))
-      (puthash (plist-get element :nodeId)
-               node-region
-               (kite-session-dom-nodes kite-session))
-      node-region)))
+     (setf (node-region-attribute-regions node-region) attributes)
+     (when (node-region-inner-begin node-region)
+       (set-marker-insertion-type (node-region-inner-begin node-region) nil)
+       (set-marker-insertion-type (node-region-inner-end node-region) t))
+     (when (node-region-outer-begin node-region)
+       (set-marker-insertion-type (node-region-outer-begin node-region) t)
+       (set-marker-insertion-type (node-region-outer-end node-region) nil))
+     (when (node-region-line-begin node-region)
+       (set-marker-insertion-type (node-region-line-begin node-region) t)
+       (set-marker-insertion-type (node-region-line-end node-region) nil))
+     (puthash (plist-get element :nodeId)
+              node-region
+              (kite-session-dom-nodes kite-session))
+     node-region)))
 
 (defun kite--kill-dom ()
   "Obsolete. FIXME"
@@ -936,16 +938,19 @@ child node into a DOM element."
           (if (eq previous-node-id 0)
               (push new-node-region (node-region-children node-region))
             (let ((insert-position
-                   (1+ (position previous-node-region
-                                 (node-region-children node-region)))))
+                   (1+ (kite--position
+                        previous-node-region
+                        (node-region-children node-region)))))
               (setf (node-region-children node-region)
                     (append
-                     (subseq (node-region-children node-region)
-                             0
-                             insert-position)
+                     (kite--subseq
+                      (node-region-children node-region)
+                      0
+                      insert-position)
                      (list new-node-region)
-                     (subseq (node-region-children node-region)
-                             insert-position)))))
+                     (kite--subseq
+                      (node-region-children node-region)
+                      insert-position)))))
           (setf (node-region-parent new-node-region) node-region))
         (widget-setup)
         (kite--dom-update-inner-whitespace node-region)))))
@@ -1048,7 +1053,7 @@ Negative ARG means move backward."
   (let* ((node-region (kite--dom-node-region-at-point))
          (parent-children (node-region-children
                            (node-region-parent node-region)))
-         (node-position (position node-region parent-children))
+         (node-position (kite--position node-region parent-children))
          (new-position (max 0 (min (+ node-position arg)
                                    (- (length parent-children) 1))))
          (next-node-region (nth new-position parent-children)))

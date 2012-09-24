@@ -29,9 +29,9 @@
 
 ;;; Code:
 
+(require 'kite-cl)
 (require 'websocket)
 (require 'json)
-(require 'kite-util)
 
 (defvar kite-Console-messageAdded-hooks nil)
 (defvar kite-CSS-mediaQueryResultChanged-hooks nil)
@@ -86,7 +86,7 @@
 (defconst kite--debugger-state-paused
   (propertize "Paused" 'face 'warning))
 
-(defstruct (kite-session)
+(kite--defstruct (kite-session)
   "Represents an active debugging session, i.e. a connection to a
 remote WebKit debugger instance."
   websocket
@@ -113,7 +113,7 @@ remote WebKit debugger instance."
   (dom-nodes (make-hash-table))
   document-root)
 
-(defstruct (kite-script-info)
+(kite--defstruct (kite-script-info)
   "Information about a script used in a debugging session.  Used
 to cache data received via the ` Debugger.scriptParsed'
 notification."
@@ -258,6 +258,14 @@ create one with the given MODE."
           (set (make-local-variable 'kite-buffer-type) type)
           (add-hook 'kill-buffer-hook 'kite--kill-buffer nil t)
         buf))))
+
+(defun kite--log (format-string &rest args)
+  "Print a message to the kite debug logging buffer"
+  (with-current-buffer
+      (get-buffer-create (format "*kite log*"))
+    (save-excursion
+      (goto-char (point-max))
+      (insert (concat (apply 'format format-string args) "\n")))))
 
 (provide 'kite-global)
 

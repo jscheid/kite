@@ -36,8 +36,8 @@
 (require 'json)
 (require 'websocket)
 (require 'url-parse)
-(eval-when-compile (require 'cl))
 
+(require 'kite-cl)
 (require 'kite-debug)
 (require 'kite-dom)
 (require 'kite-memory)
@@ -287,51 +287,53 @@ enters the empty string at the prompt."
             ;; For each human readable identifier (url or title), see
             ;; if it is ambiguous
 
-            (flet ((add-item (item url)
-                             (let ((existing (gethash item available-strings '(0))))
-                               (puthash item
-                                        (cons (1+ (car existing))
-                                              (cons url (cdr existing)))
-                                        available-strings))))
+            (kite--flet
+             ((add-item (item url)
+                        (let ((existing (gethash item available-strings '(0))))
+                          (puthash item
+                                   (cons (1+ (car existing))
+                                         (cons url (cdr existing)))
+                                   available-strings))))
 
-              (maphash (lambda (key value)
-                         (let ((url (plist-get (car value) :url))
-                               (title (plist-get (car value) :title))
-                               (websocket-url (plist-get (car value)
-                                                         :webSocketDebuggerUrl)))
-                           (add-item url websocket-url)
-                           (when (not (equal title url))
-                             (add-item title websocket-url))))
-                       available-debuggers))
+             (maphash (lambda (key value)
+                        (let ((url (plist-get (car value) :url))
+                              (title (plist-get (car value) :title))
+                              (websocket-url (plist-get (car value)
+                                                        :webSocketDebuggerUrl)))
+                          (add-item url websocket-url)
+                          (when (not (equal title url))
+                            (add-item title websocket-url))))
+                      available-debuggers))
 
             ;; Final pass, disambiguate and rearrange
 
-            (flet ((disambiguate (string websocket-url)
-                                 (let ((existing
-                                        (gethash string available-strings)))
-                                   (if (<= (car existing) 1)
-                                       string
-                                     (concat string
-                                             " ("
-                                             (substring websocket-url
-                                                        (length (kite--longest-prefix
-                                                                 (cdr existing))))
-                                             ")")))))
+            (kite--flet
+             ((disambiguate (string websocket-url)
+                            (let ((existing
+                                   (gethash string available-strings)))
+                              (if (<= (car existing) 1)
+                                  string
+                                (concat string
+                                        " ("
+                                        (substring websocket-url
+                                                   (length (kite--longest-prefix
+                                                            (cdr existing))))
+                                        ")")))))
 
-              (maphash (lambda (key value)
-                         (let ((url (plist-get (car value) :url))
-                               (title (plist-get (car value) :title))
-                               (websocket-url (plist-get
-                                               (car value)
-                                               :webSocketDebuggerUrl)))
+             (maphash (lambda (key value)
+                        (let ((url (plist-get (car value) :url))
+                              (title (plist-get (car value) :title))
+                              (websocket-url (plist-get
+                                              (car value)
+                                              :webSocketDebuggerUrl)))
 
-                           (puthash (disambiguate url websocket-url)
-                                    value
-                                    completion-strings)
-                           (puthash (disambiguate title websocket-url)
-                                    value
-                                    completion-strings)))
-                       available-debuggers))
+                          (puthash (disambiguate url websocket-url)
+                                   value
+                                   completion-strings)
+                          (puthash (disambiguate title websocket-url)
+                                   value
+                                   completion-strings)))
+                      available-debuggers))
 
             ;; Map to keys
 
@@ -625,7 +627,7 @@ context is created."
   (setf (kite-session-last-message kite-session)
         (plist-get packet :message))
   (when (string= "error" (kite--get packet :message :level))
-    (incf (kite-session-error-count kite-session)))
+    (kite--incf (kite-session-error-count kite-session)))
   (kite--mode-line-update))
 
 (defun kite--messageRepeatCountUpdated (websocket-url packet)
@@ -633,7 +635,7 @@ context is created."
   (when (string= "error"
                  (plist-get (kite-session-last-message kite-session)
                             :level))
-    (incf (kite-session-error-count kite-session)))
+    (kite--incf (kite-session-error-count kite-session)))
   (kite--mode-line-update))
 
 (defun kite--globalObjectCleared (websocket-url packet)

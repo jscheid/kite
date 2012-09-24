@@ -33,18 +33,19 @@
 
 ;;; Code:
 
+(require 'kite-cl)
 (require 'color)
 (eval-when-compile
-  (require 'cl)
   (require 'rx))
 
-(defun* kite--make-color-image (rgba-float-color
-                                &key
-                                (width 16)
-                                (height 16)
-                                (checker-size 8)
-                                (bg-color-1 (color-hsl-to-rgb 0 0 1))
-                                (bg-color-2 (color-hsl-to-rgb 0 0 0.5)))
+(kite--defun kite--make-color-image
+             (rgba-float-color
+              &key
+              (width 16)
+              (height 16)
+              (checker-size 8)
+              (bg-color-1 (color-hsl-to-rgb 0 0 1))
+              (bg-color-2 (color-hsl-to-rgb 0 0 0.5)))
   "Return an image that visualizes the given RGBA-FLOAT-COLOR,
 which should be a list containing four float values in the range
 0..1.
@@ -71,10 +72,10 @@ for the checkerboard tiles."
                                       (mod (/ row checker-size) 2))
                               bg-color-list)))
                (dolist (component
-                        (mapcar* (lambda (fg bg)
-                                   (+ (* fg alpha)
-                                      (* bg (- 1 alpha))))
-                                 rgba-float-color bg-color))
+                        (kite--mapcar (lambda (fg bg)
+                                        (+ (* fg alpha)
+                                           (* bg (- 1 alpha))))
+                                      rgba-float-color bg-color))
                  (princ (format "%d " (round (* scale component)))))
                (setq column (1+ column)))))
          (princ "\n")
@@ -410,80 +411,83 @@ four float values in the range 0..1 corresponding to red, green,
 blue, and alpha otherwise.  This function does not deal in color
 spaces or color profiles and thus its result should be treated as
 a 'raw' color value."
-  (flet ((clamp (n)
-                (max 0.0 (min 1.0 n)))
-         (color-hue-to-rgb (v1 v2 h)
-                           (cond
-                            ((< h 0) (setq h (+ h 1)))
-                            ((> h 1) (setq h (- h 1))))
-                           (cond
-                            ((< h (/ 1.0 6))
-                             (+ v1 (* (- v2 v1) h 6.0)))
-                            ((< h 0.5)
-                             v2)
-                            ((< h (/ 2.0 3))
-                             (+ v1 (* (- v2 v1) (- (/ 2.0 3) h) 6.0)))
-                            (t
-                             v1))))
-    (cond
+  (kite--flet
+   ((clamp (n)
+           (max 0.0 (min 1.0 n)))
+    (color-hue-to-rgb (v1 v2 h)
+                      (cond
+                       ((< h 0) (setq h (+ h 1)))
+                       ((> h 1) (setq h (- h 1))))
+                      (cond
+                       ((< h (/ 1.0 6))
+                        (+ v1 (* (- v2 v1) h 6.0)))
+                       ((< h 0.5)
+                        v2)
+                       ((< h (/ 2.0 3))
+                        (+ v1 (* (- v2 v1) (- (/ 2.0 3) h) 6.0)))
+                       (t
+                        v1))))
+   (cond
 
-     ;; color keyword
-     ((match-string 1 string)
-      (gethash (match-string 1 string) (eval-when-compile kite--color-keywords)))
+    ;; color keyword
+    ((match-string 1 string)
+     (gethash (match-string 1 string) (eval-when-compile kite--color-keywords)))
 
-     ;; #FFFFFF
-     ((match-string 2 string)
-      (color-name-to-rgb (match-string 2 string)))
+    ;; #FFFFFF
+    ((match-string 2 string)
+     (color-name-to-rgb (match-string 2 string)))
 
-     ;; #FFF
-     ((match-string 3 string)
-      (let ((match (match-string 3 string)))
-        (list (/ (hexrgb-hex-to-int (substring match 1 2)) 15.0)
-              (/ (hexrgb-hex-to-int (substring match 2 3)) 15.0)
-              (/ (hexrgb-hex-to-int (substring match 3 4)) 15.0))))
+    ;; #FFF
+    ((match-string 3 string)
+     (let ((match (match-string 3 string)))
+       (list (/ (string-to-number (substring match 1 2) 16) 15.0)
+             (/ (string-to-number (substring match 2 3) 16) 15.0)
+             (/ (string-to-number (substring match 3 4) 16) 15.0))))
 
-     ;; rgb(n,n,n)
-     ((match-string 4 string)
-      (list (clamp (/ (string-to-number (match-string 4 string)) 255.0))
-            (clamp (/ (string-to-number (match-string 5 string)) 255.0))
-            (clamp (/ (string-to-number (match-string 6 string)) 255.0))))
+    ;; rgb(n,n,n)
+    ((match-string 4 string)
+     (list (clamp (/ (string-to-number (match-string 4 string)) 255.0))
+           (clamp (/ (string-to-number (match-string 5 string)) 255.0))
+           (clamp (/ (string-to-number (match-string 6 string)) 255.0))))
 
-     ;; rgb(n%,n%,n%)
-     ((match-string 7 string)
-      (list (clamp (/ (string-to-number (match-string 7 string)) 100.0))
-            (clamp (/ (string-to-number (match-string 8 string)) 100.0))
-            (clamp (/ (string-to-number (match-string 9 string)) 100.0))))
+    ;; rgb(n%,n%,n%)
+    ((match-string 7 string)
+     (list (clamp (/ (string-to-number (match-string 7 string)) 100.0))
+           (clamp (/ (string-to-number (match-string 8 string)) 100.0))
+           (clamp (/ (string-to-number (match-string 9 string)) 100.0))))
 
-     ;; rgba(n,n,n,a)
-     ((match-string 10 string)
-      (list (clamp (/ (string-to-number (match-string 10 string)) 255.0))
-            (clamp (/ (string-to-number (match-string 11 string)) 255.0))
-            (clamp (/ (string-to-number (match-string 12 string)) 255.0))
-            (clamp (string-to-number (match-string 13 string)))))
+    ;; rgba(n,n,n,a)
+    ((match-string 10 string)
+     (list (clamp (/ (string-to-number (match-string 10 string)) 255.0))
+           (clamp (/ (string-to-number (match-string 11 string)) 255.0))
+           (clamp (/ (string-to-number (match-string 12 string)) 255.0))
+           (clamp (string-to-number (match-string 13 string)))))
 
-     ;; rgba(n%,n%,n%,a)
-     ((match-string 14 string)
-      (list (clamp (/ (string-to-number (match-string 14 string)) 100.0))
-            (clamp (/ (string-to-number (match-string 15 string)) 100.0))
-            (clamp (/ (string-to-number (match-string 16 string)) 100.0))
-            (clamp (string-to-number (match-string 17 string)))))
+    ;; rgba(n%,n%,n%,a)
+    ((match-string 14 string)
+     (list (clamp (/ (string-to-number (match-string 14 string)) 100.0))
+           (clamp (/ (string-to-number (match-string 15 string)) 100.0))
+           (clamp (/ (string-to-number (match-string 16 string)) 100.0))
+           (clamp (string-to-number (match-string 17 string)))))
 
-     ;; hsl(n,n%,n%)
-     ((match-string 18 string)
-      (color-hsl-to-rgb
-       (mod (/ (string-to-number (match-string 18 string)) 360.0) 1.0)
-       (clamp (/ (string-to-number (match-string 19 string)) 100.0))
-       (clamp (/ (string-to-number (match-string 20 string)) 100.0))))
+    ;; hsl(n,n%,n%)
+    ((match-string 18 string)
+     (mapcar #'clamp
+             (color-hsl-to-rgb
+              (mod (/ (string-to-number (match-string 18 string)) 360.0) 1.0)
+              (clamp (/ (string-to-number (match-string 19 string)) 100.0))
+              (clamp (/ (string-to-number (match-string 20 string)) 100.0)))))
 
-     ;; hsla(n,n%,n%,a)
-     ((match-string 21 string)
-      (append
-       (color-hsl-to-rgb
-        (mod (/ (string-to-number (match-string 21 string)) 360.0) 1.0)
-        (clamp (/ (string-to-number (match-string 22 string)) 100.0))
-        (clamp (/ (string-to-number (match-string 23 string)) 100.0)))
-       (list
-        (clamp (string-to-number (match-string 24 string)))))))))
+    ;; hsla(n,n%,n%,a)
+    ((match-string 21 string)
+     (append
+      (mapcar #'clamp
+              (color-hsl-to-rgb
+               (mod (/ (string-to-number (match-string 21 string)) 360.0) 1.0)
+               (clamp (/ (string-to-number (match-string 22 string)) 100.0))
+               (clamp (/ (string-to-number (match-string 23 string)) 100.0))))
+      (list
+       (clamp (string-to-number (match-string 24 string)))))))))
 
 (defun kite-parse-color (string)
   (when (let ((case-fold-search nil))

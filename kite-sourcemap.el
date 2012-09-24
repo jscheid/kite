@@ -40,6 +40,8 @@
 
 ;;; Code:
 
+(require 'kite-cl)
+
 (defconst kite--vlq-base-shift 5)
 
 (defconst kite--vlq-base (lsh 1 kite--vlq-base-shift))
@@ -58,10 +60,10 @@ ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/")
     (dolist (char
              (string-to-list base64-chars))
       (puthash char index map)
-      (incf index))
+      (kite--incf index))
     map))
 
-(defstruct (kite-source-mapping)
+(kite--defstruct (kite-source-mapping)
   "Holds the parsed mapping coordinates from the source map's
   `mappings' attribute."
   generated-line
@@ -71,7 +73,7 @@ ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/")
   original-column
   name)
 
-(defstruct (kite-source-map)
+(kite--defstruct (kite-source-map)
   "Representation of a parsed source map suitable for fast
 lookup."
   names
@@ -111,8 +113,8 @@ values, that is a list (VALUE STRING-REST)."
         (setq continuation
               (not (eq 0 (logand digit kite--vlq-continuation-bit))))
         (setq digit (logand digit kite--vlq-base-mask))
-        (incf result (lsh digit shift)))
-      (incf shift kite--vlq-base-shift)
+        (kite--incf result (lsh digit shift)))
+      (kite--incf shift kite--vlq-base-shift)
       (setq string-as-list (cdr string-as-list)))
     (list :value (kite--from-vlq-signed result)
           :rest string-as-list)))
@@ -140,87 +142,88 @@ object, and return a `kite-source-map' struct."
          (previous-original-column 0)
          (previous-source 0)
          (previous-name 0))
-    (flet ((starts-with-mapping-separator (string)
-                                          (or (null string)
-                                              (eq (car string) ?,)
-                                              (eq (car string) ?\;))))
-      (while string
-        (cond
-         ((eq (car string) ?\;)
-          (incf generated-line)
-          (setq string (cdr string))
-          (setq previous-generated-column 0))
-         ((eq (car string) ?,)
-          (setq string (cdr string)))
-         (t
-          (let ((mapping (make-kite-source-mapping
-                          :generated-line generated-line)))
+    (kite--flet
+     ((starts-with-mapping-separator (string)
+                                     (or (null string)
+                                         (eq (car string) ?,)
+                                         (eq (car string) ?\;))))
+     (while string
+       (cond
+        ((eq (car string) ?\;)
+         (kite--incf generated-line)
+         (setq string (cdr string))
+         (setq previous-generated-column 0))
+        ((eq (car string) ?,)
+         (setq string (cdr string)))
+        (t
+         (let ((mapping (make-kite-source-mapping
+                         :generated-line generated-line)))
 
-            ;; Generated column.
-            (let ((temp (kite--base64-vlq-decode string)))
-              (setf (kite-source-mapping-generated-column mapping)
-                    (+ previous-generated-column
-                       (plist-get temp :value)))
-              (setq previous-generated-column
-                    (kite-source-mapping-generated-column mapping))
-              (setq string (plist-get temp :rest)))
+           ;; Generated column.
+           (let ((temp (kite--base64-vlq-decode string)))
+             (setf (kite-source-mapping-generated-column mapping)
+                   (+ previous-generated-column
+                      (plist-get temp :value)))
+             (setq previous-generated-column
+                   (kite-source-mapping-generated-column mapping))
+             (setq string (plist-get temp :rest)))
 
-            (when (not (starts-with-mapping-separator string))
+           (when (not (starts-with-mapping-separator string))
 
-              ;; Original source.
-              (let ((temp (kite--base64-vlq-decode string)))
-                (setf (kite-source-mapping-source mapping)
-                      (concat source-root
-                              (elt sources
-                                   (+ previous-source
-                                      (plist-get temp :value)))))
-                (incf previous-source (plist-get temp :value))
-                (setq string (plist-get temp :rest)))
+             ;; Original source.
+             (let ((temp (kite--base64-vlq-decode string)))
+               (setf (kite-source-mapping-source mapping)
+                     (concat source-root
+                             (elt sources
+                                  (+ previous-source
+                                     (plist-get temp :value)))))
+               (kite--incf previous-source (plist-get temp :value))
+               (setq string (plist-get temp :rest)))
 
-              (when (starts-with-mapping-separator string)
-                (error "Found a source, but no line and column"))
+             (when (starts-with-mapping-separator string)
+               (error "Found a source, but no line and column"))
 
-              ;; Original line.
-              (let ((temp (kite--base64-vlq-decode string)))
-                (setf (kite-source-mapping-original-line mapping)
-                      (+ previous-original-line
-                         (plist-get temp :value)))
-                (setq previous-original-line
-                      (kite-source-mapping-original-line mapping))
+             ;; Original line.
+             (let ((temp (kite--base64-vlq-decode string)))
+               (setf (kite-source-mapping-original-line mapping)
+                     (+ previous-original-line
+                        (plist-get temp :value)))
+               (setq previous-original-line
+                     (kite-source-mapping-original-line mapping))
 
-                ;; Lines are stored 0-based
-                (incf (kite-source-mapping-original-line mapping))
+               ;; Lines are stored 0-based
+               (kite--incf (kite-source-mapping-original-line mapping))
 
-                (setq string (plist-get temp :rest)))
+               (setq string (plist-get temp :rest)))
 
-              (when (starts-with-mapping-separator string)
-                (error "Found a source and line, but no column"))
+             (when (starts-with-mapping-separator string)
+               (error "Found a source and line, but no column"))
 
-              ;; Original column
-              (let ((temp (kite--base64-vlq-decode string)))
-                (setf (kite-source-mapping-original-column mapping)
-                      (+ previous-original-column
-                         (plist-get temp :value)))
-                (setq previous-original-column
-                      (kite-source-mapping-original-column mapping))
+             ;; Original column
+             (let ((temp (kite--base64-vlq-decode string)))
+               (setf (kite-source-mapping-original-column mapping)
+                     (+ previous-original-column
+                        (plist-get temp :value)))
+               (setq previous-original-column
+                     (kite-source-mapping-original-column mapping))
 
-                (setq string (plist-get temp :rest)))
+               (setq string (plist-get temp :rest)))
 
-              (when (not (starts-with-mapping-separator string))
+             (when (not (starts-with-mapping-separator string))
 
-                ;; Original name
-                (let ((temp (kite--base64-vlq-decode string)))
-                  (setf (kite-source-mapping-name mapping)
-                        (elt names (+ previous-name
-                                      (plist-get temp :value))))
-                  (incf previous-name (plist-get temp :value))
+               ;; Original name
+               (let ((temp (kite--base64-vlq-decode string)))
+                 (setf (kite-source-mapping-name mapping)
+                       (elt names (+ previous-name
+                                     (plist-get temp :value))))
+                 (kite--incf previous-name (plist-get temp :value))
 
-                  (setq string (plist-get temp :rest)))))
+                 (setq string (plist-get temp :rest)))))
 
-            (push mapping generated-mappings-list)))))
+           (push mapping generated-mappings-list)))))
 
-      (setf (kite-source-map-generated-mappings result)
-            (vconcat (nreverse generated-mappings-list))))
+     (setf (kite-source-map-generated-mappings result)
+           (vconcat (nreverse generated-mappings-list))))
     result))
 
 (defun kite-source-map-original-position-for (source-map

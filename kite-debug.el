@@ -33,8 +33,10 @@
 ;;; Code:
 
 (require 'kite-breakpoint)
+(require 'kite-cl)
 (require 'kite-sourcemap)
 (require 'kite-global)
+(require 'url-expand)
 
 (defvar kite-debug-mode-map
   (let ((map (make-keymap))
@@ -315,22 +317,23 @@ is available, go to the original location instead."
                            column))
          (url (plist-get original-source :url))
          (url-parts (url-generic-parse-url url)))
-    (flet ((after-load ()
-                       (goto-char (point-min))
-                       (forward-line
-                        (1- (plist-get original-source :line)))
-                       (beginning-of-line)
-                       (forward-char
-                        (plist-get original-source :column))
-                       (funcall after-load-function)))
-      (cond
-       ((string= (url-type url-parts) "file")
-        (find-file (url-filename url-parts))
-        (after-load))
-       (t
-        (switch-to-buffer (or (get-buffer url)
-                              (kite--create-remote-script-buffer
-                               script-info (function after-load)))))))))
+    (kite--flet
+     ((after-load ()
+                  (goto-char (point-min))
+                  (forward-line
+                   (1- (plist-get original-source :line)))
+                  (beginning-of-line)
+                  (forward-char
+                   (plist-get original-source :column))
+                  (funcall after-load-function)))
+     (cond
+      ((string= (url-type url-parts) "file")
+       (find-file (url-filename url-parts))
+       (after-load))
+      (t
+       (switch-to-buffer (or (get-buffer url)
+                             (kite--create-remote-script-buffer
+                              script-info (function after-load)))))))))
 
 (defun kite--debug-stats-mode-line-indicator ()
   "Returns a string to be displayed in the mode line"

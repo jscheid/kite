@@ -31,6 +31,10 @@
 
 ;;; Code:
 
+(require 'kite-cl)
+(require 'kite-global)
+(require 'wid-edit)
+
 (defcustom kite-short-object-max-properties 5
   "Maximum number of elements to include in the short string
   representation of an object"
@@ -142,9 +146,10 @@ given PROPERTIES vector.  The representation will look like
 `Object {prop: value, prop: value, ...}'. A maximum of
 `kite-short-object-max-properties' properties will be included."
   (let ((properties-without-proto
-         (remove-if (lambda (element)
-                      (string= "__proto__" (plist-get element :name)))
-                    properties)))
+         (kite--remove-if
+          (lambda (element)
+            (string= "__proto__" (plist-get element :name)))
+          properties)))
     (concat
      "Object {"
      (mapconcat (lambda (element)
@@ -152,10 +157,10 @@ given PROPERTIES vector.  The representation will look like
                    "%s: %s"
                    (plist-get element :name)
                    (kite--format-object (plist-get element :value))))
-                (subseq properties-without-proto
-                        0
-                        (min kite-short-object-max-properties
-                             (length properties-without-proto)))
+                (kite--subseq properties-without-proto
+                              0
+                              (min kite-short-object-max-properties
+                                   (length properties-without-proto)))
                 ", ")
      (when (> (length properties-without-proto)
               kite-short-object-max-properties)
@@ -166,7 +171,7 @@ given PROPERTIES vector.  The representation will look like
   "Return a short representation of the array described by the
 given PROPERTIES vector."
   (let ((array-elements
-         (remove-if
+         (kite--remove-if
           (lambda (element)
             (or (not (eq t (plist-get element :enumerable)))
                 (string= "length" (plist-get element :name))))
@@ -177,8 +182,10 @@ given PROPERTIES vector."
       (lambda (element)
         (kite--format-object
          (plist-get element :value)))
-      (subseq array-elements 0 (min kite-short-array-max-elements
-                                    (length array-elements)))
+      (kite--subseq array-elements
+                    0
+                    (min kite-short-array-max-elements
+                         (length array-elements)))
       ", ")
      (when (> (length array-elements)
               kite-short-array-max-elements)
