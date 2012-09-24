@@ -19,7 +19,7 @@
 #  along with Kite.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-all: kite.tar.gz kite.html
+all: byte-compile
 
 ELISP_SOURCES = \
 	kite-breakpoint.el	\
