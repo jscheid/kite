@@ -56,6 +56,12 @@ dir: kite.info
 kite.tar.gz: $(ELISP_SOURCES) dir kite.info
 	tar czf $@ $^
 
+clean:
+	rm -f $(ELC) kite.html kite.info kite.texinfo dir kite.tar.gz
+
+test:
+	$(EMACS) $(BATCH) $(DEPS)  -l ert -l kite-tests.el -f ert-run-tests-batch-and-exit
+
 # make rules used during development
 
 EMACS = emacs
@@ -68,6 +74,3 @@ $(ELC): $(ELISP_SOURCES)
 	$(EMACS) $(BATCH) $(DEPS) $(COMPILE) $^
 
 byte-compile: $(ELC)
-
-test:
-	$(EMACS) $(BATCH) $(DEPS)  -l ert -l kite-tests.el -f ert-run-tests-batch-and-exit
