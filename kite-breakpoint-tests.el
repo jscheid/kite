@@ -174,7 +174,7 @@
        :node-id 4567
        :type 'node-setd)
       nil))
-   '(("DOM.setDOMBreakpoint"
+   '(("DOMDebugger.setDOMBreakpoint"
       (:nodeId
        4567
        :type node-setd)
@@ -187,7 +187,7 @@
        :node-id 5678
        :type 'attribute-modified)
       nil))
-   '(("DOM.setDOMBreakpoint"
+   '(("DOMDebugger.setDOMBreakpoint"
       (:nodeId
        5678
        :type attribute-modified)
@@ -200,7 +200,7 @@
        :node-id 6789
        :type 'subtree-modified)
       nil))
-   '(("DOM.setDOMBreakpoint"
+   '(("DOMDebugger.setDOMBreakpoint"
       (:nodeId
        6789
        :type subtree-modified)
@@ -215,7 +215,7 @@
        :node-id 4567
        :type 'node-removed)
       nil))
-   '(("DOM.removeDOMBreakpoint"
+   '(("DOMDebugger.removeDOMBreakpoint"
       (:nodeId
        4567
        :type node-removed)
@@ -228,7 +228,7 @@
        :node-id 5678
        :type 'attribute-modified)
       nil))
-   '(("DOM.removeDOMBreakpoint"
+   '(("DOMDebugger.removeDOMBreakpoint"
       (:nodeId
        5678
        :type attribute-modified)
@@ -241,7 +241,7 @@
        :node-id 6789
        :type 'subtree-modified)
       nil))
-   '(("DOM.removeDOMBreakpoint"
+   '(("DOMDebugger.removeDOMBreakpoint"
       (:nodeId
        6789
        :type subtree-modified)
@@ -265,7 +265,7 @@
       (make-kite-dom-event-breakpoint
        :event-name "foo")
       nil))
-   '(("DOM.setEventListenerBreakpoint"
+   '(("DOMDebugger.setEventListenerBreakpoint"
       (:eventName "foo")
       nil)))
 
@@ -275,7 +275,7 @@
       (make-kite-dom-event-breakpoint
        :event-name "foo")
       nil))
-   '(("DOM.removeEventListenerBreakpoint"
+   '(("DOMDebugger.removeEventListenerBreakpoint"
       (:eventName "foo")
       nil))))
 
@@ -297,7 +297,7 @@
       (make-kite-instrumentation-breakpoint
        :event-name "foo")
       nil))
-   '(("DOM.setInstrumentationBreakpoint"
+   '(("DOMDebugger.setInstrumentationBreakpoint"
       (:eventName "foo")
       nil)))
 
@@ -307,7 +307,7 @@
       (make-kite-instrumentation-breakpoint
        :event-name "foo")
       nil))
-   '(("DOM.removeInstrumentationBreakpoint"
+   '(("DOMDebugger.removeInstrumentationBreakpoint"
       (:eventName "foo")
       nil))))
 

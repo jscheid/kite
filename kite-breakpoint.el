@@ -167,14 +167,14 @@
       (format "removal of node #%s" node-id)))))
 
 (defun kite--set-dom-node-breakpoint (breakpoint response-handler)
-  (kite-send "DOM.setDOMBreakpoint"
+  (kite-send "DOMDebugger.setDOMBreakpoint"
              :params
              (list :nodeId (kite-dom-node-breakpoint-node-id breakpoint)
                    :type (kite-dom-node-breakpoint-type breakpoint))
              :success-function response-handler))
 
 (defun kite--remove-dom-node-breakpoint (breakpoint response-handler)
-  (kite-send "DOM.removeDOMBreakpoint"
+  (kite-send "DOMDebugger.removeDOMBreakpoint"
              :params
              (list :nodeId (kite-dom-node-breakpoint-node-id breakpoint)
                    :type (kite-dom-node-breakpoint-type breakpoint))
@@ -201,13 +201,13 @@
   (format "DOM event `%s'" (kite-dom-event-breakpoint-event-name breakpoint)))
 
 (defun kite--set-dom-event-breakpoint (breakpoint response-handler)
-  (kite-send "DOM.setEventListenerBreakpoint"
+  (kite-send "DOMDebugger.setEventListenerBreakpoint"
              :params
              (list :eventName (kite-dom-event-breakpoint-event-name breakpoint))
              :success-function response-handler))
 
 (defun kite--remove-dom-event-breakpoint (breakpoint response-handler)
-  (kite-send "DOM.removeEventListenerBreakpoint"
+  (kite-send "DOMDebugger.removeEventListenerBreakpoint"
              :params
              (list :eventName (kite-dom-event-breakpoint-event-name breakpoint))
              :success-function response-handler))
@@ -233,13 +233,13 @@
   (format "Native event `%s'" (kite-instrumentation-breakpoint-event-name breakpoint)))
 
 (defun kite--set-instrumentation-breakpoint (breakpoint response-handler)
-  (kite-send "DOM.setInstrumentationBreakpoint"
+  (kite-send "DOMDebugger.setInstrumentationBreakpoint"
              :params
              (list :eventName (kite-instrumentation-breakpoint-event-name breakpoint))
              :success-function response-handler))
 
 (defun kite--remove-instrumentation-breakpoint (breakpoint response-handler)
-  (kite-send "DOM.removeInstrumentationBreakpoint"
+  (kite-send "DOMDebugger.removeInstrumentationBreakpoint"
              :params
              (list :eventName (kite-instrumentation-breakpoint-event-name breakpoint))
              :success-function response-handler))
