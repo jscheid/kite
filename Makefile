@@ -57,9 +57,9 @@ kite.tar.gz: $(ELISP_SOURCES) dir kite.info
 
 EMACS = emacs
 BATCH = -batch -q -no-site-file
-DEPS=-l ./kite-load-path.el
-COMPILE =  -f batch-byte-compile
+DEPS = -l ./kite-load-path.el
+COMPILE = -f batch-byte-compile
 
 # How to compile
-%.elc:  %.el
-	$(EMACS) $(BATCH)  $(DEPS)  $(COMPILE) $<
+%.elc: %.el
+	$(EMACS) $(BATCH) $(DEPS) $(COMPILE) $<
