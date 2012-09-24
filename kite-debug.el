@@ -186,10 +186,11 @@ correspond to one.")
 
 (defvar kite-debugging-mode-map
   (let ((map (make-sparse-keymap)))
-    (define-key map "\C-ci" 'kite-step-into)
-    (define-key map "\C-co" 'kite-step-over)
-    (define-key map "\C-cu" 'kite-step-out)
-    (define-key map "\C-cp" 'kite-debug-pause)
+    (define-key map (kbd "C-c i") 'kite-step-into)
+    (define-key map (kbd "C-c o") 'kite-step-over)
+    (define-key map (kbd "C-c u") 'kite-step-out)
+    (define-key map (kbd "C-c r") 'kite-resume)
+    (define-key map (kbd "C-c c") 'kite-continue-to-location)
     map)
   "Local keymap for the `kite-debugging-mode' minor mode")
 
@@ -197,7 +198,7 @@ correspond to one.")
   "Toggle kite JavaScript debugging in this buffer."
   :group 'kite
   :lighter (:eval (kite--debug-stats-mode-line-indicator))
-  :keymap 'kite-debugging-mode-map)
+  :keymap kite-debugging-mode-map)
 
 (defun kite-step-into ()
   (interactive)
