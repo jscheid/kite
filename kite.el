@@ -387,6 +387,15 @@ the title and makes no attempt at uniquifying it."
     map)
   "The keymap associated with the profiler prefix key.")
 
+(defvar kite-breakpoint-keymap
+  (let ((map (make-sparse-keymap)))
+    (define-key map "b" 'kite-toggle-next-instruction-breakpoint)
+    (define-key map "e" 'kite-toggle-exception-breakpoint)
+    (define-key map "x" 'kite-set-xhr-breakpoint)
+    (define-key map "m" 'kite-set-dom-event-breakpoint)
+    (define-key map "i" 'kite-set-instrumentation-breakpoint)
+    map))
+
 (defvar kite-global-keymap
   (let ((map (make-sparse-keymap)))
     (define-key map "c" 'kite-console)
@@ -399,10 +408,11 @@ the title and makes no attempt at uniquifying it."
     (define-key map "t" 'kite-timeline)
     (define-key map "s" 'kite-scratch)
     (define-key map "!" 'kite-reload-page)
+    (define-key map (kbd "C-b") kite-breakpoint-keymap)
     map)
   "The keymap associated with the Kite prefix key.")
 
-(global-set-key "\C-c\C-k" kite-global-keymap)
+(global-set-key (kbd "C-c C-k") kite-global-keymap)
 
 (defun kite--find-default-session (prefix)
   "Reuse an existing Kite session or create a new one, depending
