@@ -277,7 +277,8 @@ if available.  Otherwise, raise an error."
          kite-session)
     kite-session)
    ((not (null kite-most-recent-session))
-    kite-most-recent-session)
+    (gethash kite-most-recent-session
+             kite-active-sessions))
    (t
     (error "No kite sessions active."))))
 
