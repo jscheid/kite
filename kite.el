@@ -82,7 +82,8 @@ binding."
         (delete (current-buffer) (kite-session-buffers kite-session)))
   (when (null (kite-session-buffers kite-session))
     (when (equal kite-most-recent-session
-                 (websocket-url (kite-session-websocket kite-session)))
+                 (websocket-url (kite-session-websocket
+                                 kite-session)))
       (setq kite-most-recent-session nil))
     (remhash (websocket-url (kite-session-websocket kite-session))
              kite-active-sessions)
@@ -117,8 +118,9 @@ if the response method is `Page.frameNavigated' then
                          (gethash response-id
                                   (kite-session-pending-requests
                                    kite-session))))
-                    (remhash response-id (kite-session-pending-requests
-                                          kite-session))
+                    (remhash response-id
+                             (kite-session-pending-requests
+                              kite-session))
                     (when (buffer-live-p (nth 2 callback-info))
                       (with-current-buffer (nth 2 callback-info)
                         (if (plist-member response :error)
@@ -145,7 +147,8 @@ if the response method is `Page.frameNavigated' then
 likely because the tab or browser was closed.  Removes the
 session from the list of active sessions and adds a header line
 to all session buffers saying that the session is closed."
-  (let ((kite-session (gethash (websocket-url websocket) kite-active-sessions)))
+  (let ((kite-session (gethash (websocket-url websocket)
+                               kite-active-sessions)))
     (when kite-session
       (message "\
 Kite session was closed by the remote debugging server: %s"
@@ -246,8 +249,10 @@ enters the empty string at the prompt."
          (use-host (or host "127.0.0.1"))
          (use-port (or port 9222))
          (url
-          (url-parse-make-urlobj "http" nil nil use-host use-port "/json")))
-    (message "using url-http-attempt-keepalives: %s" url-http-attempt-keepalives)
+          (url-parse-make-urlobj
+           "http" nil nil use-host use-port "/json")))
+    (message "using url-http-attempt-keepalives: %s"
+             url-http-attempt-keepalives)
     (with-current-buffer (url-retrieve-synchronously url)
       (goto-char 0)
       (if (and (looking-at "HTTP/1\\.. 200")
@@ -272,53 +277,62 @@ enters the empty string at the prompt."
 
             ;; Gather debuggers currently open
 
-            (maphash (lambda (websocket-url kite-session)
-                       (puthash
-                        websocket-url
-                        `((:webSocketDebuggerUrl
-                           ,websocket-url
-                           :thumbnailUrl ,(kite-session-page-thumbnail-url kite-session)
-                           :faviconUrl ,(kite-session-page-favicon-url kite-session)
-                           :title ,(kite-session-page-title kite-session)
-                           :url ,(kite-session-page-url kite-session)) . ,kite-session)
-                        available-debuggers))
-                     kite-active-sessions)
+            (maphash
+             (lambda (websocket-url kite-session)
+               (puthash
+                websocket-url
+                `((:webSocketDebuggerUrl
+                   ,websocket-url
+                   :thumbnailUrl ,(kite-session-page-thumbnail-url
+                                   kite-session)
+                   :faviconUrl ,(kite-session-page-favicon-url
+                                 kite-session)
+                   :title ,(kite-session-page-title
+                            kite-session)
+                   :url ,(kite-session-page-url kite-session))
+                  . ,kite-session)
+                available-debuggers))
+             kite-active-sessions)
 
             ;; For each human readable identifier (url or title), see
             ;; if it is ambiguous
 
             (flet
-             ((add-item (item url)
-                        (let ((existing (gethash item available-strings '(0))))
-                          (puthash item
-                                   (cons (1+ (car existing))
-                                         (cons url (cdr existing)))
-                                   available-strings))))
+                ((add-item (item url)
+                           (let ((existing (gethash item
+                                                    available-strings
+                                                    '(0))))
+                 (puthash item
+                          (cons (1+ (car existing))
+                                (cons url (cdr existing)))
+                          available-strings))))
 
-             (maphash (lambda (key value)
-                        (let ((url (plist-get (car value) :url))
-                              (title (plist-get (car value) :title))
-                              (websocket-url (plist-get (car value)
-                                                        :webSocketDebuggerUrl)))
-                          (add-item url websocket-url)
-                          (when (not (equal title url))
-                            (add-item title websocket-url))))
-                      available-debuggers))
+             (maphash
+              (lambda (key value)
+                (let ((url (plist-get (car value) :url))
+                      (title (plist-get (car value) :title))
+                      (websocket-url
+                       (plist-get (car value) :webSocketDebuggerUrl)))
+                  (add-item url websocket-url)
+                  (when (not (equal title url))
+                    (add-item title websocket-url))))
+              available-debuggers))
 
             ;; Final pass, disambiguate and rearrange
 
             (flet
-             ((disambiguate (string websocket-url)
-                            (let ((existing
-                                   (gethash string available-strings)))
-                              (if (<= (car existing) 1)
-                                  string
-                                (concat string
-                                        " ("
-                                        (substring websocket-url
-                                                   (length (kite--longest-prefix
-                                                            (cdr existing))))
-                                        ")")))))
+             ((disambiguate
+               (string websocket-url)
+               (let ((existing
+                      (gethash string available-strings)))
+                 (if (<= (car existing) 1)
+                     string
+                   (concat string
+                           " ("
+                           (substring websocket-url
+                                      (length (kite--longest-prefix
+                                               (cdr existing))))
+                           ")")))))
 
              (maphash (lambda (key value)
                         (let ((url (plist-get (car value) :url))
@@ -349,8 +363,11 @@ enters the empty string at the prompt."
               (when (> (length selection) 0)
                 (kite--connect-webservice
                  (car (gethash selection completion-strings)))
-                (plist-get (car (gethash selection completion-strings)) :webSocketDebuggerUrl))))
-        (error "Could not contact remote debugger at %s:%s, check host and port%s"
+                (plist-get (car (gethash selection
+                                         completion-strings))
+                           :webSocketDebuggerUrl))))
+        (error "\
+Could not contact remote debugger at %s:%s, check host and port%s"
                use-host
                use-port
                (if (> (length (buffer-string)) 0)
@@ -363,7 +380,8 @@ prefix argument ARG, ignore (force-refresh) the browser cache."
   (unless kite-most-recent-session
     (error "No kite session active"))
   (lexical-let ((bool-prefix (not (null arg)))
-                (kite-session (gethash kite-most-recent-session kite-active-sessions)))
+                (kite-session (gethash kite-most-recent-session
+                                       kite-active-sessions)))
     (kite-send "Page.reload"
                :params
                (list :ignoreCache (if bool-prefix t :json-false))
@@ -436,8 +454,18 @@ Otherwise, create a new session using default host and port."
     (kite-connect))
    ((equal '(16) prefix)
     (kite-connect
-     (read-from-minibuffer "Host: " "localhost" nil nil 'kite-remote-host-history "localhost")
-     (let ((port (read-from-minibuffer "Port: " "9222" nil t 'kite-remote-port-history "9222")))
+     (read-from-minibuffer "Host: "
+                           "localhost"
+                           nil
+                           nil
+                           'kite-remote-host-history
+                           "localhost")
+     (let ((port (read-from-minibuffer "Port: "
+                                       "9222"
+                                       nil
+                                       t
+                                       'kite-remote-port-history
+                                       "9222")))
        (unless (and (numberp port)
                     (>= port 1)
                     (<= port 65535))
@@ -620,9 +648,9 @@ used kite session."
 (add-hook 'post-command-hook 'kite-remember-recent-session)
 
 (defun kite--execution-context-created (websocket-url packet)
-  "Callback invoked for the `Runtime.executionContextCreated' notification,
-which the remote debugger sends when a new JavaScript execution
-context is created."
+  "Callback invoked for the `Runtime.executionContextCreated'
+notification, which the remote debugger sends when a new
+JavaScript execution context is created."
   (let ((execution-context (plist-get packet :context)))
     (push execution-context
           (kite-session-execution-context-list kite-session))
