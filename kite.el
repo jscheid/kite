@@ -208,7 +208,7 @@ and :title."
                      (with-current-buffer dom-buffer
                        (save-excursion
                          (kite--dom-insert-document
-                          (kite--get response :result :root))
+                          (kite--get result :root))
                          (widget-setup)))))
                  (kite--log "DOM initialized.")))
     (kite-send "Runtime.setReportExecutionContextCreation"
