@@ -216,12 +216,12 @@ given PROPERTIES vector."
            (list :objectId (widget-get widget :kite-object-id)
                  :ownProperties t)
            :success-function
-           (lambda (response)
+           (lambda (result)
              (kite--object-insert-child-props-async
               parent-widget
-              response)))))))
+              result)))))))
 
-(defun kite--object-insert-child-props-async (parent-widget response)
+(defun kite--object-insert-child-props-async (parent-widget result)
   (let ((inhibit-read-only t))
     (save-excursion
       (widget-end-of-line)
@@ -236,7 +236,7 @@ given PROPERTIES vector."
        (mapcar
         (lambda (property)
           (kite--object-create-property-widget parent-widget property))
-        (sort (append (plist-get (plist-get response :result) :result) nil)
+        (sort (append (plist-get result :result) nil)
               (lambda (a b)
                 (or (string= (plist-get b :name) "__proto__")
                     (and (not (string= (plist-get a :name) "__proto__"))
