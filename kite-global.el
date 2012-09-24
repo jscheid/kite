@@ -127,8 +127,8 @@ notification."
 (defun kite--default-success-handler (result)
   (kite--log "Ignored success result: %s" result))
 
-(defun kite--default-error-handler (response)
-  (error "Kite: %s" (kite--get response :error :message)))
+(defun kite--default-error-handler (error-result)
+  (error "Kite: %s" (plist-get error-result :message)))
 
 (defun* kite-send (method &key params success-function error-function callback-args)
   "Send a JSON-RPC 2.0 packet to the remote debugger for the
