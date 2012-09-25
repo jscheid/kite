@@ -45,6 +45,6 @@
 (unless (member kite--directory load-path)
   (setq load-path (cons kite--directory load-path)))
 
-(setq byte-compile-warnings t)
+(setq byte-compile-warnings '(not cl-functions))
 
 (provide 'kite-load-path)
