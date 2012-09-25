@@ -66,7 +66,8 @@ correspond to one.")
     (define-key ctl-c-b-map "d" 'kite-set-dom-event-breakpoint)
     (define-key ctl-c-b-map "i" 'kite-set-instrumentation-breakpoint)
     (define-key ctl-c-b-map "b" 'kite-toggle-exception-breakpoint)
-    (define-key ctl-c-b-map "p" 'kite-toggle-next-instruction-breakpoint)
+    (define-key
+      ctl-c-b-map "p" 'kite-toggle-next-instruction-breakpoint)
     map)
   "Local keymap for `kite-connection-mode' buffers.")
 
@@ -105,7 +106,10 @@ correspond to one.")
                   (re-search-forward "\n\n" nil t))
          (ignore-errors
            (let* ((favicon-image
-                   (create-image (buffer-substring (point) (buffer-size)) nil t)))
+                   (create-image (buffer-substring (point)
+                                                   (buffer-size))
+                                 nil
+                                 t)))
              (save-excursion
                (with-current-buffer buf
                  (goto-char (marker-position favicon-marker))
@@ -121,8 +125,12 @@ correspond to one.")
     (let* ((inhibit-read-only t)
            (ewoc (ewoc-create
                   (lambda (session)
-                    (insert (concat (propertize (concat " " (kite-session-page-title kite-session) "\n\n")
-                                                'face 'info-title-1))
+                    (insert (propertize
+                             (concat " "
+                                     (kite-session-page-title
+                                      kite-session)
+                                     "\n\n")
+                             'face 'info-title-1)
                             (propertize "URL: " 'face 'bold)
                             (kite-session-page-url kite-session)
                             "\n"
@@ -149,24 +157,29 @@ correspond to one.")
   (lexical-let* ((call-frames (plist-get packet :callFrames))
                  (first-call-frame (elt call-frames 0))
                  (location (plist-get first-call-frame :location))
-                 (script-info (gethash (plist-get location :scriptId)
-                                       (kite-session-script-infos kite-session)))
+                 (script-info
+                  (gethash (plist-get location :scriptId)
+                           (kite-session-script-infos kite-session)))
                  (line-number (plist-get location :lineNumber))
                  (column-number (plist-get location :columnNumber))
-                 (kite-session (gethash websocket-url kite-active-sessions)))
+                 (kite-session (gethash websocket-url
+                                        kite-active-sessions)))
     (kite-visit-script
      script-info
      line-number
      column-number
      (lambda ()
        (kite-debugging-mode)
-       (set (make-local-variable 'kite-script-id) (plist-get location :scriptId))
-       (set (make-local-variable 'kite-session) kite-session)
+       (set (make-local-variable 'kite-script-id)
+            (plist-get location :scriptId))
+       (set (make-local-variable 'kite-session)
+            kite-session)
 
        (let* ((stack-buffer (get-buffer-create "*kite stack*"))
               (window (display-buffer
                        stack-buffer
-                       (list (cons 'display-buffer-pop-up-window nil)))))
+                       (list (cons 'display-buffer-pop-up-window
+                                   nil)))))
          (with-current-buffer stack-buffer
            (special-mode)
            (set (make-local-variable 'kite-session) kite-session)
@@ -176,12 +189,13 @@ correspond to one.")
              (erase-buffer)
              (save-excursion
                (mapc (lambda (call-frame)
-                       (insert (concat (plist-get call-frame :functionName)
-                                       " ("
-                                       (kite-script-info-url script-info)
-                                       ":"
-                                       (number-to-string line-number)
-                                       ")\n"))
+                       (insert (concat
+                                (plist-get call-frame :functionName)
+                                " ("
+                                (kite-script-info-url script-info)
+                                ":"
+                                (number-to-string line-number)
+                                ")\n"))
                        (mapc (lambda (scope)
                                (kite--insert-object-widget
                                 (kite--get scope :object :objectId)
@@ -206,9 +220,12 @@ correspond to one.")
     :source-map-url (plist-get packet :sourceMapURL))
    (kite-session-script-infos kite-session)))
 
-(add-hook 'kite-Debugger-paused-hooks 'kite--Debugger-paused)
-(add-hook 'kite-Debugger-resumed-hooks 'kite--Debugger-resumed)
-(add-hook 'kite-Debugger-scriptParsed-hooks 'kite--Debugger-scriptParsed)
+(add-hook 'kite-Debugger-paused-hooks
+          'kite--Debugger-paused)
+(add-hook 'kite-Debugger-resumed-hooks
+          'kite--Debugger-resumed)
+(add-hook 'kite-Debugger-scriptParsed-hooks
+          'kite--Debugger-scriptParsed)
 
 
 ;;; Augmented javascript-mode; loading of remote .js files
@@ -271,7 +288,8 @@ session.  Sends `Debugger.stepOut' to the remote debugger."
                                          (line-number-at-pos (point)))
                            :columnNumber (current-column))))))
 
-(defun kite--create-remote-script-buffer (script-info after-load-function)
+(defun kite--create-remote-script-buffer (script-info
+                                          after-load-function)
   (lexical-let* ((url (kite-script-info-url script-info))
                  (url-parts (url-generic-parse-url url))
                  (after-load-function after-load-function)
@@ -393,9 +411,10 @@ is available, go to the original location instead."
        (find-file (url-filename url-parts))
        (after-load))
       (t
-       (switch-to-buffer (or (get-buffer url)
-                             (kite--create-remote-script-buffer
-                              script-info (function after-load)))))))))
+       (switch-to-buffer
+        (or (get-buffer url)
+            (kite--create-remote-script-buffer
+             script-info (function after-load)))))))))
 
 (defun kite--debug-stats-mode-line-indicator ()
   "Returns a string to be displayed in the mode line"
@@ -417,7 +436,8 @@ by STACK-FRAME-PLIST, which should be a plist with at least the
 properties `:url', `:lineNumber' and `:columnNumber'.  The
 variable `kite-session' should be bound to the session in which
 to visit the source file."
-  (message "visiting %s, source infos: %s" stack-frame-plist (kite-session-script-infos kite-session))
+  (message "visiting %s, source infos: %s"
+           stack-frame-plist (kite-session-script-infos kite-session))
   (let ((line-number (plist-get stack-frame-plist :lineNumber))
         (column-number (plist-get stack-frame-plist :columnNumber))
         (script-info (kite-session-script-info-for-url
