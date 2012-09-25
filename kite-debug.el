@@ -237,6 +237,7 @@ correspond to one.")
     (define-key map (kbd "C-c u") 'kite-step-out)
     (define-key map (kbd "C-c r") 'kite-resume)
     (define-key map (kbd "C-c c") 'kite-continue-to-location)
+    (define-key map (kbd "C-c C-c") 'kite-set-script-source)
     map)
   "Local keymap for the `kite-debugging-mode' minor mode")
 
@@ -287,6 +288,23 @@ session.  Sends `Debugger.stepOut' to the remote debugger."
                                          (widen)
                                          (line-number-at-pos (point)))
                            :columnNumber (current-column))))))
+
+(defun kite-set-script-source ()
+  "Send the buffer contents as the new contents for the script.
+Causes `Debugger.setScriptSource' to be sent to the remote
+debugger."
+  (interactive)
+  (kite-send "Debugger.setScriptSource"
+             :params
+             (list :scriptId kite-script-id
+                   :scriptSource (save-restriction
+                                   (widen)
+                                   (buffer-string))
+                   :preview :json-false)
+             :success-function
+             (lambda (result)
+               ;; FIXME: use :callFrames to update context information
+               (message "Script updated"))))
 
 (defun kite--create-remote-script-buffer (script-info
                                           after-load-function)
