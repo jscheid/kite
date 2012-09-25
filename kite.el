@@ -259,8 +259,6 @@ enters the empty string at the prompt."
          (url
           (url-parse-make-urlobj
            "http" nil nil use-host use-port "/json")))
-    (message "using url-http-attempt-keepalives: %s"
-             url-http-attempt-keepalives)
     (with-current-buffer (url-retrieve-synchronously url)
       (goto-char 0)
       (if (and (looking-at "HTTP/1\\.. 200")

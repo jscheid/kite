@@ -436,8 +436,6 @@ by STACK-FRAME-PLIST, which should be a plist with at least the
 properties `:url', `:lineNumber' and `:columnNumber'.  The
 variable `kite-session' should be bound to the session in which
 to visit the source file."
-  (message "visiting %s, source infos: %s"
-           stack-frame-plist (kite-session-script-infos kite-session))
   (let ((line-number (plist-get stack-frame-plist :lineNumber))
         (column-number (plist-get stack-frame-plist :columnNumber))
         (script-info (kite-session-script-info-for-url
