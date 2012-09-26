@@ -789,7 +789,7 @@ ENABLEDP as the only argument."
      :success-function
      (lambda (result)
        (when lex-enable-function
-         (funcall enable-function lex-enabledp))))))
+         (funcall lex-enable-function lex-enabledp))))))
 
 (defalias 'kite--set-emulate-touch-events
   (apply-partially 'kite--set-remote-setting
@@ -810,34 +810,37 @@ ENABLEDP as the only argument."
   "Toggle whether touch emulation is enabled in the current or
 most recent session."
   (interactive)
-  (kite--set-emulate-touch-events
-   (not (kite-session-emulate-touch-events kite-session))
-   (lambda (enabledp)
-     (setf kite-session-emulate-touch-events enabledp)
-     (message "Touch emulation is %s"
-              (if enabledp "enabled" "disabled")))))
+  (let ((kite-session (kite--select-session)))
+    (kite--set-emulate-touch-events
+     (not (kite-session-emulate-touch-events kite-session))
+     (lambda (enabledp)
+       (setf kite-session-emulate-touch-events enabledp)
+       (message "Touch emulation is %s"
+                (if enabledp "enabled" "disabled"))))))
 
 (defun kite-toggle-show-paint-rects ()
   "Toggle whether paint rectangles are shown in the current or
 most recent session."
   (interactive)
-  (kite--set-show-paint-rects
-   (not (kite-session-show-paint-rects kite-session))
-   (lambda (enabledp)
-     (setf kite-session-show-paint-rects enabledp)
-     (message "Paint rectangles are %s"
-              (if enabledp "shown" "hidden")))))
+  (let ((kite-session (kite--select-session)))
+    (kite--set-show-paint-rects
+     (not (kite-session-show-paint-rects kite-session))
+     (lambda (enabledp)
+       (setf kite-session-show-paint-rects enabledp)
+       (message "Paint rectangles are %s"
+                (if enabledp "shown" "hidden"))))))
 
 (defun kite-toggle-cache ()
   "Toggle whether the cache is enabled in the current or most
 recent session."
   (interactive)
-  (kite--set-cache-disabled
-   (not (kite-session-cache-disabled kite-session))
-   (lambda (enabledp)
-     (setf kite-session-cache-disabled enabledp)
-     (message "Cache is %s"
-              (if enabledp "disabled" "enabled")))))
+  (let ((kite-session (kite--select-session)))
+    (kite--set-cache-disabled
+     (not (kite-session-disable-cache kite-session))
+     (lambda (enabledp)
+       (setf kite-session-disable-cache enabledp)
+       (message "Cache is %s"
+                (if enabledp "disabled" "enabled"))))))
 
 (defun kite--reload ()
   "Force reloading kite and all dependent modules after closing
