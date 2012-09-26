@@ -215,15 +215,70 @@ and :title."
 
     (kite--mode-line-update)
 
-    (kite-send "Page.enable"
+    ;; Query capabilities
+
+    (kite-send "Page.canOverrideDeviceMetrics"
                :success-function
                (lambda (result)
-                 (kite--set-emulate-touch-events
-                  kite-default-emulate-touch-events)
-                 (kite--set-show-paint-rects
-                  kite-default-show-paint-rectangles)
-                 (kite--set-cache-disabled
-                  kite-default-disable-cache)))
+                 (setf (kite-session-can-override-device-metrics
+                        kite-session)
+                       (eq t (plist-get result :result)))))
+
+    (kite-send "Page.canOverrideGeolocation"
+               :success-function
+               (lambda (result)
+                 (setf (kite-session-can-override-geo-location
+                        kite-session)
+                       (eq t (plist-get result :result)))))
+
+    (kite-send "Page.canOverrideDeviceOrientation"
+               :success-function
+               (lambda (result)
+                 (setf (kite-session-can-override-device-orientation
+                        kite-session)
+                       (eq t (plist-get result :result)))))
+
+    (kite-send "Network.canClearBrowserCache"
+               :success-function
+               (lambda (result)
+                 (setf (kite-session-can-clear-browser-cache
+                        kite-session)
+                       (eq t (plist-get result :result)))))
+
+    (kite-send "Network.canClearBrowserCookies"
+               :success-function
+               (lambda (result)
+                 (setf (kite-session-can-clear-browser-cookies
+                        kite-session)
+                       (eq t (plist-get result :result)))))
+
+    (kite-send "Debugger.canSetScriptSource"
+               :success-function
+               (lambda (result)
+                 (setf (kite-session-can-set-script-source
+                        kite-session)
+                       (eq t (plist-get result :result)))))
+
+    ;; Set default user preferences on remote side
+
+    (kite--set-emulate-touch-events
+     kite-default-emulate-touch-events)
+    (kite--set-show-paint-rects
+     kite-default-show-paint-rectangles)
+    (kite--set-cache-disabled
+     kite-default-disable-cache)
+
+    ;; Enable subsystems
+
+    (kite-send "Page.enable")
+    (kite-send "Inspector.enable")
+    (kite-send "Debugger.enable")
+    (kite-send "CSS.enable")
+
+    (kite-send "Runtime.setReportExecutionContextCreation"
+               :params '(:enabled t))
+
+    ;; Get initial state
 
     (kite-send "DOM.getDocument"
                :success-function
@@ -241,13 +296,7 @@ and :title."
                           (kite--get result :root))
                          (widget-setup)))))
                  (kite--log "DOM initialized.")))
-    (kite-send "Runtime.setReportExecutionContextCreation"
-               :params '(:enabled t))
-    (kite-send "Inspector.enable")
-    (kite-send "Debugger.enable")
-    (kite-send "CSS.enable")
-    ;;(kite-send "Debugger.canSetScriptSource" nil
-    ;;(lambda (response) (kite--log "got response: %s" response)))
+
     (kite-send "Page.getResourceTree"
                :success-function
                (lambda (result)

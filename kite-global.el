@@ -114,7 +114,13 @@ remote WebKit debugger instance."
   document-root
   emulate-touch-events
   show-paint-rectangles
-  disable-cache)
+  disable-cache
+  can-override-device-metrics
+  can-override-geo-location
+  can-override-device-orientation
+  can-clear-browser-cache
+  can-clear-browser-cookies
+  can-set-script-source)
 
 (defstruct (kite-script-info)
   "Information about a script used in a debugging session.  Used
