@@ -58,6 +58,16 @@
   "Default port for connection to WebKit remote debugging API."
   :group 'kite)
 
+(defcustom kite-default-emulate-touch-events nil
+  "Whether new sessions should emulate touch events by default.")
+
+(defcustom kite-default-show-paint-rectangles nil
+  "Whether new sessions should show paint rectangles by
+  default..")
+
+(defcustom kite-default-disable-cache nil
+  "Whether new sessions should disable the cache by default.")
+
 (setq websocket-debug t)
 (setq websocket-callback-debug-on-error t)
 
@@ -205,7 +215,16 @@ and :title."
 
     (kite--mode-line-update)
 
-    (kite-send "Page.enable")
+    (kite-send "Page.enable"
+               :success-function
+               (lambda (result)
+                 (kite--set-emulate-touch-events
+                  kite-default-emulate-touch-events)
+                 (kite--set-show-paint-rects
+                  kite-default-show-paint-rectangles)
+                 (kite--set-cache-disabled
+                  kite-default-disable-cache)))
+
     (kite-send "DOM.getDocument"
                :success-function
                (lambda (result)
@@ -701,6 +720,75 @@ FIXME: this needs to reset many more state properties."
           'kite--messageRepeatCountUpdated)
 (add-hook 'kite-Debugger-globalObjectCleared-hooks
           'kite--globalObjectCleared)
+
+(defun kite--json-truth (t-or-nil)
+  (if t-or-nil t :json-false))
+
+(defun kite--set-remote-setting (method
+                                 param-key
+                                 enabledp
+                                 &optional enable-function)
+  "Enable or disable a remote setting in the session identified
+by `kite-session', using the given JSON-RPC METHOD and depending
+on ENABLEDP.  On success, call ENABLE-FUNCTION if given, with
+ENABLEDP as the only argument."
+  (lexical-let ((lex-enabledp enabledp)
+                (lex-enable-function enable-function))
+    (kite-send
+     method
+     :params `(,param-key ,(kite--json-truth enabledp))
+     :success-function
+     (lambda (result)
+       (when lex-enable-function
+         (funcall enable-function lex-enabledp))))))
+
+(defalias 'kite--set-emulate-touch-events
+  (apply-partially 'kite--set-remote-setting
+                   "Page.setTouchEmulationEnabled"
+                   :enabled))
+
+(defalias 'kite--set-show-paint-rects
+  (apply-partially 'kite--set-remote-setting
+                   "Page.setShowPaintRects"
+                   :result))
+
+(defalias 'kite--set-cache-disabled
+  (apply-partially 'kite--set-remote-setting
+                   "Network.setCacheDisabled"
+                   :cacheDisabled))
+
+(defun kite-toggle-emulate-touch-events ()
+  "Toggle whether touch emulation is enabled in the current or
+most recent session."
+  (interactive)
+  (kite--set-emulate-touch-events
+   (not (kite-session-emulate-touch-events kite-session))
+   (lambda (enabledp)
+     (setf kite-session-emulate-touch-events enabledp)
+     (message "Touch emulation is %s"
+              (if enabledp "enabled" "disabled")))))
+
+(defun kite-toggle-show-paint-rects ()
+  "Toggle whether paint rectangles are shown in the current or
+most recent session."
+  (interactive)
+  (kite--set-show-paint-rects
+   (not (kite-session-show-paint-rects kite-session))
+   (lambda (enabledp)
+     (setf kite-session-show-paint-rects enabledp)
+     (message "Paint rectangles are %s"
+              (if enabledp "shown" "hidden")))))
+
+(defun kite-toggle-cache ()
+  "Toggle whether the cache is enabled in the current or most
+recent session."
+  (interactive)
+  (kite--set-cache-disabled
+   (not (kite-session-cache-disabled kite-session))
+   (lambda (enabledp)
+     (setf kite-session-cache-disabled enabledp)
+     (message "Cache is %s"
+              (if enabledp "disabled" "enabled")))))
 
 (defun kite--reload ()
   "Force reloading kite and all dependent modules after closing

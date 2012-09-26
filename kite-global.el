@@ -111,7 +111,10 @@ remote WebKit debugger instance."
   (dom-children-cache (make-hash-table))
   (dom-parents (make-hash-table))
   (dom-nodes (make-hash-table))
-  document-root)
+  document-root
+  emulate-touch-events
+  show-paint-rectangles
+  disable-cache)
 
 (defstruct (kite-script-info)
   "Information about a script used in a debugging session.  Used
