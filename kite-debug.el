@@ -294,17 +294,21 @@ session.  Sends `Debugger.stepOut' to the remote debugger."
 Causes `Debugger.setScriptSource' to be sent to the remote
 debugger."
   (interactive)
-  (kite-send "Debugger.setScriptSource"
-             :params
-             (list :scriptId kite-script-id
-                   :scriptSource (save-restriction
-                                   (widen)
-                                   (buffer-string))
-                   :preview :json-false)
-             :success-function
-             (lambda (result)
-               ;; FIXME: use :callFrames to update context information
-               (message "Script updated"))))
+  (if (kite-session-can-set-script-source
+       (kite-send "Debugger.setScriptSource"
+                  :params
+                  (list :scriptId kite-script-id
+                        :scriptSource (save-restriction
+                                        (widen)
+                                        (buffer-string))
+                        :preview :json-false)
+                  :success-function
+                  (lambda (result)
+                    ;; FIXME: use :callFrames to update context
+                    ;; information
+                    (message "Script updated"))))
+      (message "Sorry, the remote debugger doesn't support setting\
+ the script source")))
 
 (defun kite--create-remote-script-buffer (script-info
                                           after-load-function)
