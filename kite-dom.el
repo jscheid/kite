@@ -849,10 +849,6 @@ FIXME: this needs to be smarter about when to load children."
       (set-marker-insertion-type (kite-dom-node-line-end dom-node)
                                  nil))))
 
-(defun kite--websocket-url ()
-  "Obsolete. FIXME"
-  (websocket-url (kite-session-websocket kite-session)))
-
 (defun kite--dom-delete-child-widgets (dom-node)
   "Delete all widgets in the dom-node's children,
 recursively."

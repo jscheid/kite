@@ -567,7 +567,6 @@
         (kite-session (make-kite-session)))
     (with-temp-buffer
       (flet ((kite--dom-buffer (websocket-url) (current-buffer))
-             (kite--websocket-url () t)
              (kite-send (command &rest keyword-args)
                         (setq sent-packets (cons (list command
                                                        (plist-get keyword-args :params)
