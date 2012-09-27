@@ -283,23 +283,7 @@ and :title."
 
     ;; Get initial state
 
-    (kite-send "DOM.getDocument"
-               :success-function
-               (lambda (result)
-                 (setf (kite-session-document-root kite-session)
-                       (kite--get result :root))
-                 (let ((dom-buffer
-                        (kite--find-buffer
-                         (websocket-url
-                          (kite-session-websocket kite-session))
-                         'dom)))
-                   (when dom-buffer
-                     (with-current-buffer dom-buffer
-                       (save-excursion
-                         (kite--dom-insert-document
-                          (kite--get result :root))
-                         (widget-setup)))))
-                 (kite--log "DOM initialized.")))
+    (kite--dom-initialize)
 
     (kite-send "Page.getResourceTree"
                :success-function

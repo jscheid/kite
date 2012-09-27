@@ -1277,6 +1277,38 @@ to its beginning."
     (kite--dom-ensure-node-visible dom-node)
     (goto-char (1+ (kite-dom-node-outer-begin dom-node)))))
 
+(defun kite--dom-initialize ()
+  "Reset internal DOM state.  If the DOM buffer is open, insert
+the document into it."
+  (clrhash (kite-session-dom-nodes kite-session))
+  (setf (kite-session-document-root kite-session))
+  (kite-send "DOM.getDocument"
+             :success-function
+             (lambda (result)
+               (setf (kite-session-document-root kite-session)
+                     (kite--get result :root))
+               (let ((dom-buffer
+                      (kite--find-buffer
+                       (websocket-url
+                        (kite-session-websocket kite-session))
+                       'dom)))
+                 (when dom-buffer
+                   (with-current-buffer dom-buffer
+                     (save-excursion
+                       (let ((inhibit-read-only t))
+                         (mapc 'widget-delete widget-field-list)
+                         (erase-buffer)
+                         (remove-overlays)
+                         (kite--dom-insert-document
+                          (kite--get result :root))
+                         (widget-setup))))))
+               (kite--log "DOM initialized."))))
+
+(defun kite--dom-DOM-documentUpdated (websocket-url packet)
+  "Responds to the `DOM.documentUpdated' notification by
+re-requesting the document."
+  (kite--dom-initialize))
+
 (add-hook 'kite-DOM-attributeModified-hooks
           'kite--dom-DOM-attributeModified)
 (add-hook 'kite-DOM-attributeRemoved-hooks
@@ -1289,6 +1321,8 @@ to its beginning."
           'kite--dom-DOM-childNodeRemoved)
 (add-hook 'kite-DOM-setChildNodes-hooks
           'kite--dom-DOM-setChildNodes)
+(add-hook 'kite-DOM-documentUpdated-hooks
+          'kite--dom-DOM-documentUpdated)
 (add-hook 'kite-Inspector-inspect-hooks
           'kite--dom-Inspector-inspect)
 
