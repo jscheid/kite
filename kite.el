@@ -62,7 +62,7 @@
   "Whether new sessions should emulate touch events by default."
   :group 'kite)
 
-(defcustom kite-default-show-paint-rectangles nil
+(defcustom kite-default-show-paint-rects nil
   "Whether new sessions should show paint rectangles by
   default.."
   :group 'kite)
@@ -267,7 +267,7 @@ and :title."
     (kite--set-emulate-touch-events
      kite-default-emulate-touch-events)
     (kite--set-show-paint-rects
-     kite-default-show-paint-rectangles)
+     kite-default-show-paint-rects)
     (kite--set-cache-disabled
      kite-default-disable-cache)
 
@@ -817,7 +817,8 @@ most recent session."
     (kite--set-emulate-touch-events
      (not (kite-session-emulate-touch-events kite-session))
      (lambda (enabledp)
-       (setf kite-session-emulate-touch-events enabledp)
+       (setf (kite-session-emulate-touch-events kite-session)
+             enabledp)
        (message "Touch emulation is %s"
                 (if enabledp "enabled" "disabled"))))))
 
@@ -829,7 +830,7 @@ most recent session."
     (kite--set-show-paint-rects
      (not (kite-session-show-paint-rects kite-session))
      (lambda (enabledp)
-       (setf kite-session-show-paint-rects enabledp)
+       (setf (kite-session-show-paint-rects kite-session) enabledp)
        (message "Paint rectangles are %s"
                 (if enabledp "shown" "hidden"))))))
 
@@ -841,7 +842,7 @@ recent session."
     (kite--set-cache-disabled
      (not (kite-session-disable-cache kite-session))
      (lambda (enabledp)
-       (setf kite-session-disable-cache enabledp)
+       (setf (kite-session-disable-cache kite-session) enabledp)
        (message "Cache is %s"
                 (if enabledp "disabled" "enabled"))))))
 

@@ -113,7 +113,7 @@ remote WebKit debugger instance."
   (dom-nodes (make-hash-table))
   document-root
   emulate-touch-events
-  show-paint-rectangles
+  show-paint-rects
   disable-cache
   can-override-device-metrics
   can-override-geo-location
