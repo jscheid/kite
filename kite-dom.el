@@ -404,7 +404,6 @@ line under mouse and the corresponding DOM node in the browser."
   "Toggle kite dom mode."
   :group 'kite
   (setq kite-buffer-type 'dom)
-  (set (make-local-variable 'kill-buffer-hook) 'kite--kill-dom)
   (setq buffer-read-only nil)
   (set (make-local-variable 'kite--dom-highlighted-node-id) nil)
   (set (make-local-variable 'track-mouse) t)
@@ -802,13 +801,6 @@ FIXME: this needs to be smarter about when to load children."
      (when (kite-dom-node-line-begin dom-node)
        (set-marker-insertion-type (kite-dom-node-line-begin dom-node) t)
        (set-marker-insertion-type (kite-dom-node-line-end dom-node) nil))))
-
-(defun kite--kill-dom ()
-  "Obsolete. FIXME"
-  t)
-;  (ignore-errors
-;    (kite-send "CSS.disable" nil
-;               (lambda (result) (message "CSS disabled.")))))
 
 (defun kite--websocket-url ()
   "Obsolete. FIXME"
