@@ -99,7 +99,7 @@
   (with--kite-dom-test-buffer
 
    (kite--dom-insert-element
-    (kite--create-dom-node simple-element nil))
+    (kite--dom-create-node simple-element nil))
 
    (should (string= (buffer-substring-no-properties (point-min)
                                                     (point-max))
@@ -117,7 +117,7 @@
   (with--kite-dom-test-buffer
 
    (kite--dom-insert-element
-    (kite--create-dom-node simple-element nil))
+    (kite--dom-create-node simple-element nil))
 
    (let ((index (point-min))
          (size (point-max)))
@@ -134,7 +134,7 @@
 
    (let ((inhibit-read-only t))
      (kite--dom-insert-element
-      (kite--create-dom-node
+      (kite--dom-create-node
        '(:attributes
          []
          :childNodeCount 2
@@ -193,7 +193,7 @@
 
      (let ((inhibit-read-only t))
        (kite--dom-insert-element
-        (kite--create-dom-node
+        (kite--dom-create-node
          '(:attributes []
                        :childNodeCount 2
                        :nodeValue nil
@@ -239,7 +239,7 @@
 
      (let ((inhibit-read-only t))
        (kite--dom-insert-element
-        (kite--create-dom-node
+        (kite--dom-create-node
          '(:attributes []
                        :childNodeCount 2
                        :nodeValue nil
@@ -294,7 +294,7 @@
   (with--kite-dom-test-buffer
 
    (kite--dom-insert-element
-    (kite--create-dom-node simple-element nil))
+    (kite--dom-create-node simple-element nil))
 
    (flet ((kite--dom-buffer (websocket-url) (current-buffer)))
 
@@ -329,7 +329,7 @@
   (with--kite-dom-test-buffer
 
    (kite--dom-insert-element
-    (kite--create-dom-node simple-element nil))
+    (kite--dom-create-node simple-element nil))
 
    (flet ((kite--dom-buffer (websocket-url) (current-buffer)))
 
@@ -363,7 +363,7 @@
   (with--kite-dom-test-buffer
 
    (kite--dom-insert-element
-    (kite--create-dom-node simple-element nil))
+    (kite--dom-create-node simple-element nil))
 
    (flet ((kite--dom-buffer (websocket-url) (current-buffer)))
 
@@ -397,7 +397,7 @@
   (with--kite-dom-test-buffer
 
    (kite--dom-insert-element
-    (kite--create-dom-node simple-element nil))
+    (kite--dom-create-node simple-element nil))
 
    (flet ((kite--dom-buffer (websocket-url) (current-buffer)))
 
@@ -417,7 +417,7 @@
   (with--kite-dom-test-buffer
 
    (kite--dom-insert-element
-    (kite--create-dom-node simple-element nil))
+    (kite--dom-create-node simple-element nil))
 
    (flet ((kite--dom-buffer (websocket-url) (current-buffer)))
 
@@ -446,7 +446,7 @@
   (with--kite-dom-test-buffer
 
    (kite--dom-insert-element
-    (kite--create-dom-node simple-element nil))
+    (kite--dom-create-node simple-element nil))
 
    (flet ((kite--dom-buffer (websocket-url) (current-buffer)))
 
@@ -473,7 +473,7 @@
   (with--kite-dom-test-buffer
 
    (kite--dom-insert-element
-    (kite--create-dom-node simple-element nil))
+    (kite--dom-create-node simple-element nil))
 
    (flet ((kite--dom-buffer (websocket-url) (current-buffer)))
 
@@ -546,7 +546,7 @@
         (kite-dom-mode))
       (let ((inhibit-read-only t))
         (kite--dom-insert-element
-         (kite--create-dom-node simple-element nil)))
+         (kite--dom-create-node simple-element nil)))
       (flet ((kite-send (command &rest keyword-args)
                         (should (string= command "DOM.highlightNode"))
                         (should (kite--equal-wildcard
