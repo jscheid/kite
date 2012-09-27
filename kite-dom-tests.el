@@ -98,7 +98,8 @@
 
   (with--kite-dom-test-buffer
 
-   (kite--dom-insert-element simple-element 0 nil)
+   (kite--dom-insert-element
+    (kite--create-dom-node simple-element nil))
 
    (should (string= (buffer-substring-no-properties (point-min)
                                                     (point-max))
@@ -115,7 +116,8 @@
 
   (with--kite-dom-test-buffer
 
-   (kite--dom-insert-element simple-element 0 nil)
+   (kite--dom-insert-element
+    (kite--create-dom-node simple-element nil))
 
    (let ((index (point-min))
          (size (point-max)))
@@ -132,43 +134,44 @@
 
    (let ((inhibit-read-only t))
      (kite--dom-insert-element
-      '(:attributes
-        []
-        :childNodeCount 2
-        :nodeValue nil
-        :localName "dummy"
-        :nodeName "DUMMY"
-        :nodeType 1
-        :nodeId 1
-        :children [(:attributes
-                    []
-                    :childNodeCount 1
-                    :nodeValue nil
-                    :localName "child1"
-                    :nodeName "child1"
-                    :nodeType 1
-                    :nodeId 2
-                    :children [(:attributes
-                                []
-                                :childNodeCount 0
-                                :nodeValue "test"
-                                :nodeType 3
-                                :nodeId 3)])
-                   (:attributes
-                    []
-                    :childNodeCount 1
-                    :nodeValue nil
-                    :localName "child2"
-                    :nodeName "child2"
-                    :nodeType 1
-                    :nodeId 4
-                    :children [(:attributes
-                                []
-                                :childNodeCount 0
-                                :nodeValue "foobar"
-                                :nodeType 3
-                                :nodeId 5)])])
-      0 nil))
+      (kite--create-dom-node
+       '(:attributes
+         []
+         :childNodeCount 2
+         :nodeValue nil
+         :localName "dummy"
+         :nodeName "DUMMY"
+         :nodeType 1
+         :nodeId 1
+         :children [(:attributes
+                     []
+                     :childNodeCount 1
+                     :nodeValue nil
+                     :localName "child1"
+                     :nodeName "child1"
+                     :nodeType 1
+                     :nodeId 2
+                     :children [(:attributes
+                                 []
+                                 :childNodeCount 0
+                                 :nodeValue "test"
+                                 :nodeType 3
+                                 :nodeId 3)])
+                    (:attributes
+                     []
+                     :childNodeCount 1
+                     :nodeValue nil
+                     :localName "child2"
+                     :nodeName "child2"
+                     :nodeType 1
+                     :nodeId 4
+                     :children [(:attributes
+                                 []
+                                 :childNodeCount 0
+                                 :nodeValue "foobar"
+                                 :nodeType 3
+                                 :nodeId 5)])])
+       nil)))
 
    (should (string= (buffer-substring-no-properties (point-min)
                                                     (point-max))
@@ -190,14 +193,15 @@
 
      (let ((inhibit-read-only t))
        (kite--dom-insert-element
-        '(:attributes []
-                      :childNodeCount 2
-                      :nodeValue nil
-                      :localName "empty"
-                      :nodeName "EMPTY"
-                      :nodeType 1
-                      :nodeId 2)
-        0 t))
+        (kite--create-dom-node
+         '(:attributes []
+                       :childNodeCount 2
+                       :nodeValue nil
+                       :localName "empty"
+                       :nodeName "EMPTY"
+                       :nodeType 1
+                       :nodeId 2)
+         nil)))
 
      (should (string= (buffer-substring-no-properties (point-min)
                                                       (point-max))
@@ -235,14 +239,15 @@
 
      (let ((inhibit-read-only t))
        (kite--dom-insert-element
-        '(:attributes []
-                      :childNodeCount 2
-                      :nodeValue nil
-                      :localName "empty"
-                      :nodeName "EMPTY"
-                      :nodeType 1
-                      :nodeId 2)
-        0 t))
+        (kite--create-dom-node
+         '(:attributes []
+                       :childNodeCount 2
+                       :nodeValue nil
+                       :localName "empty"
+                       :nodeName "EMPTY"
+                       :nodeType 1
+                       :nodeId 2)
+         nil)))
 
      (should (string= (buffer-substring-no-properties (point-min)
                                                       (point-max))
@@ -288,7 +293,8 @@
 
   (with--kite-dom-test-buffer
 
-   (kite--dom-insert-element simple-element 0 nil)
+   (kite--dom-insert-element
+    (kite--create-dom-node simple-element nil))
 
    (flet ((kite--dom-buffer (websocket-url) (current-buffer)))
 
@@ -322,7 +328,8 @@
 
   (with--kite-dom-test-buffer
 
-   (kite--dom-insert-element simple-element 0 nil)
+   (kite--dom-insert-element
+    (kite--create-dom-node simple-element nil))
 
    (flet ((kite--dom-buffer (websocket-url) (current-buffer)))
 
@@ -355,7 +362,8 @@
 
   (with--kite-dom-test-buffer
 
-   (kite--dom-insert-element simple-element 0 nil)
+   (kite--dom-insert-element
+    (kite--create-dom-node simple-element nil))
 
    (flet ((kite--dom-buffer (websocket-url) (current-buffer)))
 
@@ -388,7 +396,8 @@
 
   (with--kite-dom-test-buffer
 
-   (kite--dom-insert-element simple-element 0 nil)
+   (kite--dom-insert-element
+    (kite--create-dom-node simple-element nil))
 
    (flet ((kite--dom-buffer (websocket-url) (current-buffer)))
 
@@ -407,7 +416,8 @@
 
   (with--kite-dom-test-buffer
 
-   (kite--dom-insert-element simple-element 0 nil)
+   (kite--dom-insert-element
+    (kite--create-dom-node simple-element nil))
 
    (flet ((kite--dom-buffer (websocket-url) (current-buffer)))
 
@@ -424,18 +434,19 @@
                      "   <body></body>\n"
                      " </html>")))
    (let* ((node-info (gethash 87 (kite-session-dom-nodes kite-session)))
-          (attr-info (cdr (assoc 'href (node-region-attribute-regions node-info)))))
+          (attr-info (cdr (assoc "href" (kite-dom-node-attr-alist node-info)))))
 
      (should (eq (length "\"frobnicate\"")
-                 (- (marker-position (attr-region-value-end attr-info))
-                    (marker-position (attr-region-value-begin attr-info))))))))
+                 (- (marker-position (kite-dom-attr-value-end attr-info))
+                    (marker-position (kite-dom-attr-value-begin attr-info))))))))
 
 (ert-deftest kite-test-dom-add-attribute ()
   "DOM is mutated correctly when attribute is modified"
 
   (with--kite-dom-test-buffer
 
-   (kite--dom-insert-element simple-element 0 nil)
+   (kite--dom-insert-element
+    (kite--create-dom-node simple-element nil))
 
    (flet ((kite--dom-buffer (websocket-url) (current-buffer)))
 
@@ -453,7 +464,7 @@
                      " </html>")))
 
    (let* ((node-info (gethash 87 (kite-session-dom-nodes kite-session)))
-          (attr-info (cdr (assq 'baz (node-region-attribute-regions node-info)))))
+          (attr-info (cdr (assoc "baz" (kite-dom-node-attr-alist node-info)))))
      (should (not (null attr-info))))))
 
 (ert-deftest kite-test-dom-remove-attribute ()
@@ -461,7 +472,8 @@
 
   (with--kite-dom-test-buffer
 
-   (kite--dom-insert-element simple-element 0 nil)
+   (kite--dom-insert-element
+    (kite--create-dom-node simple-element nil))
 
    (flet ((kite--dom-buffer (websocket-url) (current-buffer)))
 
@@ -479,7 +491,7 @@
                      " </html>")))
 
    (let* ((node-info (gethash 87 (kite-session-dom-nodes kite-session)))
-          (attr-info (cdr (assq 'href (node-region-attribute-regions node-info)))))
+          (attr-info (cdr (assq 'href (kite-dom-node-attr-alist node-info)))))
      (should (null attr-info)))))
 
 (ert-deftest kite-test-rgba ()
@@ -533,7 +545,8 @@
       (flet ((kite-send (&rest ignore)))
         (kite-dom-mode))
       (let ((inhibit-read-only t))
-        (kite--dom-insert-element simple-element 0 nil))
+        (kite--dom-insert-element
+         (kite--create-dom-node simple-element nil)))
       (flet ((kite-send (command &rest keyword-args)
                         (should (string= command "DOM.highlightNode"))
                         (should (kite--equal-wildcard

@@ -108,8 +108,6 @@ remote WebKit debugger instance."
   (error-count 0)
   last-message
   (source-map-cache (make-hash-table :test 'equal))
-  (dom-children-cache (make-hash-table))
-  (dom-parents (make-hash-table))
   (dom-nodes (make-hash-table))
   document-root
   emulate-touch-events

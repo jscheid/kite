@@ -760,8 +760,6 @@ JavaScript execution context is created."
 FIXME: this needs to reset many more state properties."
   (setf (kite-session-error-count kite-session) 0)
   (clrhash (kite-session-source-map-cache kite-session))
-  (clrhash (kite-session-dom-children-cache kite-session))
-  (clrhash (kite-session-dom-parents kite-session))
   (kite--mode-line-update))
 
 (add-hook 'kite-Runtime-executionContextCreated-hooks
