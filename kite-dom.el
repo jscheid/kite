@@ -814,22 +814,6 @@ FIXME: this needs to be smarter about when to load children."
   "Obsolete. FIXME"
   (websocket-url (kite-session-websocket kite-session)))
 
-(defun kite--dom-buffer (websocket-url)
-  "Obsolete. FIXME"
-  (let ((buffer-iterator (buffer-list))
-        found)
-    (while (and buffer-iterator (not found))
-      (let ((buffer-kite-session (buffer-local-value
-                                  'kite-session
-                                  (car buffer-iterator))))
-        (when (and buffer-kite-session
-                   (string= (websocket-url (kite-session-websocket buffer-kite-session))
-                            websocket-url)
-                   (eq 'dom (buffer-local-value 'kite-buffer-type (car buffer-iterator))))
-          (setq found (car buffer-iterator))))
-      (setq buffer-iterator (cdr buffer-iterator)))
-    found))
-
 (defun kite--delete-child-widgets (dom-node)
   "Delete all widgets in the dom-node's children,
 recursively."
@@ -895,7 +879,7 @@ request."
              (kite--create-dom-node element dom-node))
            (plist-get packet :nodes)))
 
-    (let ((dom-buffer (kite--dom-buffer websocket-url)))
+    (let ((dom-buffer (kite--find-buffer websocket-url 'dom)))
       (when dom-buffer
         (with-current-buffer dom-buffer
           (kite--dom-show-child-nodes dom-node))))))
@@ -905,7 +889,7 @@ request."
 which the remote debugger sends when a script has inserted a
 child node into a DOM element."
   (kite--log "kite--DOM-childNodeInserted got packet %s" packet)
-  (with-current-buffer (kite--dom-buffer websocket-url)
+  (with-current-buffer (kite--find-buffer websocket-url 'dom)
     (save-excursion
       (let* ((inhibit-read-only t)
              (previous-node-id (plist-get packet :previousNodeId))
@@ -953,7 +937,7 @@ a DOM element has changed."
 which the remote debugger sends when a script has removed a child
 node from a DOM element."
   (kite--log "kite--DOM-childNodeRemoved got packet %s" packet)
-  (with-current-buffer (kite--dom-buffer websocket-url)
+  (with-current-buffer (kite--find-buffer websocket-url 'dom)
     (save-excursion
       (let ((inhibit-read-only t)
             (dom-node (kite--dom-node-for-id
@@ -976,7 +960,7 @@ node from a DOM element."
 which the remote debugger sends when a script has modified the
 value of an attribute in a DOM element."
   (kite--log "kite--DOM-attributeModified got packet %s" packet)
-  (with-current-buffer (kite--dom-buffer websocket-url)
+  (with-current-buffer (kite--find-buffer websocket-url 'dom)
     (save-excursion
       (let* ((inhibit-read-only t)
              (node-id (plist-get packet :nodeId))
@@ -1007,7 +991,7 @@ value of an attribute in a DOM element."
 which the remote debugger sends when a script has removed an
 attribute from a DOM element."
   (kite--log "kite--DOM-attributeRemoved got packet %s" packet)
-  (with-current-buffer (kite--dom-buffer websocket-url)
+  (with-current-buffer (kite--find-buffer websocket-url 'dom)
     (save-excursion
       (let* ((inhibit-read-only t)
              (attr-name (plist-get packet :name))
@@ -1146,7 +1130,7 @@ question."
                (list :objectId (kite--get packet :object :objectId))
                :success-function
                (lambda (result)
-                 (with-current-buffer (kite--dom-buffer websocket-url)
+                 (with-current-buffer (kite--find-buffer websocket-url 'dom)
                    (kite-dom-goto-node
                     (plist-get result :nodeId))
                    (when (string= (current-message)

@@ -289,9 +289,10 @@ and :title."
                  (setf (kite-session-document-root kite-session)
                        (kite--get result :root))
                  (let ((dom-buffer
-                        (kite--dom-buffer
+                        (kite--find-buffer
                          (websocket-url
-                          (kite-session-websocket kite-session)))))
+                          (kite-session-websocket kite-session))
+                         'dom)))
                    (when dom-buffer
                      (with-current-buffer dom-buffer
                        (save-excursion
