@@ -479,7 +479,6 @@ edited."
 (defun kite--validate-widget (widget)
   "Experimental callback for widget-validate."
   (let ((val (widget-apply widget :value-get)))
-    (message "validate, widget value %s" val)
     (unless (> (length val) 0)
       (widget-put widget :error "too short!")
       widget)))
@@ -1013,9 +1012,6 @@ value of an attribute in a DOM element."
              (dom-attr
               (cdr (assoc attr-name
                           (kite-dom-node-attr-alist dom-node)))))
-        (message "regions: %S, attr=%S, result=%s"
-                 (kite-dom-node-attr-alist dom-node)
-                 attr-name dom-attr)
         (if dom-attr
             ;; Modify existing attribute
             (progn
