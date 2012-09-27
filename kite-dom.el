@@ -1112,14 +1112,6 @@ FIXME: not yet implemented."
   (interactive "p")
   t)
 
-(defun kite--rgba (r g b a)
-  "Return the given RGBA color value in the WebKit remote
-debugger API `RGBA' structure format."
-  `((r . ,r)
-    (g . ,g)
-    (b . ,b)
-    (a . ,a)))
-
 (defun kite-dom-highlight-node ()
   "Highlight the node at point in the browser by sending the
 `DOM.highlightNode' message to the remote debugger."

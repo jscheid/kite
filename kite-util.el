@@ -266,6 +266,14 @@ ERROR-OBJECT-ID."
                   "\n")
                  "\n"))))))
 
+(defun kite--rgba (r g b a)
+  "Return the given RGBA color value in the WebKit remote
+debugger API `RGBA' structure format."
+  `((r . ,r)
+    (g . ,g)
+    (b . ,b)
+    (a . ,a)))
+
 (provide 'kite-util)
 
 ;;; kite-util.el ends here
