@@ -59,14 +59,17 @@
   :group 'kite)
 
 (defcustom kite-default-emulate-touch-events nil
-  "Whether new sessions should emulate touch events by default.")
+  "Whether new sessions should emulate touch events by default."
+  :group 'kite)
 
 (defcustom kite-default-show-paint-rectangles nil
   "Whether new sessions should show paint rectangles by
-  default..")
+  default.."
+  :group 'kite)
 
 (defcustom kite-default-disable-cache nil
-  "Whether new sessions should disable the cache by default.")
+  "Whether new sessions should disable the cache by default."
+  :group 'kite)
 
 (setq websocket-debug t)
 (setq websocket-callback-debug-on-error t)
