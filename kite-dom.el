@@ -362,7 +362,8 @@ The delimiters are <! and >."
     (define-key map "\M-\C-n" 'kite-dom-forward-element)
     (define-key map "\M-\C-p" 'kite-dom-backward-element)
     (define-key map "\C-m" 'kite--widget-field-activate)
-    map))
+    map)
+  "Keymap to use in DOM inspector widget fields.")
 
 (defvar kite-dom-mode-map
   (let ((map (make-composed-keymap
@@ -484,7 +485,8 @@ edited."
       widget)))
 
 (defun kite--dom-render-attribute (dom-node dom-attr)
-
+  "Render an attribute of DOM-NODE, the one designated by
+DOM-ATTR, at point."
   (setf (kite-dom-attr-outer-begin dom-attr) (point-marker))
   (widget-insert (concat
                   " "
@@ -671,10 +673,7 @@ is the last child."
     dom-node))
 
 (defun kite--dom-insert-element (dom-node)
-  "Insert ELEMENT at point, at indentation level INDENT.  If
-LOADP, recursively and asynchronously load and insert children.
-
-FIXME: this needs to be smarter about when to load children."
+  "Render given ELEMENT at point."
   (setf (kite-dom-node-line-begin dom-node) (point-marker))
   (flet
       ((indent-prefix (indent node-id)
@@ -883,6 +882,7 @@ CHARACTER."
     (delete-char -1)))
 
 (defun kite--dom-show-child-nodes (dom-node)
+  "Render the children of the given DOM-NODE."
   (let ((inhibit-read-only t))
     (save-excursion
       (kite--dom-set-element-toggle-char dom-node "-")
@@ -1185,8 +1185,8 @@ question."
                      (message nil)))))))
 
 (defun kite--dom-node-for-id (node-id)
-  (gethash
-   node-id
+  "Return the `kite-dom-node' for the given NODE-ID."
+  (gethash node-id
    (kite-session-dom-nodes kite-session)))
 
 (defun kite--dom-node-at-point (&optional arg)
@@ -1229,6 +1229,9 @@ question."
          (kite-dom-node-line-end dom-node))))))
 
 (defun kite--dom-show-element-children (dom-node)
+  "Render the children of the given DOM-NODE if they have been
+received from the remote debugger before.  Otherwise, request the
+children to be sent."
   (when (> (kite-dom-node-child-count dom-node) 0)
     (if (kite-dom-node-children dom-node)
         (kite--dom-show-child-nodes dom-node)
@@ -1238,6 +1241,7 @@ question."
        (list :nodeId (kite-dom-node-id dom-node))))))
 
 (defun kite-dom-toggle-node ()
+  "Toggle visibility of contents of node at point."
   (interactive)
   (let ((dom-node (kite--dom-kite-dom-node-at-point)))
     (when (> (kite-dom-node-child-count dom-node) 0)
