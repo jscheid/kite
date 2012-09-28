@@ -387,6 +387,19 @@ The delimiters are <! and >."
 
 (defvar kite--dom-highlighted-node-id)
 
+(defvar kite--dom-pending-set-node-values nil
+  "An alist of (NODE-ID . CHANGED-VALUE) that keeps track of
+which node value changes have been sent to the remote debugging
+server but not acknowledged yet.  Callbacks such as the one for
+`DOM.characterDataModified' use this to see which notifications
+to ignore.")
+
+(defvar kite--dom-setting-remote-value nil
+  "Scope variable (should be set with a let binding) that
+signifies that a DOM change originated on the remote end.  Used
+by nested functions to ensure the change isn't sent back to the
+server.")
+
 (defun kite--dom-mouse-movement (event)
   "Called on mouse movement in a kite-dom buffer.  Highlights the
 line under mouse and the corresponding DOM node in the browser."
@@ -424,6 +437,7 @@ line under mouse and the corresponding DOM node in the browser."
   (setq kite-buffer-type 'dom)
   (setq buffer-read-only nil)
   (set (make-local-variable 'kite--dom-highlighted-node-id) nil)
+  (set (make-local-variable 'kite--dom-pending-set-node-values) nil)
   (set (make-local-variable 'track-mouse) t)
 
   (let ((inhibit-read-only t))
@@ -781,29 +795,37 @@ is the last child."
             kite-dom-text-node)
         (setf (kite-dom-node-widget dom-node)
               (widget-create
-               'text
-               :value-create
-               (lambda (widget)
-                 "Evil hack to avoid terminating spaces or
-newline in editable field."
-                 (widget-put widget :size 0)
-                 (widget-field-value-create widget)
-                 (widget-put widget :size nil)
-                 (let ((overlay-end
-                        (cdr (widget-get widget :field-overlay))))
-                   (move-marker overlay-end
-                                (1- (marker-position overlay-end)))))
+               'editable-field
                :value-face 'kite-text-face
-               :notify (lambda (widget &rest ignore)
-                         (unless
-                             (and (boundp 'kite--dom-remote-set-value)
-                                  kite--dom-remote-set-value)
-                           (kite-send
-                            "DOM.setNodeValue"
-                            :params
-                            (list :nodeId (widget-get widget
-                                                      :kite-node-id)
-                                  :value (widget-value widget)))))
+               :size 0
+               :notify
+               (lambda (widget child &optional event)
+                 (let ((dom-node (kite--dom-node-for-id
+                                  (widget-get widget :kite-node-id))))
+                   (when (and
+                          (or (not (boundp
+                                    'kite--dom-setting-remote-value))
+                              (not kite--dom-setting-remote-value))
+                          (not (string=
+                                (widget-value widget)
+                                (kite-dom-node-value dom-node))))
+                     (push (cons
+                            (kite-dom-node-id dom-node)
+                            (widget-value widget))
+                           kite--dom-pending-set-node-values)
+                     (kite-send
+                      "DOM.setNodeValue"
+                      :params
+                      (list :nodeId (widget-get widget
+                                                :kite-node-id)
+                            :value (widget-value widget))
+                      :success-function
+                      (lambda (result)
+                        (pop kite--dom-pending-set-node-values))
+                      :error-function
+                      (lambda (error-result)
+                        (pop kite--dom-pending-set-node-values)
+                        (kite--default-error-handler error-result))))))
                :validate (function kite--dom-validate-widget)
                :kite-node-id (kite-dom-node-id dom-node)
                :keymap kite--dom-widget-field-keymap
@@ -1078,15 +1100,26 @@ attribute from a DOM element."
   "Callback invoked for the `DOM.characterDataModified' notification,
 which the remote debugger sends when a script has changed the
 contents of a text node."
-  (let ((dom-node (kite--dom-node-for-id
-                   (plist-get packet :nodeId))))
-    (when dom-node
-      (let ((widget (kite-dom-node-widget dom-node)))
-        (when widget
-          (let ((kite--dom-remote-set-value t)
-                (inhibit-read-only t))
-            (widget-value-set widget (plist-get packet
-                                                :characterData))))))))
+  (with-current-buffer (kite--find-buffer websocket-url 'dom)
+    (save-excursion
+      (let* ((dom-node (kite--dom-node-for-id
+                        (plist-get packet :nodeId)))
+             (widget (kite-dom-node-widget dom-node))
+             (kite--dom-setting-remote-value t)
+             (inhibit-read-only t))
+        (unless (member (cons
+                         (plist-get packet :nodeId)
+                         (plist-get packet :characterData))
+                        kite--dom-pending-set-node-values)
+
+          (setf (kite-dom-node-value dom-node)
+                (plist-get packet :characterData))
+          (when (not (string=
+                      (widget-value widget)
+                      (plist-get packet :characterData)))
+            (widget-value-set
+             (kite-dom-node-widget dom-node)
+             (plist-get packet :characterData))))))))
 
 (defun kite-dom-backward-up-element (&optional arg)
   "Move backward over one element, or up the tree if this is there are
