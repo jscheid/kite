@@ -1072,6 +1072,20 @@ attribute from a DOM element."
                  (equal (car item) attr-name))
                (kite-dom-node-attr-alist dom-node)))))))
 
+(defun kite--dom-DOM-characterDataModified (websocket-url packet)
+  "Callback invoked for the `DOM.characterDataModified' notification,
+which the remote debugger sends when a script has changed the
+contents of a text node."
+  (let ((dom-node (kite--dom-node-for-id
+                   (plist-get packet :nodeId))))
+    (when dom-node
+      (let ((widget (kite-dom-node-widget dom-node)))
+        (when widget
+          (let ((kite--dom-remote-set-value t)
+                (inhibit-read-only t))
+            (widget-value-set widget (plist-get packet
+                                                :characterData))))))))
+
 (defun kite-dom-backward-up-element (&optional arg)
   "Move backward over one element, or up the tree if this is there are
 no previous siblings.
@@ -1341,6 +1355,8 @@ re-requesting the document."
           'kite--dom-DOM-setChildNodes)
 (add-hook 'kite-DOM-documentUpdated-hooks
           'kite--dom-DOM-documentUpdated)
+(add-hook 'kite-DOM-characterDataModified-hooks
+          'kite--dom-DOM-characterDataModified)
 (add-hook 'kite-Inspector-inspect-hooks
           'kite--dom-Inspector-inspect)
 
