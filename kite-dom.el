@@ -779,8 +779,18 @@ is the last child."
             kite-dom-text-node)
         (setf (kite-dom-node-widget dom-node)
               (widget-create
-               'editable-field
-               :size 1
+               'text
+               :value-create
+               (lambda (widget)
+                 "Evil hack to avoid terminating spaces or
+newline in editable field."
+                 (widget-put widget :size 0)
+                 (widget-field-value-create widget)
+                 (widget-put widget :size nil)
+                 (let ((overlay-end
+                        (cdr (widget-get widget :field-overlay))))
+                   (move-marker overlay-end
+                                (1- (marker-position overlay-end)))))
                :value-face 'kite-text-face
                :modified-value-face 'kite-modified-text-face
                :notify (function kite--dom-notify-widget)
