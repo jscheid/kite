@@ -458,8 +458,10 @@ ROOT-PLIST as received in the response to `DOM.getDocument'."
           (plist-get root-plist :children))))
     (if html-plist
         (progn
-          (kite--dom-insert-element (kite--dom-create-node html-plist
-                                                           nil))
+          (kite--dom-insert-element
+           (or (kite--dom-node-for-id (plist-get html-plist :nodeId))
+               (kite--dom-create-node html-plist
+                                      nil)))
           (insert "\n"))
       (error "Document doesn't seem to contain html element"))))
 
