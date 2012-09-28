@@ -595,7 +595,7 @@ DOM-ATTR, at point."
 
   (put-text-property (kite-dom-attr-outer-begin dom-attr)
                      (kite-dom-attr-outer-end dom-attr)
-                     'kite-attr-name (kite-dom-attr-name dom-attr)))
+                     'kite-attr dom-attr))
 
 (defun kite--dom-render-attr-alist (dom-node)
   "Insert all attributes of ELEMENT.  ELEMENT is a plist
@@ -1390,12 +1390,12 @@ question."
   (interactive)
   (let ((node-id (kite--dom-node-at-point)))
     (when node-id
-      (let ((attr-name (get-text-property (point) 'kite-attr-name)))
-        (if attr-name
+      (let ((attr (get-text-property (point) 'kite-attr)))
+        (if attr
             (kite-send "DOM.removeAttribute"
                        :params
                        (list :nodeId node-id
-                             :name attr-name))
+                             :name (kite-dom-attr-name attr)))
           (kite-send "DOM.removeNode"
                      :params
                      (list :nodeId node-id)))))))
