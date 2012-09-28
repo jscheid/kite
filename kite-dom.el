@@ -1176,8 +1176,12 @@ value of an attribute in a DOM element."
                 (setf (kite-dom-attr-value dom-attr)
                       (plist-get packet :value))))
           ;; Insert new attribute
-          (goto-char (kite-dom-attr-value-end
-                      (cdar (kite-dom-node-attr-alist dom-node))))
+          (goto-char
+           (if (kite-dom-node-attr-alist dom-node)
+               (kite-dom-attr-value-end
+                (cdar (kite-dom-node-attr-alist dom-node)))
+             (1- (kite-dom-node-inner-begin dom-node))))
+
           (let ((dom-attr (make-kite-dom-attr
                            :name (plist-get packet :name)
                            :value (plist-get packet :value))))

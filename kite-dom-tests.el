@@ -477,6 +477,20 @@
           (attr-info (cdr (assoc "baz" (kite-dom-node-attr-alist node-info)))))
      (should (not (null attr-info))))))
 
+(ert-deftest kite-test-dom-add-first-attribute ()
+  "DOM is mutated correctly when first attribute is added"
+  (with--kite-dom-test-buffer
+   (kite--dom-insert-element
+    (kite--dom-create-node single-element nil))
+
+   (flet ((kite--dom-buffer (websocket-url) (current-buffer)))
+     (kite--dom-DOM-attributeModified "dummy"
+                                      '(:value "bar" :name "baz" :nodeId 1)))
+
+   (should (string= (buffer-substring-no-properties (point-min)
+                                                    (point-max))
+                    " <html baz=\"bar\"></html>"))))
+
 (ert-deftest kite-test-set-child-count ()
   "DOM is mutated correctly when child count is modified"
 
