@@ -166,7 +166,7 @@ of an entity and hitting `RET`.
 When you access a Kite buffer and there is no debugging session active
 yet, an attempt will be made to establish a connection to a WebKit
 remote debugger interface on `kite-default-remote-host` (default:
-`localhost`) and `kite-default-remote-port` (default: 9222).
+`127.0.0.1`) and `kite-default-remote-port` (default: 9222).
 
 If the connection succeeds you will be presented with a prompt that
 allows you to choose which of the pages currently open in the WebKit

@@ -50,7 +50,7 @@
 (require 'kite-sourcemap)
 (require 'kite-global)
 
-(defcustom kite-default-remote-host "localhost"
+(defcustom kite-default-remote-host "127.0.0.1"
   "Default host for connection to WebKit remote debugging API."
   :group 'kite)
 
