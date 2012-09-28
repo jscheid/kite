@@ -735,7 +735,8 @@ is the last child."
         (widget-insert (propertize "<"
                                    'kite-node-id (kite-dom-node-id
                                                   dom-node)
-                                   'face 'kite-tag-delimiter-face))
+                                   'face 'kite-tag-delimiter-face
+                                   'field 'boundary))
         (setf (kite-dom-node-widget dom-node)
               (widget-create
                'editable-field
@@ -767,7 +768,9 @@ is the last child."
         (setf (kite-dom-node-inner-end dom-node) (point-marker))
         (widget-insert
          (concat
-          (propertize "<" 'face 'kite-tag-delimiter-face)
+          (propertize "<"
+                      'face 'kite-tag-delimiter-face
+                      'field 'boundary)
           (propertize "/" 'face 'kite-tag-slash-face)
           (propertize (kite-dom-node-local-name dom-node)
                       'face 'kite-element-local-name-face)
@@ -781,7 +784,8 @@ is the last child."
             kite-dom-element-node)
         (widget-insert "+")
         (widget-insert (propertize "<"
-                                   'face 'kite-tag-delimiter-face))
+                                   'face 'kite-tag-delimiter-face
+                                   'field 'boundary))
         (setf (kite-dom-node-widget dom-node)
               (widget-create
                'editable-field
@@ -803,7 +807,9 @@ is the last child."
         (setf (kite-dom-node-inner-end dom-node) (point-marker))
         (widget-insert
          (concat
-          (propertize "<" 'face 'kite-tag-delimiter-face)
+          (propertize "<"
+                      'face 'kite-tag-delimiter-face
+                      'field 'boundary)
           (propertize "/" 'face 'kite-tag-slash-face)
           (propertize (kite-dom-node-local-name dom-node)
                       'face 'kite-element-local-name-face)
@@ -819,8 +825,27 @@ is the last child."
               (widget-create
                'editable-field
                :value-face 'kite-text-face
-               :size 0
-               :notify
+               :value-create
+               (lambda (widget)
+                 "Evil hack to avoid newline in editable field."
+                 ;; Note: we have to use a :size of nil (rather than
+                 ;; 0) because otherwise `widget-after-change' will
+                 ;; trim trailing whitespace.
+
+                 ;; Temporarily set field size to 0 because otherwise
+                 ;; `widget-field-value-create' will insert a trailing
+                 ;; newline
+                 (widget-put widget :size 0)
+                 (widget-field-value-create widget)
+                 (widget-put widget :size nil)
+
+                 ;; Since no trailing newline was inserted the overlay
+                 ;; is one character too long, so make it shorter
+                 (let ((overlay-end
+                        (cdr (widget-get widget :field-overlay))))
+                   (move-marker overlay-end
+                                (1- (marker-position overlay-end)))))
+              :notify
                (lambda (widget child &optional event)
                  (let ((dom-node (kite--dom-node-for-id
                                   (widget-get widget :kite-node-id))))
@@ -858,7 +883,8 @@ is the last child."
         (widget-insert
          (propertize
           "<!--"
-          'face 'kite-comment-delimiter-face))
+          'face 'kite-comment-delimiter-face
+          'field 'boundary))
 
         (setf (kite-dom-node-widget dom-node)
               (widget-create
