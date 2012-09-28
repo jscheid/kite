@@ -471,8 +471,9 @@ ROOT-PLIST as received in the response to `DOM.getDocument'."
 widget with `modified-face' to show that its contents have been
 edited."
   (let ((modified-face (widget-get widget :modified-value-face)))
-    (unless (eq (widget-get widget :value-face)
-                modified-face)
+    (unless (or (null modified-face)
+                (eq (widget-get widget :value-face)
+                    modified-face))
       (widget-put widget :value-face modified-face)
       (overlay-put (widget-get widget :field-overlay)
                    'face modified-face))))
@@ -792,7 +793,6 @@ newline in editable field."
                    (move-marker overlay-end
                                 (1- (marker-position overlay-end)))))
                :value-face 'kite-text-face
-               :modified-value-face 'kite-modified-text-face
                :notify (function kite--dom-notify-widget)
                :validate (function kite--dom-validate-widget)
                :kite-node-id (kite-dom-node-id dom-node)
