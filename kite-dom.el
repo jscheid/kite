@@ -868,10 +868,14 @@ is the last child."
                             :value (widget-value widget))
                       :success-function
                       (lambda (result)
-                        (pop kite--dom-pending-set-node-values))
+                        (setcdr
+                         (last kite--dom-pending-set-node-values 2)
+                         nil))
                       :error-function
                       (lambda (error-result)
-                        (pop kite--dom-pending-set-node-values)
+                        (setcdr
+                         (last kite--dom-pending-set-node-values 2)
+                         nil)
                         (kite--default-error-handler error-result))))))
                :validate (function kite--dom-validate-widget)
                :kite-node-id (kite-dom-node-id dom-node)
