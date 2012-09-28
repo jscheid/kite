@@ -390,9 +390,15 @@ The delimiters are <! and >."
 (defvar kite--dom-pending-set-node-values nil
   "An alist of (NODE-ID . CHANGED-VALUE) that keeps track of
 which node value changes have been sent to the remote debugging
-server but not acknowledged yet.  Callbacks such as the one for
-`DOM.characterDataModified' use this to see which notifications
-to ignore.")
+server but not acknowledged yet.  `DOM.characterDataModified'
+uses this to see which notifications to ignore.")
+
+(defvar kite--dom-pending-set-attribute-values nil
+  "A list of (NODE-ID ATTR-NAME CHANGED-VALUE) that keeps track
+of which attribute value changes have been sent to the remote
+debugging server but not acknowledged yet.
+`DOM.attributeModified' uses this to see which notifications to
+ignore.")
 
 (defvar kite--dom-setting-remote-value nil
   "Scope variable (should be set with a let binding) that
@@ -545,25 +551,44 @@ DOM-ATTR, at point."
          :value-face 'kite-attribute-value-face
          :modified-value-face 'kite-modified-attribute-value-face
          :kite-node-id (kite-dom-node-id dom-node)
-         :kite-attr-name (kite-dom-attr-name dom-attr)
+         :kite-attr dom-attr
          :keymap kite--dom-widget-field-keymap
-         :notify (lambda (widget &rest ignore)
-                   (lexical-let ((lex-widget widget))
-                     (kite-send
-                      "DOM.setAttributeValue"
-                      :params
-                      `((nodeId . ,(widget-get widget :kite-node-id))
-                        (name . ,(widget-get widget :kite-attr-name))
-                        (value . ,(widget-value widget)))
-                      :success-function
-                      (lambda (result)
-                        (when result
-                          (widget-put lex-widget
-                                      :value-face
-                                      'kite-attribute-value-face)
-                          (overlay-put
-                           (widget-get lex-widget :field-overlay)
-                           'face 'kite-attribute-value-face))))))
+         :notify
+         (lambda (widget &rest ignore)
+           (unless (or kite--dom-setting-remote-value
+                       (string=
+                        (widget-value widget)
+                        (kite-dom-attr-value
+                         (widget-get widget :kite-attr))))
+             (lexical-let ((lex-widget widget))
+               (push
+                (list (widget-get widget :kite-node-id)
+                      (kite-dom-attr-name
+                       (widget-get widget :kite-attr))
+                      (widget-value widget))
+                kite--dom-pending-set-attribute-values)
+               (kite-send
+                "DOM.setAttributeValue"
+                :params
+                (list :nodeId
+                      (widget-get widget :kite-node-id)
+                      :name
+                      (kite-dom-attr-name
+                       (widget-get widget :kite-attr))
+                      :value
+                      (widget-value widget))
+                :success-function
+                (lambda (result)
+                  (setcdr
+                   (last kite--dom-pending-set-attribute-values 2)
+                   nil))
+                :error-function
+                (lambda (error-result)
+                  (setcdr
+                   (last kite--dom-pending-set-attribute-values 2)
+                   nil)
+                  (kite--default-error-handler error-result))))))
+
          (kite-dom-attr-value dom-attr)))
   (setf (kite-dom-attr-value-end dom-attr) (point-marker))
   (setf (kite-dom-attr-outer-end dom-attr) (point-marker))
@@ -1111,12 +1136,18 @@ value of an attribute in a DOM element."
         (if dom-attr
             ;; Modify existing attribute
             (progn
-              (goto-char (1+ (kite-dom-attr-value-begin dom-attr)))
-              (delete-region (1+ (kite-dom-attr-value-begin dom-attr))
-                             (- (kite-dom-attr-value-end dom-attr) 1))
-              (widget-insert
-               (propertize (plist-get packet :value)
-                           'face 'kite-attribute-value-face)))
+              (let ((kite--dom-setting-remote-value t)
+                    (inhibit-read-only t))
+                (when (not (member
+                            (list node-id
+                                  attr-name
+                                  (plist-get packet :value))
+                            kite--dom-pending-set-attribute-values))
+                  (widget-value-set
+                   (kite-dom-attr-value-widget dom-attr)
+                   (plist-get packet :value)))
+                (setf (kite-dom-attr-value dom-attr)
+                      (plist-get packet :value))))
           ;; Insert new attribute
           (goto-char (kite-dom-attr-value-end
                       (cdar (kite-dom-node-attr-alist dom-node))))
