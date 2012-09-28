@@ -93,6 +93,16 @@
                 :nodeType 1
                 :nodeId 88))
 
+(defconst single-element
+  (list :attributes []
+        :children []
+        :childNodeCount 0
+        :nodeValue nil
+        :localName "html"
+        :nodeName "HTML"
+        :nodeType 1
+        :nodeId 1))
+
 (ert-deftest kite-test-dom-simple ()
   "A very simple HTML document is rendered correctly"
 
@@ -466,6 +476,34 @@
    (let* ((node-info (gethash 87 (kite-session-dom-nodes kite-session)))
           (attr-info (cdr (assoc "baz" (kite-dom-node-attr-alist node-info)))))
      (should (not (null attr-info))))))
+
+(ert-deftest kite-test-set-child-count ()
+  "DOM is mutated correctly when child count is modified"
+
+  (with--kite-dom-test-buffer
+   (kite--dom-insert-element
+    (kite--dom-create-node single-element nil))
+
+   (should (string= (buffer-substring-no-properties (point-min)
+                                                    (point-max))
+                    " <html></html>"))
+
+   (flet ((kite--dom-buffer (websocket-url) (current-buffer)))
+     (kite--dom-DOM-childNodeCountUpdated
+      "dummy"
+      '(:nodeId 1 :childNodeCount 1))
+
+     (should (string= (buffer-substring-no-properties (point-min)
+                                                      (point-max))
+                      "+<html>...</html>"))
+
+     (kite--dom-DOM-childNodeCountUpdated
+      "dummy"
+      '(:nodeId 1 :childNodeCount 0)))
+
+   (should (string= (buffer-substring-no-properties (point-min)
+                                                    (point-max))
+                    " <html></html>"))))
 
 (ert-deftest kite-test-dom-remove-attribute ()
   "DOM is mutated correctly when attribute is removed"

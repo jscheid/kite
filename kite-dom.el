@@ -1088,7 +1088,34 @@ child node into a DOM element."
   "Callback invoked for the `DOM.childNodeCountUpdated' notification,
 which the remote debugger sends when the number of child nodes of
 a DOM element has changed."
-  (kite--log "kite--DOM-childNodeCountUpdated got packet %s" packet))
+  (kite--log "kite--DOM-childNodeCountUpdated got packet %s" packet)
+  (with-current-buffer (kite--find-buffer websocket-url 'dom)
+    (save-excursion
+      (let ((inhibit-read-only t)
+            (dom-node (kite--dom-node-for-id
+                       (plist-get packet :nodeId))))
+
+        (goto-char (1+ (kite-dom-node-outer-begin dom-node)))
+        (widget-insert
+         (propertize (if (> (plist-get packet :childNodeCount) 0)
+                         "+"
+                       " ")
+                     'kite-node-id
+                     (kite-dom-node-id dom-node)))
+        (forward-char -1)
+        (delete-char -1)
+
+        (cond
+         ((and (null (kite-dom-node-children dom-node))
+               (> (plist-get packet :childNodeCount) 0))
+          ;; No children yet and now children added
+          (goto-char (kite-dom-node-inner-begin dom-node))
+          (widget-insert "..."))
+         ((eq (plist-get packet :childNodeCount) 0)
+          (delete-region
+           (kite-dom-node-inner-begin dom-node)
+           (kite-dom-node-inner-end dom-node))))
+        (kite--dom-node-modified dom-node)))))
 
 (defun kite--dom-DOM-childNodeRemoved (websocket-url packet)
   "Callback invoked for the `DOM.childNodeRemoved' notification,
