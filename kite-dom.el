@@ -1367,7 +1367,6 @@ children to be sent."
             (kite--dom-show-element-children dom-node))
         (save-excursion
           (kite--dom-delete-child-widgets dom-node)
-          ;;(setf (kite-dom-node-children dom-node))
           (setf (kite-dom-node-openp dom-node))
           (let ((inhibit-read-only t))
             (goto-char (kite-dom-node-inner-begin dom-node))
