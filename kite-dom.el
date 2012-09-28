@@ -792,7 +792,16 @@ newline in editable field."
                    (move-marker overlay-end
                                 (1- (marker-position overlay-end)))))
                :value-face 'kite-text-face
-               :notify (function kite--dom-notify-widget)
+               :notify (lambda (widget &rest ignore)
+                         (unless
+                             (and (boundp 'kite--dom-remote-set-value)
+                                  kite--dom-remote-set-value)
+                           (kite-send
+                            "DOM.setNodeValue"
+                            :params
+                            (list :nodeId (widget-get widget
+                                                      :kite-node-id)
+                                  :value (widget-value widget)))))
                :validate (function kite--dom-validate-widget)
                :kite-node-id (kite-dom-node-id dom-node)
                :keymap kite--dom-widget-field-keymap
