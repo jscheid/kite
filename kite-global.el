@@ -236,11 +236,18 @@ open."
       (setq buffer-iterator (cdr buffer-iterator)))
     found))
 
-(defun kite--get-buffer-create (websocket-url type &optional
-                                              after-load-function)
+(defun kite--get-buffer-create (websocket-url
+                                type
+                                &optional
+                                after-load-function
+                                use-major-mode
+                                use-buffer-name)
   "Return the buffer corresponding to the given WEBSOCKET-URL and
 buffer TYPE and return it.  If no such buffer is currently open,
-create one with the given MODE."
+create one.  USE-MAJOR-MODE and USE-BUFFER-NAME are used if
+given, otherwise they are derived from TYPE.  AFTER-LOAD-FUNCTION
+is invoked with the new buffer current after it has been
+initialized."
   (or (let ((buf (kite--find-buffer websocket-url type)))
         (when buf
           (prog1
@@ -250,14 +257,16 @@ create one with the given MODE."
       (lexical-let*
           ((-kite-session (gethash websocket-url kite-active-sessions))
            (buf (generate-new-buffer
-                 (format "*kite %s %s*"
-                         type
-                         (kite-session-unique-name -kite-session)))))
+                 (or use-buffer-name
+                     (format "*kite %s %s*"
+                             type
+                             (kite-session-unique-name -kite-session))))))
         (push buf (kite-session-buffers -kite-session))
         (switch-to-buffer buf)
         (with-current-buffer buf
           (let ((kite-session -kite-session)
-                (mode (intern (format "kite-%s-mode" type))))
+                (mode (or use-major-mode
+                          (intern (format "kite-%s-mode" type)))))
             (funcall mode))
           (when after-load-function
             (add-hook 'kite-async-init-hook after-load-function nil t))
