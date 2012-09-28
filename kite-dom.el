@@ -506,11 +506,10 @@ DOM-ATTR, at point."
                   'face 'kite-attribute-value-delimiter-face)
          :value-face 'kite-attribute-value-face
          :modified-value-face 'kite-modified-attribute-value-face
-         :notify (function kite--dom-notify-widget)
          :kite-node-id (kite-dom-node-id dom-node)
          :kite-attr-name (kite-dom-attr-name dom-attr)
          :keymap kite--dom-widget-field-keymap
-         :action (lambda (widget &rest ignore)
+         :notify (lambda (widget &rest ignore)
                    (lexical-let ((lex-widget widget))
                      (kite-send
                       "DOM.setAttributeValue"
