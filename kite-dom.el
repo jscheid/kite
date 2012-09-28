@@ -400,6 +400,28 @@ signifies that a DOM change originated on the remote end.  Used
 by nested functions to ensure the change isn't sent back to the
 server.")
 
+(defvar kite-dom-node-modified-hooks nil
+  "List of functions to call each time a DOM node (that Kite
+knows about) is changed in any way.  Each function is called once
+for the node that has changed and for each of its
+parents (recursively, in bottom-top order), with a
+`kite-dom-node' structure as the single argument.
+
+Note that it won't be called when a node was modified that Kite
+doesn't yet know about, even if Kite might know about one of its
+parents.")
+
+(defvar kite-dom-node-removed-hooks nil
+  "List of functions to call when a DOM node (that Kite knows
+about) is removed.  Each function is called once for the removed
+node's children and for the node itself (recursively, in
+bottom-top order), with a `kite-dom-node' structure as the single
+argument.
+
+Note that it won't be called when a node was removed that Kite
+doesn't yet know about, even if Kite might know about one of its
+parents.")
+
 (defun kite--dom-mouse-movement (event)
   "Called on mouse movement in a kite-dom buffer.  Highlights the
 line under mouse and the corresponding DOM node in the browser."
@@ -950,16 +972,18 @@ request."
         (dom-node (kite--dom-node-for-id
                    (plist-get packet :parentId))))
     (kite--dom-delete-child-widgets dom-node)
+    (dolist (child (kite-dom-node-children dom-node))
+      (kite--dom-node-removed child))
     (setf (kite-dom-node-children dom-node)
           (mapcar
            (lambda (element)
              (kite--dom-create-node element dom-node))
            (plist-get packet :nodes)))
-
     (let ((dom-buffer (kite--find-buffer websocket-url 'dom)))
       (when dom-buffer
         (with-current-buffer dom-buffer
-          (kite--dom-show-child-nodes dom-node))))))
+          (kite--dom-show-child-nodes dom-node))))
+    (kite--dom-node-modified dom-node)))
 
 (defun kite--dom-DOM-childNodeInserted (websocket-url packet)
   "Callback invoked for the `DOM.childNodeInserted' notification,
@@ -1002,7 +1026,8 @@ child node into a DOM element."
                       (kite-dom-node-children dom-node)
                       insert-position))))))
         (widget-setup)
-        (kite--dom-update-inner-whitespace dom-node)))))
+        (kite--dom-update-inner-whitespace dom-node)
+        (kite--dom-node-modified dom-node)))))
 
 (defun kite--dom-DOM-childNodeCountUpdated (websocket-url packet)
   "Callback invoked for the `DOM.childNodeCountUpdated' notification,
@@ -1020,6 +1045,7 @@ node from a DOM element."
       (let ((inhibit-read-only t)
             (dom-node (kite--dom-node-for-id
                        (plist-get packet :nodeId))))
+        (kite--dom-node-removed dom-node)
         (kite--dom-delete-widgets dom-node)
         (delete-region
          (kite-dom-node-line-begin dom-node)
@@ -1033,8 +1059,10 @@ node from a DOM element."
           (kite--dom-set-element-toggle-char dom-node " "))
 
         (kite--dom-update-inner-whitespace
-         (kite-dom-node-parent dom-node)))
-      (widget-setup))))
+         (kite-dom-node-parent dom-node))
+        (widget-setup)
+        (kite--dom-node-modified
+         (kite-dom-node-parent dom-node))))))
 
 (defun kite--dom-DOM-attributeModified (websocket-url packet)
   "Callback invoked for the `DOM.attributeModified' notification,
@@ -1067,8 +1095,9 @@ value of an attribute in a DOM element."
                            :value (plist-get packet :value))))
             (push (cons (plist-get packet :name) dom-attr)
                   (kite-dom-node-attr-alist dom-node))
-            (kite--dom-render-attribute dom-node dom-attr))))
-      (widget-setup))))
+            (kite--dom-render-attribute dom-node dom-attr)))
+        (widget-setup)
+        (kite--dom-node-modified dom-node)))))
 
 (defun kite--dom-DOM-attributeRemoved (websocket-url packet)
   "Callback invoked for the `DOM.attributeRemoved' notification,
@@ -1094,7 +1123,8 @@ attribute from a DOM element."
               (delete-if
                (lambda (item)
                  (equal (car item) attr-name))
-               (kite-dom-node-attr-alist dom-node)))))))
+               (kite-dom-node-attr-alist dom-node)))
+        (kite--dom-node-modified dom-node)))))
 
 (defun kite--dom-DOM-characterDataModified (websocket-url packet)
   "Callback invoked for the `DOM.characterDataModified' notification,
@@ -1119,7 +1149,8 @@ contents of a text node."
                       (plist-get packet :characterData)))
             (widget-value-set
              (kite-dom-node-widget dom-node)
-             (plist-get packet :characterData))))))))
+             (plist-get packet :characterData))))
+        (kite--dom-node-modified dom-node)))))
 
 (defun kite-dom-backward-up-element (&optional arg)
   "Move backward over one element, or up the tree if this is there are
@@ -1375,6 +1406,22 @@ the document into it."
   "Responds to the `DOM.documentUpdated' notification by
 re-requesting the document."
   (kite--dom-initialize))
+
+(defun kite--dom-node-modified (dom-node)
+  "The given DOM-NODE has been modified (and, implicitly, all of
+its parents).  Invokes `kite-dom-node-modified-hooks' for the
+node and its parents (in that order, recursively.)."
+  (run-hook-with-args 'kite-dom-node-modified-hooks dom-node)
+  (when (kite-dom-node-parent dom-node)
+    (kite--dom-node-modified (kite-dom-node-parent dom-node))))
+
+(defun kite--dom-node-removed (dom-node)
+  "The given DOM-NODE has been removed (and, implicitly, all of
+its children).  Invokes `kite-dom-node-removed-hooks' for the
+node's children and the node (in that order, recursively.)"
+  (dolist (child (kite-dom-node-children dom-node))
+    (kite--dom-node-removed child))
+  (run-hook-with-args 'kite-dom-node-removed-hooks dom-node))
 
 (add-hook 'kite-DOM-attributeModified-hooks
           'kite--dom-DOM-attributeModified)
