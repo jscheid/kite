@@ -745,7 +745,8 @@ is the last child."
                        'kite-node-id node-id
                        'read-only t)))
 
-    (let ((inhibit-read-only t))
+    (let ((inhibit-read-only t)
+          (inhibit-modification-hooks t))
 
       (cond
        ((and (eq (kite-dom-node-type dom-node)
