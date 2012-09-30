@@ -106,3 +106,16 @@ CAAA,CAAO;GAAzB;EAET,OAAO,IAAP,CAAY,MAAZ"))
                          :column 8
                          :name nil)))))
 
+(ert-deftest kite-test-source-map-reverse-lookup ()
+  "Source map reverse lookup works"
+  (let ((source-map (kite--source-map-decode
+                     kite-test-source-map-json)))
+
+    (should (equal (kite-source-map-generated-position-for source-map "test.coffee" 8 8)
+                   (list :line 23
+                         :column 9
+                         :name nil)))))
+
+(provide 'kite-sourcemap-tests)
+
+;;; kite-sourcemap-tests.el ends here

@@ -227,12 +227,59 @@ object, and return a `kite-source-map' struct."
     result))
 
 (defun kite-source-map-original-position-for (source-map
-                                              line column)
+                                              line
+                                              column)
   "Given SOURCE-MAP, which should be a `kite-source-map' struct
-  as returned by `kite--source-map-decode', find the original
-  position corresponding to LINE and COLUMN.  Return a plist with
-  `:source', `:line', `:column', and `:name', or nil if not
-  found."
+as returned by `kite--source-map-decode', find the original
+position corresponding to generated LINE and COLUMN.  Return a
+plist with `:source', `:line', `:column', and `:name', or nil if
+not found."
+  (let ((found
+         (kite--source-map-search
+          source-map
+          line
+          column
+          (kite-source-map-generated-mappings source-map)
+          #'kite-source-mapping-generated-line
+          #'kite-source-mapping-generated-column)))
+    (when found
+      (list :source (kite-source-mapping-source found)
+            :line (kite-source-mapping-original-line found)
+            :column (kite-source-mapping-original-column found)
+            :name (kite-source-mapping-name found)))))
+
+(defun kite-source-map-generated-position-for (source-map
+                                               source
+                                               line
+                                               column)
+  "Given SOURCE-MAP, which should be a `kite-source-map' struct
+as returned by `kite--source-map-decode', find the generated
+position corresponding to original SOURCE, LINE and COLUMN.
+Return a plist with `:line', `:column', and `:name', or nil if
+not found."
+  (let ((found
+         (kite--source-map-search
+          source-map
+          line
+          column
+          (remove-if
+           (lambda (item)
+             (not (string= (kite-source-mapping-source item)
+                           source)))
+           (kite-source-map-generated-mappings source-map))
+          #'kite-source-mapping-original-line
+          #'kite-source-mapping-original-column)))
+    (when found
+      (list :line (kite-source-mapping-generated-line found)
+            :column (kite-source-mapping-generated-column found)
+            :name (kite-source-mapping-name found)))))
+
+(defun kite--source-map-search (source-map
+                                line
+                                column
+                                haystack
+                                lookup-line-function
+                                lookup-column-function)
 
   (when (<= line 0)
     (error "Line must be greater than or equal to 1"))
@@ -246,8 +293,7 @@ object, and return a `kite-source-map' struct."
   ;; between each of them, so a miss just means that you aren't on the
   ;; very start of a region.
 
-  (let* ((haystack (kite-source-map-generated-mappings source-map))
-         (low -1)
+  (let* ((low -1)
          (high (length haystack))
          terminate
          found)
@@ -268,15 +314,15 @@ object, and return a `kite-source-map' struct."
         (let* ((mid (floor (+ (/ (- high low) 2) low)))
                (cur (elt haystack mid)))
           (cond
-           ((and (eq (kite-source-mapping-generated-line cur) line)
-                 (eq (kite-source-mapping-generated-column cur) column))
+           ((and (eq (funcall lookup-line-function cur) line)
+                 (eq (funcall lookup-column-function cur) column))
             ;; Found the element we are looking for.
             (setq found cur)
             (setq terminate t))
 
-           ((or (< (kite-source-mapping-generated-line cur) line)
-                (and (eq (kite-source-mapping-generated-line cur) line)
-                     (< (kite-source-mapping-generated-column cur)
+           ((or (< (funcall lookup-line-function cur) line)
+                (and (eq (funcall lookup-line-function cur) line)
+                     (< (funcall lookup-column-function cur)
                         column)))
             ;; haystack[mid] is greater than our needle.
             (if (> (- high mid) 1)
@@ -299,11 +345,7 @@ object, and return a `kite-source-map' struct."
                 (setq found (elt haystack low)))
               (setq terminate t))))))
 
-      (when found
-        (list :source (kite-source-mapping-source found)
-              :line (kite-source-mapping-original-line found)
-              :column (kite-source-mapping-original-column found)
-              :name (kite-source-mapping-name found))))))
+      found)))
 
 (provide 'kite-sourcemap)
 
