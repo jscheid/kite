@@ -692,14 +692,8 @@ FIXME: this should be consolidated with
 insert the result or error message, along with a new prompt, into
 the buffer."
   (unless (kite--is-whitespace-or-comment input)
-    (kite-send
-     "Runtime.evaluate"
-     :params
-     (list :expression input
-           :contextId (plist-get (kite-session-current-context
-                                  kite-session)
-                                 :id))
-     :success-function
+    (kite--eval-in-current-context
+     input
      (lambda (result)
        (if (eq :json-false (plist-get result :wasThrown))
            (comint-output-filter
@@ -762,13 +756,17 @@ console."
   (interactive)
   (let* ((contexts-by-unique-name
           (kite--session-contexts-by-unique-name))
-         (selection (completing-read "Context: "
-                                     (mapcar (function car)
-                                             contexts-by-unique-name)
-                                     nil
-                                     t
-                                     nil
-                                     'kite-context-history))
+         (selection
+          (if contexts-by-unique-name
+              (completing-read "Context: "
+                               (mapcar (function car)
+                                       contexts-by-unique-name)
+                               nil
+                               t
+                               nil
+                               'kite-context-history)
+            (message "Only the default execution context is available")
+            nil))
          (new-context (cdr (assoc selection
                                   contexts-by-unique-name))))
     (when new-context
@@ -842,14 +840,8 @@ FIXME: no error handling."
 
   (lexical-let ((lex-js-regex js-regex)
                 (lex-callback callback))
-    (kite-send
-     "Runtime.evaluate"
-     :params
-     (list :expression object-expr
-           :contextId (plist-get (kite-session-current-context
-                                  kite-session)
-                                 :id))
-     :success-function
+    (kite--eval-in-current-context
+     object-expr
      (lambda (result)
        (lexical-let ((object-id (kite--get result
                                            :result

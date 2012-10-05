@@ -273,13 +273,11 @@ and :title."
 
     ;; Enable subsystems
 
+    (kite-send "Runtime.enable")
     (kite-send "Page.enable")
     (kite-send "Inspector.enable")
     (kite-send "Debugger.enable")
     (kite-send "CSS.enable")
-
-    (kite-send "Runtime.setReportExecutionContextCreation"
-               :params '(:enabled t))
 
     ;; Get initial state
 

@@ -266,6 +266,23 @@ ERROR-OBJECT-ID."
                   "\n")
                  "\n"))))))
 
+(defun kite--eval-in-current-context (input success-function)
+  "Evaluate INPUT in the remote remote debugger in the current
+execution context and asynchronously invoke SUCCESS-FUNCTION with
+the results in case of success."
+  (let ((eval-params (list :expression input))
+        (context-id (plist-get (kite-session-current-context
+                                kite-session)
+                               :id)))
+    (when context-id
+      (setq eval-params (plist-put eval-params :contextId context-id)))
+    (kite-send
+     "Runtime.evaluate"
+     :params
+     eval-params
+     :success-function
+     success-function)))
+
 (defun kite--rgba (r g b a)
   "Return the given RGBA color value in the WebKit remote
 debugger API `RGBA' structure format."
