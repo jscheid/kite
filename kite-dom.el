@@ -355,6 +355,11 @@ The delimiters are <! and >."
   "Face used for # before a name in the prolog."
   :group 'kite-highlighting-faces)
 
+(defface kite-node-highlight-face
+  '((t (:background "#444")))
+  "Face used when highligting a dom element under the mouse cursor."
+  :group 'kite-highlighting-faces)
+
 ;;; End of stolen nxml colors and faces.
 
 (defvar kite--dom-widget-field-keymap
@@ -446,7 +451,7 @@ line under mouse and the corresponding DOM node in the browser."
                              (kite-dom-node-line-end dom-node))))
               (overlay-put overlay 'kite-dom-node-highlight t)
               (overlay-put overlay 'priority 10)
-              (overlay-put overlay 'face '(:background "#444")))
+              (overlay-put overlay 'face 'kite-node-highlight-face))
             (kite-send
              "DOM.highlightNode"
              :params
