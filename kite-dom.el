@@ -357,7 +357,7 @@ The delimiters are <! and >."
 
 (defface kite-node-highlight-face
   '((t (:background "#444")))
-  "Face used when highligting a dom element under the mouse cursor."
+  "Face used for highlighting the DOM element under the mouse cursor."
   :group 'kite-highlighting-faces)
 
 ;;; End of stolen nxml colors and faces.
