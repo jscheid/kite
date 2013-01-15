@@ -56,11 +56,11 @@ currently no plans for compatibility with older releases.
 
 ## Automatic Installation
 
-**NOTE**: _Kite_ has not yet been uploaded to any package
-  repository so these instructions do not apply.
+_Kite_ comes as a package conforming to Tromey's _package.el_, and
+is available via the [MELPA](http://melpa.milkbox.net/) package
+repository.
 
-_Kite_ comes as a package conforming to Tromey's _package.el_.  Ensure
-that an archive containing Kite is listed in `package-archives` and
+Ensure that MELPA is listed in `package-archives` and
 execute `M-x package-install RET kite RET`.
 
 ## Manual Installation
