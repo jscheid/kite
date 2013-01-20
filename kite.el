@@ -850,26 +850,34 @@ FIXME: there must be a more elegant way to do this."
   ;; Quote this way to avoid the dependency generator picking it up
   (require (quote kite)))
 
-(defun kite-source-mode-enter ()
-  "Enable kite-source-mode and create a Kite session."
+(defun kite--source-mode-enter ()
+  "Create a Kite session."
   (lexical-let*
-   ((websocket-url (kite--find-default-session nil))
-    (-kite-session (gethash websocket-url kite-active-sessions)))
-   (push (current-buffer) (kite-session-buffers -kite-session))
-   (setq kite-session -kite-session)
-   (set (make-local-variable 'kite-buffer-type) 'scratch)
-   (add-hook 'kill-buffer-hook 'kite--kill-buffer nil t)))
+      ((websocket-url (kite--find-default-session nil))
+       (-kite-session (gethash websocket-url kite-active-sessions)))
+    (push (current-buffer) (kite-session-buffers -kite-session))
+    (setq kite-session -kite-session)
+    (set (make-local-variable 'kite-buffer-type) 'source)
+    (add-hook 'kill-buffer-hook 'kite--source-mode-exit nil t)))
 
-(defun kite-source-mode-exit ()
-  "Disable kite-source-mode and close the current Kite session."
-  (kite--session-remove-current-buffer))
+(defun kite--source-mode-exit ()
+  "Remove the current buffer from Kite session."
+  (remove-hook 'kill-buffer-hook 'kite--source-mode-exit t)
+  (kite--kill-buffer))
+
+(defvar kite-source-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "C-M-x") 'kite-eval-defun)
+    (define-key map (kbd "C-C C-k r") 'kite-reload-page)
+    map)
+  "Keymap used when `kite-source-mode' is active.")
 
 (define-minor-mode kite-source-mode
   "Minor Kite mode to evaluate code in current buffer."
-  :global t :group 'kite :init-value nil
+  :global nil :group 'kite :init-value nil
   (if kite-source-mode
-      (kite-source-mode-enter)
-    (kite-source-mode-exit)))
+      (kite--source-mode-enter)
+    (kite--source-mode-exit)))
 
 (provide 'kite)
 
