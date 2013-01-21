@@ -850,10 +850,10 @@ FIXME: there must be a more elegant way to do this."
   ;; Quote this way to avoid the dependency generator picking it up
   (require (quote kite)))
 
-(defun kite--source-mode-enter ()
+(defun kite--source-mode-enter (prefix)
   "Create a Kite session."
   (lexical-let*
-      ((websocket-url (kite--find-default-session nil))
+      ((websocket-url (kite--find-default-session prefix))
        (-kite-session (gethash websocket-url kite-active-sessions)))
     (push (current-buffer) (kite-session-buffers -kite-session))
     (setq kite-session -kite-session)
@@ -874,9 +874,9 @@ FIXME: there must be a more elegant way to do this."
 
 (define-minor-mode kite-source-mode
   "Minor Kite mode to evaluate code in current buffer."
-  :global nil :group 'kite :init-value nil
+  :global nil :group 'kite :init-value nil :lighter " Kite"
   (if kite-source-mode
-      (kite--source-mode-enter)
+      (kite--source-mode-enter (or current-prefix-arg '(4)))
     (kite--source-mode-exit)))
 
 (provide 'kite)
