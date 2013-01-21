@@ -42,6 +42,7 @@
 
 ;;; Code:
 
+(require 'kite-debug)
 (require 'url-http)
 
 (defcustom kite-resolve-url-file-function
@@ -163,6 +164,7 @@ its contents:
       (maphash
        (lambda (key script-info)
          (let ((url (kite-script-info-url script-info)))
+           ;;(message "have url: %S for script info %S" url script-info)
            (when (and url
                       (> (length url) 0) )
              (push url urls)
@@ -188,7 +190,8 @@ its contents:
                                          nil
                                          t
                                          (kite--longest-prefix
-                                          (mapcar #'url-basepath urls))
+                                          (remq nil
+                                                (mapcar #'url-basepath urls)))
                                          'kite-visit-history)))
         (when (> (length chosen-url) 0)
           (let ((script-info-and-source
@@ -212,11 +215,16 @@ loaded, move point to LINE and COLUMN and execute
 AFTER-LOAD-FUNCTION with the new buffer current.  If a source map
 is available, go to the original location instead."
   (interactive)
-  (let* ((source-map (kite-script-info-maybe-source-map script-info))
-         (original-source (kite-script-info--original-source
-                           script-info
-                           (or line 1)
-                           (or column 0))))
+  (lexical-let*
+      ((source-map (kite-script-info-maybe-source-map script-info))
+       (original-source (kite-script-info--original-source
+                         script-info
+                         (or line 1)
+                         (or column 0)))
+       target-line
+       target-column
+       file-url
+       (lex-after-load-function after-load-function))
     (let ((after-load
            (lambda ()
              (when target-line
@@ -237,23 +245,23 @@ is available, go to the original location instead."
                 (plist-get original-source :source-map)
                 (kite-script-info-url script-info)
                 (not (null source))))
-             (when after-load-function
-               (funcall after-load-function)))))
+             (when lex-after-load-function
+               (funcall lex-after-load-function)))))
       (if (null source)
-          (let ((target-line line)
-                (target-column column)
-                (file-url (kite-script-info-url script-info)))
-            (kite-visit-url (kite-script-info-url script-info)
-                            after-load))
-        (let* ((original-source (kite-script-info--original-source
-                                 script-info
-                                 (or line 1)
-                                 (or column 0)))
-               (file-url (plist-get original-source :url))
-               (url-parts (url-generic-parse-url file-url))
-               (target-line (and line (plist-get original-source :line)))
-               (target-column (and column (plist-get original-source :column))))
-          (kite-visit-url file-url after-load))))))
+          (progn
+            (setq target-line line)
+            (setq target-column column)
+            (setq file-url (kite-script-info-url script-info)))
+        (let ((original-source (kite-script-info--original-source
+                                script-info
+                                (or line 1)
+                                (or column 0))))
+          (setq file-url (plist-get original-source :url))
+          (setq target-line
+                (and line (plist-get original-source :line)))
+          (setq target-column
+                (and column (plist-get original-source :column)))))
+      (kite-visit-url file-url after-load))))
 
 
 (defun kite--do-buffer-source-mapping (source-map
@@ -374,7 +382,9 @@ to correspond to a local file, the resource contents is compared
 to the file contents: if they differ, the user is asked whether
 she wants to use the local file contents instead."
   (lexical-let*
-      ((lex-after-load-url-function after-load-url-function)
+      ((-kite-session kite-session)
+       (-after-load-url-function after-load-url-function)
+       (-script-info (kite-session-script-info-for-url url))
        (post-initialize
         (lambda (mime-type)
           (let ((buffer-mode
@@ -384,77 +394,80 @@ she wants to use the local file contents instead."
                                  kite--mime-map))))
             (when buffer-mode
               (funcall buffer-mode)))
-          (when lex-after-load-url-function
-            (funcall lex-after-load-url-function)))))
+          (setq kite-session -kite-session)
+          (setq kite-script-id (kite-script-info-id -script-info))
+          (when -after-load-url-function
+            (funcall -after-load-url-function)))))
     (let ((existing-buffer (kite--find-buffer-visiting-url url)))
       (if existing-buffer
           ;; Have an existing buffer for the URL, switch to it and
           ;; invoke after-load-url-function
           (progn
             (switch-to-buffer existing-buffer)
+            (setq kite-session -kite-session)
             (post-initialize))
-        (lexical-let ((buffer (kite--create-url-buffer url))
-                      (script-info
-                       (kite-session-script-info-for-url url)))
+        (lexical-let ((buffer (kite--create-url-buffer url)))
           (switch-to-buffer buffer)
-          (if script-info
-              ;; URL corresponds to a script
-              (kite-send "Debugger.getScriptSource"
-                         :params
-                         `(:scriptId ,(kite-script-info-id
-                                       script-info))
-                         :success-function
-                         (lambda (result)
+          (with-current-buffer buffer
+            (setq kite-session -kite-session)
+            (if -script-info
+                ;; URL corresponds to a script
+                (kite-send "Debugger.getScriptSource"
+                           :params
+                           `(:scriptId ,(kite-script-info-id
+                                         -script-info))
+                           :success-function
+                           (lambda (result)
+                             (save-excursion
+                               (insert (plist-get result
+                                                  :scriptSource)))
+                             (set-buffer-modified-p nil)
+                             (funcall post-initialize "text/javascript")))
+              (let ((request (kite--network-request-for-url url)))
+                (if request
+                    ;; URL corresponds to a network resource
+                    (kite-send "Network.getResponseBody"
+                               :params
+                               `(requestId ,kite-request-id request)
+                               :success-function
+                               (lambda (result)
+                                 (save-excursion
+                                   (insert
+                                    (funcall
+                                     (if (eq t
+                                             (plist-get result
+                                                        :base64Encoded))
+                                         'base64-decode-string
+                                       'identity)
+                                     (plist-get result :body)))
+                                   (set-buffer-modified-p nil)
+                                   (funcall post-initialize
+                                            (kite-request-mime-type)))))
+                  ;; URL doesn't correspond to either script or network
+                  ;; request
+                  (let ((url-http-attempt-keepalives t))
+                    (url-retrieve
+                     url
+                     (lambda (&rest ignore)
+                       (re-search-forward "\n\n")
+                       (let* ((contents (buffer-substring (point)
+                                                          (point-max)))
+                              (headers-end (point))
+                              (mime-type
+                               (progn
+                                 (goto-char (point-min))
+                                 (when (re-search-forward
+                                        "^Content-Type: \\([^;]*\\)")
+                                   (match-string 1)))))
+                         (with-current-buffer buffer
                            (save-excursion
-                             (insert (plist-get result
-                                                :scriptSource)))
+                             (insert contents))
                            (set-buffer-modified-p nil)
-                           (post-initialize "text/javascript")))
-            (let ((request (kite--network-request-for-url url)))
-              (if request
-                  ;; URL corresponds to a network resource
-                  (kite-send "Network.getResponseBody"
-                             :params
-                             `(requestId ,kite-request-id request)
-                             :success-function
-                             (lambda (result)
-                               (save-excursion
-                                 (insert
-                                  (funcall
-                                   (if (eq t
-                                           (plist-get result
-                                                      :base64Encoded))
-                                       'base64-decode-string
-                                     'identity)
-                                   (plist-get result :body)))
-                                 (set-buffer-modified-p nil)
-                                 (post-initialize
-                                  (kite-request-mime-type)))))
-                ;; URL doesn't correspond to either script or network
-                ;; request
-                (let ((url-http-attempt-keepalives t))
-                  (url-retrieve
-                   url
-                   (lambda (&rest ignore)
-                     (re-search-forward "\n\n")
-                     (let* ((contents (buffer-substring (point)
-                                                        (point-max)))
-                            (headers-end (point))
-                            (mime-type
-                             (progn
-                               (goto-char (point-min))
-                               (when (re-search-forward
-                                      "^Content-Type: \\([^;]*\\)")
-                                 (match-string 1)))))
-                       (with-current-buffer buffer
-                         (save-excursion
-                           (insert contents))
-                         (set-buffer-modified-p nil)
-                         (funcall post-initialize mime-type))))
-                   nil                  ; cbargs
-                   t                    ; silent
-                   t                    ; inhibit-cookies
-                   ))))))))))
+                           (funcall post-initialize mime-type))))
+                     nil                  ; cbargs
+                     t                    ; silent
+                     t                    ; inhibit-cookies
+                     )))))))))))
 
 (defun kite--find-buffer-visiting-url (url)
   "Return the Kite buffer visiting URL."

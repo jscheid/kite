@@ -212,6 +212,7 @@ correspond to one.")
   (puthash
    (plist-get packet :scriptId)
    (make-kite-script-info
+    :id (plist-get packet :scriptId)
     :url (plist-get packet :url)
     :start-line (plist-get packet :startLine)
     :start-column (plist-get packet :startColumn)
@@ -294,20 +295,20 @@ session.  Sends `Debugger.stepOut' to the remote debugger."
 Causes `Debugger.setScriptSource' to be sent to the remote
 debugger."
   (interactive)
-  (if (kite-session-can-set-script-source
-       (kite-send "Debugger.setScriptSource"
-                  :params
-                  (list :scriptId kite-script-id
-                        :scriptSource (save-restriction
-                                        (widen)
-                                        (buffer-string))
-                        :preview :json-false)
-                  :success-function
-                  (lambda (result)
-                    ;; FIXME: use :callFrames to update context
-                    ;; information
-                    (message "Script updated"))))
-      (message "Sorry, the remote debugger doesn't support setting\
+  (if (kite-session-can-set-script-source kite-session)
+      (kite-send "Debugger.setScriptSource"
+                 :params
+                 (list :scriptId kite-script-id
+                       :scriptSource (save-restriction
+                                       (widen)
+                                       (buffer-string))
+                       :preview :json-false)
+                 :success-function
+                 (lambda (result)
+                   ;; FIXME: use :callFrames to update context
+                   ;; information
+                   (message "Script updated")))
+    (message "Sorry, the remote debugger doesn't support setting\
  the script source")))
 
 (defun kite--create-remote-script-buffer (script-info
@@ -406,37 +407,6 @@ returned as a plist with keys `:url', `:line' and `:column'."
       (list :url (kite-script-info-url script-info)
             :line line
             :column column))))
-
-(defun kite-visit-script (script-info line column after-load-function)
-  "Visit the script described by the given SCRIPT-INFO and, once
-loaded, move point to LINE and COLUMN and execute
-AFTER-LOAD-FUNCTION with the new buffer current.  If a source map
-is available, go to the original location instead."
-  (interactive)
-  (let* ((original-source (kite-script-info--original-source
-                           script-info
-                           line
-                           column))
-         (url (plist-get original-source :url))
-         (url-parts (url-generic-parse-url url)))
-    (flet
-     ((after-load ()
-                  (goto-char (point-min))
-                  (forward-line
-                   (1- (plist-get original-source :line)))
-                  (beginning-of-line)
-                  (forward-char
-                   (plist-get original-source :column))
-                  (funcall after-load-function)))
-     (cond
-      ((string= (url-type url-parts) "file")
-       (find-file (url-filename url-parts))
-       (after-load))
-      (t
-       (switch-to-buffer
-        (or (get-buffer url)
-            (kite--create-remote-script-buffer
-             script-info (function after-load)))))))))
 
 (defun kite--debug-stats-mode-line-indicator ()
   "Returns a string to be displayed in the mode line"

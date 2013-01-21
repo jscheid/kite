@@ -112,6 +112,7 @@ remote WebKit debugger instance."
   document-root
   emulate-touch-events
   show-paint-rects
+  (requests-by-id (make-hash-table :test 'equal))
   disable-cache
   can-override-device-metrics
   can-override-geo-location
@@ -124,6 +125,7 @@ remote WebKit debugger instance."
   "Information about a script used in a debugging session.  Used
 to cache data received via the ` Debugger.scriptParsed'
 notification."
+  id
   url
   start-line
   start-column

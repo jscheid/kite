@@ -40,8 +40,9 @@
 
 (require 'kite-debug)
 (require 'kite-dom)
+(require 'kite-files)
 (require 'kite-memory)
-(require 'kite-net)
+(require 'kite-net2)
 (require 'kite-scratch)
 (require 'kite-object)
 (require 'kite-console)
