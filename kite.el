@@ -417,8 +417,8 @@ enters the empty string at the prompt."
                      completion-strings)
 
             (flet ((connect (selection)
-                            (message "Connected to tab %S" selection)
                             (when (> (length selection) 0)
+                              (message "Connecting to tab %S" selection)
                               (kite--connect-webservice
                                (car (gethash selection completion-strings)))
                               (plist-get
