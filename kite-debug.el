@@ -202,7 +202,7 @@ widget is activated."
                  (script-info
                   (gethash (plist-get location :scriptId)
                            (kite-session-script-infos kite-session)))
-                 (line-number (plist-get location :lineNumber))
+                 (line-number (1+ (plist-get location :lineNumber)))
                  (column-number (plist-get location :columnNumber))
                  (kite-session (gethash websocket-url
                                         kite-active-sessions)))
