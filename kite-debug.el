@@ -208,9 +208,9 @@ widget is activated."
                    :scriptId)
         (kite-session-script-infos kite-session)))
       ":"
-      (number-to-string (kite--get call-frame
-                                   :location
-                                   :lineNumber))
+      (number-to-string (1+ (kite--get call-frame
+                                       :location
+                                       :lineNumber)))
       ":"
       (number-to-string (kite--get call-frame
                                    :location
