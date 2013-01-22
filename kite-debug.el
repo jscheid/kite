@@ -149,13 +149,18 @@ correspond to one.")
   (kite-send "Debugger.setOverlayMessage")
   (message "Execution resumed"))
 
-(defun kite--insert-call-frame-widget (call-frame target-window)
+(defun kite--insert-call-frame-widget (call-frame
+                                       target-window
+                                       activate-function)
   "Insert a widget whose label describes CALL-FRAME using format
 `FUNCTION (URL:LINE:COLUMN)' and that visits the call frame
-location in TARGET-WINDOW when activated."
+location in TARGET-WINDOW when activated.  If ACTIVE-FUNCTION is
+not nil, invoke it with the widget as only argument when the
+widget is activated."
   (lexical-let
       ((-call-frame call-frame)
-       (-target-window target-window))
+       (-target-window target-window)
+       (-activate-function activate-function))
     (widget-create
      'link
      :size 1
@@ -163,7 +168,9 @@ location in TARGET-WINDOW when activated."
      :notify (lambda (widget &rest ignore)
                (with-selected-window -target-window
                  (kite-visit-location
-                  (plist-get -call-frame :location))))
+                  (plist-get -call-frame :location)))
+               (when -activate-function
+                 (funcall -activate-function widget)))
      (concat
       (plist-get call-frame :functionName)
       " ("
