@@ -149,6 +149,41 @@ correspond to one.")
   (kite-send "Debugger.setOverlayMessage")
   (message "Execution resumed"))
 
+(defun kite--insert-call-frame-widget (call-frame target-window)
+  "Insert a widget whose label describes CALL-FRAME using format
+`FUNCTION (URL:LINE:COLUMN)' and that visits the call frame
+location in TARGET-WINDOW when activated."
+  (lexical-let
+      ((-call-frame call-frame)
+       (-target-window target-window))
+    (widget-create
+     'link
+     :size 1
+     :offset 0
+     :notify (lambda (widget &rest ignore)
+               (with-selected-window -target-window
+                 (kite-visit-location
+                  (plist-get -call-frame :location))))
+     (concat
+      (plist-get call-frame :functionName)
+      " ("
+      (kite-script-info-url
+       (gethash
+        (kite--get call-frame
+                   :location
+                   :scriptId)
+        (kite-session-script-infos kite-session)))
+      ":"
+      (number-to-string (kite--get call-frame
+                                   :location
+                                   :lineNumber))
+      ":"
+      (number-to-string (kite--get call-frame
+                                   :location
+                                   :columnNumber))
+      ")\n"))))
+
+
 (defun kite--Debugger-paused (websocket-url packet)
   (kite-send "Debugger.setOverlayMessage"
              :params
@@ -444,6 +479,19 @@ bound to `kite-session', or nil if not found."
                  (setq result value)))
              (kite-session-script-infos kite-session))
     result))
+
+(defun kite-visit-location (location-plist)
+  "Visit the source file corresponding to the call frame given by
+LOCATION-PLIST, which should be a plist with at least the
+properties `:scriptId', `:lineNumber' and `:columnNumber'.  The
+variable `kite-session' should be bound to the session in which
+to visit the source file."
+  (kite-visit-script
+   (gethash
+    (plist-get location-plist :scriptId)
+    (kite-session-script-infos kite-session))
+   (1+ (plist-get location-plist :lineNumber))
+   (plist-get location-plist :columnNumber)))
 
 (defun kite-visit-stack-frame (stack-frame-plist)
   "Visit the source file corresponding to the stack frame given
