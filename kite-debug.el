@@ -83,7 +83,10 @@ for it, delete the window."
   (let ((inhibit-read-only t))
     (erase-buffer)
     (remove-overlays))
-
+  (setq widget-global-map
+        (let ((map (copy-keymap widget-global-map)))
+          (define-key map (kbd "RET") 'kite--object-toggle-disclosure)
+          map))
   (run-mode-hooks 'kite-stack-mode-hook))
 
 (defvar kite-debug-mode-map
