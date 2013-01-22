@@ -215,6 +215,8 @@ loaded, move point to LINE and COLUMN and execute
 AFTER-LOAD-FUNCTION with the new buffer current.  If a source map
 is available, go to the original location instead."
   (interactive)
+  (when (null script-info)
+    (error "Source is unavailable"))
   (lexical-let*
       ((source-map (kite-script-info-maybe-source-map script-info))
        (original-source (kite-script-info--original-source

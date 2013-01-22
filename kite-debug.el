@@ -451,18 +451,11 @@ by STACK-FRAME-PLIST, which should be a plist with at least the
 properties `:url', `:lineNumber' and `:columnNumber'.  The
 variable `kite-session' should be bound to the session in which
 to visit the source file."
-  (let ((line-number (plist-get stack-frame-plist :lineNumber))
-        (column-number (plist-get stack-frame-plist :columnNumber))
-        (script-info (kite-session-script-info-for-url
-                      (plist-get stack-frame-plist :url))))
-    (if script-info
-        (kite-visit-script
-         script-info
-         line-number
-         column-number
-         (lambda ()
-           (set (make-local-variable 'kite-session) kite-session)))
-      (error "Source is unavailable"))))
+  (kite-visit-script
+    (kite-session-script-info-for-url
+     (plist-get stack-frame-plist :url))
+    (plist-get stack-frame-plist :lineNumber)
+    (plist-get stack-frame-plist :columnNumber)))
 
 (provide 'kite-debug)
 
