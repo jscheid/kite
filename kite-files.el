@@ -395,7 +395,9 @@ she wants to use the local file contents instead."
             (when buffer-mode
               (funcall buffer-mode)))
           (setq kite-session -kite-session)
-          (setq kite-script-id (kite-script-info-id -script-info))
+          (when (not (null -script-info))
+            (setq kite-script-id (kite-script-info-id -script-info))
+            (kite-script-mode t))
           (when -after-load-url-function
             (funcall -after-load-url-function)))))
     (let ((existing-buffer (kite--find-buffer-visiting-url url)))
@@ -422,7 +424,10 @@ she wants to use the local file contents instead."
                                (insert (plist-get result
                                                   :scriptSource)))
                              (set-buffer-modified-p nil)
-                             (funcall post-initialize "text/javascript")))
+                             (funcall post-initialize "text/javascript")
+                             (set (make-local-variable
+                                   'kite-set-script-source-tick)
+                                  (buffer-chars-modified-tick))))
               (let ((request (kite--network-request-for-url url)))
                 (if request
                     ;; URL corresponds to a network resource

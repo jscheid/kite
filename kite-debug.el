@@ -169,7 +169,7 @@ correspond to one.")
      line-number
      column-number
      (lambda ()
-       (kite-debugging-mode)
+       (kite-script-mode)
        (set (make-local-variable 'kite-script-id)
             (plist-get location :scriptId))
        (set (make-local-variable 'kite-session)
@@ -231,7 +231,7 @@ correspond to one.")
 
 ;;; Augmented javascript-mode; loading of remote .js files
 
-(defvar kite-debugging-mode-map
+(defvar kite-script-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "C-c i") 'kite-step-into)
     (define-key map (kbd "C-c o") 'kite-step-over)
@@ -240,13 +240,34 @@ correspond to one.")
     (define-key map (kbd "C-c c") 'kite-continue-to-location)
     (define-key map (kbd "C-c C-c") 'kite-set-script-source)
     map)
-  "Local keymap for the `kite-debugging-mode' minor mode")
+  "Local keymap for the `kite-script-mode' minor mode")
 
-(define-minor-mode kite-debugging-mode
+(defvar kite--script-mode-line-element
+  '(:eval (kite--script-buffer-changed))
+  "Indicator used in mode-line-modified to show whether buffer
+changes have been sent to the server.")
+
+(define-minor-mode kite-script-mode
   "Toggle kite JavaScript debugging in this buffer."
   :group 'kite
   :lighter (:eval (kite--debug-stats-mode-line-indicator))
-  :keymap kite-debugging-mode-map)
+  :keymap kite-script-mode-map
+  (if kite-script-mode
+      (add-to-list 'mode-line-modified
+                   kite--script-mode-line-element
+                   t)
+    (setq mode-line-modified
+          (remq kite--script-mode-line-element
+                mode-line-modified))))
+
+(defun kite--script-buffer-changed ()
+  "Return a marker indicating whether changes to the buffer have
+been sent to the server."
+  (if (or (not (boundp 'kite-set-script-source-tick))
+          (< kite-set-script-source-tick
+             (buffer-chars-modified-tick)))
+      "*"
+    "-"))
 
 (defun kite-step-into ()
   "Step into the next instruction in the current or most recent
@@ -307,7 +328,9 @@ debugger."
                  (lambda (result)
                    ;; FIXME: use :callFrames to update context
                    ;; information
-                   (message "Script updated")))
+                   (set (make-local-variable
+                         'kite-set-script-source-tick)
+                        (buffer-chars-modified-tick))))
     (message "Sorry, the remote debugger doesn't support setting\
  the script source")))
 
