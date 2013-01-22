@@ -253,7 +253,7 @@ initialized."
   (or (let ((buf (kite--find-buffer websocket-url type)))
         (when buf
           (prog1
-              (switch-to-buffer buf)
+              buf
             (when after-load-function
               (funcall after-load-function)))))
       (lexical-let*
@@ -264,7 +264,6 @@ initialized."
                              type
                              (kite-session-unique-name -kite-session))))))
         (push buf (kite-session-buffers -kite-session))
-        (switch-to-buffer buf)
         (with-current-buffer buf
           (let ((kite-session -kite-session)
                 (mode (or use-major-mode

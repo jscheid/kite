@@ -555,12 +555,13 @@ Otherwise, create a new session using default host and port."
 
 (defun kite-maybe-goto-buffer (prefix type)
   "Find a session using `kite--find-default-session' and the
-given PREFIX argument.  If this results in a vaid session, switch
+given PREFIX argument.  If this results in a valid session, switch
 to the buffer of the given TYPE for that session, creating it if
 it doesn't exist yet."
   (let ((session (kite--find-default-session prefix)))
     (when session
-      (kite--get-buffer-create session type))))
+      (switch-to-buffer
+       (kite--get-buffer-create session type)))))
 
 ;;;###autoload
 (defun kite-console (prefix)

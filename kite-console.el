@@ -943,12 +943,14 @@ to the given OBJECT-ID."
              :success-function
              (lambda (result)
                (lexical-let ((lex-node-id (plist-get result :nodeId)))
-                 (kite--get-buffer-create
-                  (websocket-url (kite-session-websocket kite-session))
-                  'dom
-                  (lambda ()
-                    (kite-dom-goto-node
-                     lex-node-id)))))))
+                 (switch-to-buffer
+                  (kite--get-buffer-create
+                   (websocket-url
+                    (kite-session-websocket kite-session))
+                   'dom
+                   (lambda ()
+                     (kite-dom-goto-node
+                      lex-node-id))))))))
 
 (add-hook 'kite-Console-messageAdded-hooks
           'kite--console-messageAdded)
