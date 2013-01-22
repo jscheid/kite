@@ -64,13 +64,25 @@ correspond to one.")
     map)
   "Local keymap for `kite-stack-mode' buffers.")
 
+(defun kite--kill-stack-buffer ()
+  "If the stack buffer still lives in the window that was created
+for it, delete the window."
+  (let ((kite-stack-window
+         (window-with-parameter
+          'kite-stack-buffer
+          (current-buffer))))
+    (when (and kite-stack-window
+               (eq (window-buffer kite-stack-window)
+                   (current-buffer)))
+      (delete-window kite-stack-window))))
+
 (define-derived-mode kite-stack-mode special-mode "kite-stack"
   "Toggle kite stack mode."
   :group 'kite
   (setq kite-buffer-type 'stack)
   (setq buffer-read-only nil)
   (set (make-local-variable 'paragraph-start) "^[^ ]")
-
+  (add-hook 'kill-buffer-hook 'kite--kill-stack-buffer nil t)
   (let ((inhibit-read-only t))
     (erase-buffer)
     (remove-overlays))
@@ -179,6 +191,10 @@ correspond to one.")
 
 (defun kite--Debugger-resumed (websocket-url packet)
   (kite-send "Debugger.setOverlayMessage")
+  (let ((kite-stack-buffer
+         (kite--find-buffer websocket-url 'stack)))
+    (when kite-stack-buffer
+      (kill-buffer kite-stack-buffer)))
   (message "Execution resumed"))
 
 (defun kite--insert-call-frame-widget (call-frame
@@ -258,6 +274,9 @@ widget is activated."
                        stack-buffer
                        (list (cons 'display-buffer-pop-up-window
                                    nil)))))
+         (set-window-parameter window
+                               'kite-stack-buffer
+                               stack-buffer)
          (with-current-buffer stack-buffer
            (set (make-local-variable 'kite-session) kite-session)
            (set (make-local-variable 'widget-link-prefix) "")
