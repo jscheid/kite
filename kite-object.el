@@ -223,6 +223,7 @@ given PROPERTIES vector."
 (defun kite--object-insert-child-props-async (parent-widget result)
   (let ((inhibit-read-only t))
     (save-excursion
+      (goto-char (widget-get parent-widget :from))
       (widget-end-of-line)
       (let ((overlays (mapcar (lambda (overlay)
                                 (list overlay
