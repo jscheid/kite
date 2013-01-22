@@ -449,7 +449,7 @@ existing breakpoints in newly visited buffers."
                 (location-point
                  (save-excursion
                    (widen)
-                   (beginning-of-buffer)
+                   (goto-char 0)
                    (forward-line (plist-get location :lineNumber))
                    (forward-char (plist-get location :columnNumber))
                    (point)))
