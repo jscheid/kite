@@ -285,7 +285,7 @@ of generated (or original) source."
                         mapping)))
                 (let* ((relative-url
                         (kite--url-expand-file-name
-                         (kite-source-mapping-source prev-mapping)
+                         (kite-source-mapping-source mapping)
                          generated-url)))
                   `(lambda (old new)
                      (kite--source-map-point-motion
@@ -296,11 +296,11 @@ of generated (or original) source."
                         mapping)))))))
         (let ((was-modified-p (buffer-modified-p))
               (line-function
-               (if source
+               (if kite--buffer-source
                    #'kite-source-mapping-original-line
                  #'kite-source-mapping-generated-line))
               (column-function
-               (if source
+               (if kite--buffer-source
                    #'kite-source-mapping-original-column
                  #'kite-source-mapping-generated-column)))
           (widen)
@@ -331,12 +331,12 @@ of generated (or original) source."
                     (make-point-entered-fun prev-mapping)))
                  (setq prev-mapping mapping)
                  (setq prev-point (point))))
-             (if (null source)
+             (if (null kite--buffer-source)
                  (kite-source-map-generated-mappings source-map)
                (remove-if
                 (lambda (mapping)
                   (not (string= (kite-source-mapping-source mapping)
-                                source)))
+                                kite--buffer-source)))
                 (kite-source-map-generated-mappings source-map))))
             (goto-char (point-max))
             (put-text-property prev-point (point)
@@ -435,7 +435,7 @@ she wants to use the local file contents instead."
                     ;; URL corresponds to a network resource
                     (kite-send "Network.getResponseBody"
                                :params
-                               `(requestId ,kite-request-id request)
+                               `(requestId ,(kite-request-id request))
                                :success-function
                                (lambda (result)
                                  (save-excursion
@@ -449,7 +449,9 @@ she wants to use the local file contents instead."
                                      (plist-get result :body)))
                                    (set-buffer-modified-p nil)
                                    (funcall post-initialize
-                                            (kite-request-mime-type)))))
+                                            (plist-get
+                                             (kite-request-response request)
+                                             :mimeType)))))
                   ;; URL doesn't correspond to either script or network
                   ;; request
                   (let ((url-http-attempt-keepalives t))
