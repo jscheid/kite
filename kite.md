@@ -414,6 +414,7 @@ default:
 Key Binding     Incantation                Description
 --------------  -------------------------  ---------------------------------------
 `C-c C-k !`     `kite-reload-page`         Reload the page; ignore cache with prefix
+`C-c C-k v`     `kite-visit`               Visit a page resource in a buffer
 
 <!-- NOT YET IMPLEMENTED
 `C-c C-k C-r`   `kite-resume`              Resume execution

@@ -486,6 +486,7 @@ the title and makes no attempt at uniquifying it."
     (define-key map "r" 'kite-resources)
     (define-key map "t" 'kite-timeline)
     (define-key map "s" 'kite-scratch)
+    (define-key map "v" 'kite-visit)
     (define-key map "!" 'kite-reload-page)
     (define-key map (kbd "C-b") kite-breakpoint-keymap)
     map)
