@@ -162,15 +162,57 @@
    (:constructor
     make-kite-location-breakpoint
     (&key
-     locations
+     location
      condition
      &aux
      (to-string-function 'kite--location-breakpoint-to-string)
      (set-function 'kite--set-location-breakpoint)
      (remove-function 'kite--remove-location-breakpoint)
      (sort-priority 2))))
-  locations
-  condition)
+  location
+  condition
+  actual-location
+  id)
+
+(defun kite--set-location-breakpoint (breakpoint response-handler)
+  (lexical-let
+      ((params
+        (list :location (kite-location-breakpoint-location
+                         breakpoint)))
+       (condition (kite-location-breakpoint-condition
+                   breakpoint))
+       (-response-handler response-handler)
+       (-breakpoint breakpoint))
+    (unless (null condition)
+      (setq params (append params
+                           (list :condition condition))))
+    (kite-send
+     "Debugger.setBreakpoint"
+     :params params
+     :success-function
+     (lambda (result)
+       (setf (kite-location-breakpoint-actual-location -breakpoint)
+             (plist-get result :actualLocation))
+       (setf (kite-location-breakpoint-id -breakpoint)
+             (plist-get result :breakpointId))
+       (funcall -response-handler result)))))
+
+(defun kite--remove-location-breakpoint (breakpoint response-handler)
+  (kite-send "Debugger.removeBreakpoint"
+             :params '(:breakpointId
+                       (kite-location-breakpoint-id breakpoint))
+             :success-function response-handler))
+
+(defun kite--location-breakpoint-to-string (breakpoint)
+  "Return the string representation of breakpoints of type `location'"
+  (let ((location (kite-location-breakpoint-actual-location
+                   breakpoint)))
+    (format "at %s line %d column %d"
+            (kite-script-info-url
+             (gethash (plist-get location :scriptId)
+                      (kite-session-script-infos kite-session)))
+            (1+ (plist-get location :lineNumber))
+            (plist-get location :columnNumber))))
 
 ;; DOM Node breakpoints
 
