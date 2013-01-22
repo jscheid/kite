@@ -42,8 +42,29 @@
 
 ;;; Code:
 
-(require 'kite-debug)
+(require 'kite-global)
+(require 'kite-net2)
+(require 'kite-sourcemap)
 (require 'url-http)
+
+(defvar kite-set-script-source-tick nil
+  "Keeps the last time a script was sent to the server in a
+buffer-local variable in buffers with kite-script-mode enabled.")
+
+(defvar kite-script-id nil
+  "Keeps the scriptId in a buffer-local variable in buffers that
+correspond to one.")
+
+(defvar kite--buffer-source nil
+  "Keeps the source (in terms of source maps) of the current
+buffer in a buffer local variable.")
+
+(defvar kite--buffer-source-map nil
+  "Keeps the source map of the current buffer in a buffer local
+variable.")
+
+(defvar kite--buffer-url nil
+  "Keeps the current buffer's URL in a buffer local variable.")
 
 (defcustom kite-resolve-url-file-function
   'kite-resolve-url-file
@@ -95,6 +116,45 @@ files."
   :group 'kite
   :type '(repeat (list (regexp :tag "MIME type")
                        (function :tag "Display function"))))
+
+(defvar kite-script-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "C-c i") 'kite-step-into)
+    (define-key map (kbd "C-c o") 'kite-step-over)
+    (define-key map (kbd "C-c u") 'kite-step-out)
+    (define-key map (kbd "C-c r") 'kite-resume)
+    (define-key map (kbd "C-c c") 'kite-continue-to-location)
+    (define-key map (kbd "C-c t") 'kite-set-breakpoint-at-point)
+    (define-key map (kbd "C-c C-c") 'kite-set-script-source)
+    map)
+  "Local keymap for the `kite-script-mode' minor mode")
+
+(defvar kite--script-mode-line-element
+  '(:eval (kite--script-buffer-changed))
+  "Indicator used in mode-line-modified to show whether buffer
+changes have been sent to the server.")
+
+(define-minor-mode kite-script-mode
+  "Toggle kite JavaScript debugging in this buffer."
+  :group 'kite
+  :lighter (:eval (kite--debug-stats-mode-line-indicator))
+  :keymap kite-script-mode-map
+  (if kite-script-mode
+      (add-to-list 'mode-line-modified
+                   kite--script-mode-line-element
+                   t)
+    (setq mode-line-modified
+          (remq kite--script-mode-line-element
+                mode-line-modified))))
+
+(defun kite--script-buffer-changed ()
+  "Return a marker indicating whether changes to the buffer have
+been sent to the server."
+  (if (or (not (boundp 'kite-set-script-source-tick))
+          (< kite-set-script-source-tick
+             (buffer-chars-modified-tick)))
+      "*"
+    "-"))
 
 (defun kite-session-script-info-for-url (url)
   "Return the script-info entry for the given URL in the session

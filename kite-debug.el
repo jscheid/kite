@@ -36,6 +36,7 @@
 (require 'kite-sourcemap)
 (require 'kite-global)
 (require 'kite-object)
+(require 'kite-files)
 (require 'cl)
 (require 'url-expand)
 (require 'ewoc)
@@ -50,10 +51,6 @@
   '((t (:inherit warning)))
   "Face used to highlight breakpoint markers."
   :group 'kite-highlighting-faces)
-
-(defvar kite-script-id nil
-  "Keeps the scriptId in a buffer-local variable in buffers that
-correspond to one.")
 
 (defvar kite-stack-mode-map
   (let ((map (make-composed-keymap
@@ -341,45 +338,6 @@ widget is activated."
 
 ;;; Augmented javascript-mode; loading of remote .js files
 
-(defvar kite-script-mode-map
-  (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "C-c i") 'kite-step-into)
-    (define-key map (kbd "C-c o") 'kite-step-over)
-    (define-key map (kbd "C-c u") 'kite-step-out)
-    (define-key map (kbd "C-c r") 'kite-resume)
-    (define-key map (kbd "C-c c") 'kite-continue-to-location)
-    (define-key map (kbd "C-c t") 'kite-set-breakpoint-at-point)
-    (define-key map (kbd "C-c C-c") 'kite-set-script-source)
-    map)
-  "Local keymap for the `kite-script-mode' minor mode")
-
-(defvar kite--script-mode-line-element
-  '(:eval (kite--script-buffer-changed))
-  "Indicator used in mode-line-modified to show whether buffer
-changes have been sent to the server.")
-
-(define-minor-mode kite-script-mode
-  "Toggle kite JavaScript debugging in this buffer."
-  :group 'kite
-  :lighter (:eval (kite--debug-stats-mode-line-indicator))
-  :keymap kite-script-mode-map
-  (if kite-script-mode
-      (add-to-list 'mode-line-modified
-                   kite--script-mode-line-element
-                   t)
-    (setq mode-line-modified
-          (remq kite--script-mode-line-element
-                mode-line-modified))))
-
-(defun kite--script-buffer-changed ()
-  "Return a marker indicating whether changes to the buffer have
-been sent to the server."
-  (if (or (not (boundp 'kite-set-script-source-tick))
-          (< kite-set-script-source-tick
-             (buffer-chars-modified-tick)))
-      "*"
-    "-"))
-
 (defun kite-step-into ()
   "Step into the next instruction in the current or most recent
 session.  Sends `Debugger.stepInto' to the remote debugger."
@@ -556,34 +514,6 @@ source map is loaded and parsed only once."
                     err
                     (kite-session-source-map-cache kite-session))
            (signal (car err) (cdr err)))))))))
-
-(defun kite-script-info--original-source (script-info line column)
-  "Return original URL, line, and column corresponding to the
-given SCRIPT-INFO, LINE, and COLUMN.  The original location is
-returned as a plist with keys `:url', `:line' and `:column'."
-  (let ((source-map
-         (condition-case err
-             (kite-script-info--source-map-cached script-info)
-           (error
-            ;; In case of error, display error and fall back to
-            ;; generated source
-            (message (cdr err))
-            nil))))
-    (if source-map
-        (let ((original-pos
-               (kite-source-map-original-position-for
-                source-map
-                line
-                column)))
-          (list :url
-                (url-expand-file-name
-                 (plist-get original-pos :source)
-                 (kite-script-info-url script-info))
-                :line (plist-get original-pos :line)
-                :column (plist-get original-pos :column)))
-      (list :url (kite-script-info-url script-info)
-            :line line
-            :column column))))
 
 (defun kite--debug-stats-mode-line-indicator ()
   "Returns a string to be displayed in the mode line"
