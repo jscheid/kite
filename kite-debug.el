@@ -46,6 +46,11 @@
   "Face used to highlight the current call frame."
   :group 'kite-highlighting-faces)
 
+(defface kite-script-breakpoint-face
+  '((t (:inherit warning)))
+  "Face used to highlight breakpoint markers."
+  :group 'kite-highlighting-faces)
+
 (defvar kite-script-id nil
   "Keeps the scriptId in a buffer-local variable in buffers that
 correspond to one.")
@@ -324,6 +329,7 @@ widget is activated."
     (define-key map (kbd "C-c u") 'kite-step-out)
     (define-key map (kbd "C-c r") 'kite-resume)
     (define-key map (kbd "C-c c") 'kite-continue-to-location)
+    (define-key map (kbd "C-c t") 'kite-set-breakpoint-at-point)
     (define-key map (kbd "C-c C-c") 'kite-set-script-source)
     map)
   "Local keymap for the `kite-script-mode' minor mode")
@@ -396,6 +402,49 @@ session.  Sends `Debugger.stepOut' to the remote debugger."
                                          (widen)
                                          (line-number-at-pos (point)))
                            :columnNumber (current-column))))))
+
+(defun kite-set-breakpoint-at-point ()
+  "Set a location breakpoint at point.
+
+TODO: displaying the breakpoint in the buffer should not be done
+here but in a separate function which can be reused to display
+existing breakpoints in newly visited buffers."
+  (interactive)
+  (let ((kite-session (kite--select-session)))
+    (lexical-let
+        ((breakpoint
+          (make-kite-location-breakpoint
+           :location (list :scriptId kite-script-id
+                           :lineNumber (save-restriction
+                                         (widen)
+                                         (1- (line-number-at-pos
+                                              (point))))
+                           :columnNumber (current-column))
+           :condition nil)))
+      (kite--session-add-breakpoint
+       kite-session
+       breakpoint
+       (lambda (result)
+         (let* ((location (kite-location-breakpoint-actual-location
+                           breakpoint))
+                (location-point
+                 (save-excursion
+                   (widen)
+                   (beginning-of-buffer)
+                   (forward-line (plist-get location :lineNumber))
+                   (forward-char (plist-get location :columnNumber))
+                   (point)))
+                (breakpoint-overlay
+                 (make-overlay location-point location-point)))
+           (overlay-put breakpoint-overlay
+                        'face
+                        'kite-node-highlight-face)
+           (overlay-put breakpoint-overlay
+                        'before-string
+                        (propertize
+                         "<BREAK>"
+                         'face
+                         'kite-script-breakpoint-face))))))))
 
 (defun kite-set-script-source ()
   "Send the buffer contents as the new contents for the script.
