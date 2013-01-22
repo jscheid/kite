@@ -28,10 +28,11 @@ ELISP_SOURCES = \
 	kite-debug.el		\
 	kite-dom-css.el		\
 	kite-dom.el		\
+	kite-files.el		\
 	kite-global.el		\
 	kite-memory.el		\
 	kite-modeline.el	\
-	kite-net.el		\
+	kite-net2.el		\
 	kite-object.el		\
 	kite-scratch.el		\
 	kite-sourcemap.el	\
