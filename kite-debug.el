@@ -45,6 +45,28 @@
   "Keeps the scriptId in a buffer-local variable in buffers that
 correspond to one.")
 
+(defvar kite-stack-mode-map
+  (let ((map (make-composed-keymap
+              (copy-keymap widget-keymap)
+              (copy-keymap special-mode-map))))
+    (suppress-keymap map t)
+    (kite--define-global-mode-keys map)
+    map)
+  "Local keymap for `kite-stack-mode' buffers.")
+
+(define-derived-mode kite-stack-mode special-mode "kite-stack"
+  "Toggle kite stack mode."
+  :group 'kite
+  (setq kite-buffer-type 'stack)
+  (setq buffer-read-only nil)
+  (set (make-local-variable 'paragraph-start) "^[^ ]")
+
+  (let ((inhibit-read-only t))
+    (erase-buffer)
+    (remove-overlays))
+
+  (run-mode-hooks 'kite-stack-mode-hook))
+
 (defvar kite-debug-mode-map
   (let ((map (make-keymap))
 	(ctl-c-b-map (make-keymap))
@@ -218,13 +240,15 @@ widget is activated."
             kite-session)
 
        (let* ((current-window (selected-window))
-              (stack-buffer (get-buffer-create "*kite stack*"))
+              (stack-buffer (kite--get-buffer-create
+                             (websocket-url
+                              (kite-session-websocket kite-session))
+                             'stack))
               (window (display-buffer
                        stack-buffer
                        (list (cons 'display-buffer-pop-up-window
                                    nil)))))
          (with-current-buffer stack-buffer
-           (special-mode)
            (set (make-local-variable 'kite-session) kite-session)
            (set (make-local-variable 'widget-link-prefix) "")
            (set (make-local-variable 'widget-link-suffix) "")
