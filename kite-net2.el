@@ -32,6 +32,8 @@
 ;;; Code:
 
 (require 'kite-global)
+(require 'kite-util)
+(require 'ewoc)
 
 (defstruct (kite-request)
   "Information about a network request."
