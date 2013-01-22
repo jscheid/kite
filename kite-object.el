@@ -230,23 +230,38 @@ given PROPERTIES vector."
                                       (overlay-start overlay)
                                       (overlay-end overlay)))
                               (overlays-at (- (point) 1)))))
-      (widget-put
-       parent-widget
-       :children
-       (mapcar
-        (lambda (property)
-          (kite--object-create-property-widget parent-widget property))
-         (sort (remove-if
-                (lambda (property)
-                  (not (plist-member property :value)))
-                (append (plist-get result :result) nil))
-               (lambda (a b)
-                 (or (string= (plist-get b :name) "__proto__")
-                     (and (not (string= (plist-get a :name) "__proto__"))
-                          (string< (plist-get a :name)
-                                   (plist-get b :name))))))))
-      (dolist (overlay overlays)
-        (apply 'move-overlay overlay)))))
+        (widget-put
+         parent-widget
+         :children
+         (mapcar
+          (lambda (property)
+            (kite--object-create-property-widget parent-widget
+                                                 property))
+          (sort
+           (remove-if
+            (lambda (property)
+              (not (plist-member property :value)))
+            (append (plist-get result :result) nil))
+           (lambda (a b)
+             (flet ((is-lower (property)
+                              (let ((char (elt
+                                           (plist-get property :name)
+                                           0)))
+                                (if (eq char (char-table-range
+                                              (standard-case-table)
+                                              char))
+                                    0 1))))
+               (or (string= (plist-get b :name) "__proto__")
+                   (and (not (string= (plist-get a :name)
+                                      "__proto__"))
+                        (let ((lower-a (is-lower a))
+                              (lower-b (is-lower b)))
+                          (or (< lower-a lower-b)
+                              (and (eq lower-a lower-b)
+                                   (string< (plist-get a :name)
+                                            (plist-get b :name))))))))))))
+        (dolist (overlay overlays)
+          (apply 'move-overlay overlay)))))
   (widget-setup))
 
 (defun kite--object-create-property-widget (parent-widget property)
