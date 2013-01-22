@@ -41,6 +41,11 @@
 (require 'ewoc)
 (require 'wid-edit)
 
+(defface kite-call-frame-face
+  '((t (:inherit highlight-current-line)))
+  "Face used to highlight the current call frame."
+  :group 'kite-highlighting-faces)
+
 (defvar kite-script-id nil
   "Keeps the scriptId in a buffer-local variable in buffers that
 correspond to one.")
@@ -255,18 +260,37 @@ widget is activated."
            (let ((inhibit-read-only t))
              (erase-buffer)
              (save-excursion
-               (mapc (lambda (call-frame)
-                       (kite--insert-call-frame-widget call-frame
-                                                       current-window)
-                       (mapc (lambda (scope)
-                               (kite--insert-object-widget
-                                (kite--get scope :object :objectId)
-                                (concat "  " (kite--get scope :type))
-                                2)
-                               (insert "\n"))
-                             (plist-get call-frame :scopeChain)))
-                     call-frames)
-               (use-local-map widget-keymap)
+               (lexical-let (all-call-frame-widgets)
+                 (mapc (lambda (call-frame)
+                         (push
+                          (kite--insert-call-frame-widget
+                           call-frame
+                           current-window
+                           (lambda (widget)
+                             (mapc (lambda (other-widget)
+                                     (overlay-put
+                                      (widget-get other-widget
+                                                  :button-overlay)
+                                      'face nil))
+                                   all-call-frame-widgets)
+                             (overlay-put
+                              (widget-get widget :button-overlay)
+                              'face 'kite-call-frame-face)))
+                          all-call-frame-widgets)
+                         (unless (cdr all-call-frame-widgets)
+                           (overlay-put
+                            (widget-get (car all-call-frame-widgets)
+                                        :button-overlay)
+                            'face 'kite-call-frame-face))
+                         (mapc (lambda (scope)
+                                 (kite--insert-object-widget
+                                  (kite--get scope :object :objectId)
+                                  (concat "  "
+                                          (kite--get scope :type))
+                                  2)
+                                 (insert "\n"))
+                               (plist-get call-frame :scopeChain)))
+                       call-frames))
                (widget-setup)))))
        (message "Execution paused")))))
 
