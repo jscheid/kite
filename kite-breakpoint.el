@@ -374,9 +374,13 @@
   (find-if predicate
            (kite-session-breakpoint-list kite-session)))
 
-(defun kite--session-add-breakpoint (kite-session breakpoint)
+(defun kite--session-add-breakpoint (kite-session
+                                     breakpoint
+                                     &optional
+                                     success-function)
   (lexical-let ((lex-kite-session kite-session)
-                (lex-breakpoint breakpoint))
+                (lex-breakpoint breakpoint)
+                (lex-success-function success-function))
     (kite--set-breakpoint
      breakpoint
      (lambda (result)
@@ -387,6 +391,8 @@
               (lambda (a b)
                 (< (kite-breakpoint-sort-priority a)
                    (kite-breakpoint-sort-priority b)))))
+       (when lex-success-function
+         (funcall lex-success-function result))
        (message "Breakpoint set")))))
 
 (defun kite--session-remove-breakpoints (kite-session predicate)
