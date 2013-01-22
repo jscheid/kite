@@ -34,6 +34,7 @@
 (require 'kite-global)
 (require 'cl)
 (require 'color)
+(require 'url-expand)
 (require 'url-parse)
 (require 'wid-edit)
 
@@ -290,6 +291,9 @@ debugger API `RGBA' structure format."
     (g . ,g)
     (b . ,b)
     (a . ,a)))
+
+(defun kite--url-expand-file-name (url &optional default)
+  (url-expand-file-name url default))
 
 (provide 'kite-util)
 
