@@ -45,7 +45,7 @@
   request-timestamp
   initiator
   redirect-response
-  was-served-from-cached-p
+  was-served-from-cache-p
   resource-type
   response-timestamp
   response
@@ -675,9 +675,9 @@ network buffer, if available."
   (let ((request (kite-session-request-for-id
                   kite-session
                   (plist-get packet :requestId))))
-    (setf (kite-request-data-error-text request)
+    (setf (kite-request-error-text request)
           (plist-get packet :errorText))
-    (setf (kite-request-data-canceled-p request)
+    (setf (kite-request-canceled-p request)
           (eq t (plist-get packet :canceled)))
     (setf (kite-request-loading-failed-timestamp request)
           (plist-get packet :timestamp))
