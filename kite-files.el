@@ -405,7 +405,7 @@ she wants to use the local file contents instead."
           (progn
             (switch-to-buffer existing-buffer)
             (setq kite-session -kite-session)
-            (post-initialize))
+            (funcall after-load-url-function))
         (lexical-let ((buffer (kite--create-url-buffer url)))
           (switch-to-buffer buffer)
           (with-current-buffer buffer
