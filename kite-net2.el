@@ -67,7 +67,7 @@
 is an arbitrary non-whitespace character used for such text.")
 
 (defconst kite--network-header-string
-  (eval-when-compile
+  (eval-when '(compile load)
     (propertize
      (concat
       (kite--fill-overflow
