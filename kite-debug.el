@@ -210,7 +210,8 @@ location in TARGET-WINDOW when activated."
        (set (make-local-variable 'kite-session)
             kite-session)
 
-       (let* ((stack-buffer (get-buffer-create "*kite stack*"))
+       (let* ((current-window (selected-window))
+              (stack-buffer (get-buffer-create "*kite stack*"))
               (window (display-buffer
                        stack-buffer
                        (list (cons 'display-buffer-pop-up-window
@@ -224,13 +225,8 @@ location in TARGET-WINDOW when activated."
              (erase-buffer)
              (save-excursion
                (mapc (lambda (call-frame)
-                       (insert (concat
-                                (plist-get call-frame :functionName)
-                                " ("
-                                (kite-script-info-url script-info)
-                                ":"
-                                (number-to-string line-number)
-                                ")\n"))
+                       (kite--insert-call-frame-widget call-frame
+                                                       current-window)
                        (mapc (lambda (scope)
                                (kite--insert-object-widget
                                 (kite--get scope :object :objectId)
