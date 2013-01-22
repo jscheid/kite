@@ -245,6 +245,7 @@ widget is activated."
              (list :message "Paused in kite debugger"))
 
   (lexical-let* ((call-frames (plist-get packet :callFrames))
+                 (data (plist-get packet :data))
                  (first-call-frame (elt call-frames 0))
                  (location (plist-get first-call-frame :location))
                  (script-info
@@ -284,6 +285,15 @@ widget is activated."
            (let ((inhibit-read-only t))
              (erase-buffer)
              (save-excursion
+               (overlay-put
+                (widget-get
+                 (kite--insert-object-widget
+                  (kite--get data :objectId)
+                  (kite--get data :description)
+                  0)
+                 :button-overlay)
+                'face 'error)
+               (widget-insert "\n\n")
                (lexical-let (all-call-frame-widgets)
                  (mapc (lambda (call-frame)
                          (push
@@ -312,7 +322,7 @@ widget is activated."
                                   (concat "  "
                                           (kite--get scope :type))
                                   2)
-                                 (insert "\n"))
+                                 (widget-insert "\n"))
                                (plist-get call-frame :scopeChain)))
                        call-frames))
                (widget-setup)))))
