@@ -830,6 +830,24 @@ recent session."
        (message "Cache is %s"
                 (if enabledp "disabled" "enabled"))))))
 
+(defun kite-screenshot ()
+  "Take a screenshot of the browser tab and visit it in a new
+buffer."
+  (interactive)
+  (lexical-let ((kite-session (kite--select-session)))
+    (kite-send
+     "Page.captureScreenshot"
+     :success-function
+     (lambda (result)
+       (switch-to-buffer
+        (generate-new-buffer
+         (format "*kite screenshot %s %s*"
+                 (kite-session-unique-name kite-session)
+                 (format-time-string "%Y-%m-%dT%T%z"))))
+       (insert (plist-get result :data))
+       (base64-decode-region (point-min) (point-max))
+       (image-mode)))))
+
 (defun kite--reload ()
   "Force reloading kite and all dependent modules after closing
 any running sessions.
