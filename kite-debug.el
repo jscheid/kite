@@ -249,6 +249,7 @@ widget is activated."
 
   (lexical-let* ((call-frames (plist-get packet :callFrames))
                  (data (plist-get packet :data))
+                 (reason (plist-get packet :reason))
                  (first-call-frame (elt call-frames 0))
                  (location (plist-get first-call-frame :location))
                  (script-info
@@ -288,14 +289,21 @@ widget is activated."
            (let ((inhibit-read-only t))
              (erase-buffer)
              (save-excursion
-               (overlay-put
-                (widget-get
-                 (kite--insert-object-widget
-                  (kite--get data :objectId)
-                  (kite--get data :description)
-                  0)
-                 :button-overlay)
-                'face 'error)
+               (case (intern reason)
+                 (other
+                  (insert "Execution paused"))
+                 (EventListener
+                  (insert (format "DOM event breakpoint: %s"
+                                  (plist-get data :eventName))))
+                 (exception
+                  (overlay-put
+                   (widget-get
+                    (kite--insert-object-widget
+                     (kite--get data :objectId)
+                     (kite--get data :description)
+                     0)
+                    :button-overlay)
+                   'face 'error)))
                (widget-insert "\n\n")
                (lexical-let (all-call-frame-widgets)
                  (mapc (lambda (call-frame)
