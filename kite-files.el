@@ -523,7 +523,7 @@ she wants to use the local file contents instead."
                                (progn
                                  (goto-char (point-min))
                                  (when (re-search-forward
-                                        "^Content-Type: \\([^;]*\\)")
+                                        "^Content-Type: \\([^;\r\n]*\\)")
                                    (match-string 1)))))
                          (with-current-buffer buffer
                            (save-excursion
