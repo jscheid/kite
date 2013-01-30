@@ -492,7 +492,7 @@ she wants to use the local file contents instead."
                     ;; URL corresponds to a network resource
                     (kite-send "Network.getResponseBody"
                                :params
-                               `(requestId ,(kite-request-id request))
+                               (list :requestId (kite-request-id request))
                                :success-function
                                (lambda (result)
                                  (save-excursion
