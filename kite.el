@@ -177,10 +177,11 @@ to all session buffers saying that the session is closed."
 Kite session was closed by the remote debugging server: %s"
                (kite-session-page-title kite-session))
       (dolist (kite-buffer (kite-session-buffers kite-session))
-        (with-current-buffer kite-buffer
-          (set (make-local-variable 'header-line-format)
-               (propertize "*** Kite session closed ***"
-                           'face 'kite-session-closed))))
+        (when (buffer-live-p kite-buffer)
+          (with-current-buffer kite-buffer
+            (set (make-local-variable 'header-line-format)
+                 (propertize "*** Kite session closed ***"
+                             'face 'kite-session-closed)))))
       (remhash (websocket-url (kite-session-websocket kite-session))
                kite-active-sessions)
       (setq kite-active-session-list
