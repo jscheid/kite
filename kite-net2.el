@@ -607,7 +607,7 @@ and re-rendering the network buffer, if available."
           :id (plist-get packet :requestId)
           :frame-id (plist-get packet :frameId)
           :loader-id (plist-get packet :loaderId)
-          :document-url (plist-get packet :documentUrl)
+          :document-url (plist-get packet :documentURL)
           :request (plist-get packet :request)
           :request-timestamp (plist-get packet :timestamp)
           :initiator (plist-get packet :initiator)
