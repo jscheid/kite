@@ -122,8 +122,7 @@ hooks corresponding to the response method are run.  For example,
 if the response method is `Page.frameNavigated' then
 `kite-Page-frameNavigated-hooks' are run."
   ;;;(kite--log "received frame: %s" frame)
-  (let ((buf (current-buffer))
-        (kite-session (gethash (websocket-url websocket)
+  (let ((kite-session (gethash (websocket-url websocket)
                                kite-active-sessions)))
     (when (and (eq (aref frame 0) 'cl-struct-websocket-frame)
                (eq (aref frame 1) 'text))
@@ -133,26 +132,28 @@ if the response method is `Page.frameNavigated' then
         (kite--log "received message: %s"
                    (pp-to-string response))
         (when (listp response)
-          (with-current-buffer buf
-            (let ((response-id (plist-get response :id)))
-              (if response-id
-                  (let ((callback-info
-                         (gethash response-id
-                                  (kite-session-pending-requests
-                                   kite-session))))
-                    (remhash response-id
-                             (kite-session-pending-requests
-                              kite-session))
-                    (when (buffer-live-p (nth 2 callback-info))
-                      (with-current-buffer (nth 2 callback-info)
-                        (if (plist-member response :error)
-                            (apply (nth 1 callback-info)
-                                   (plist-get response :error)
-                                   (nth 3 callback-info))
-                          (apply (nth 0 callback-info)
-                                 (plist-get response :result)
-                                 (nth 3 callback-info))))))
+          (let ((response-id (plist-get response :id)))
+            (if response-id
+                (let ((callback-info
+                       (gethash response-id
+                                (kite-session-pending-requests
+                                 kite-session))))
+                  (remhash response-id
+                           (kite-session-pending-requests
+                            kite-session))
+                  (when (buffer-live-p (nth 2 callback-info))
+                    (with-current-buffer (nth 2 callback-info)
+                      (if (plist-member response :error)
+                          (apply (nth 1 callback-info)
+                                 (plist-get response :error)
+                                 (nth 3 callback-info))
+                        (apply (nth 0 callback-info)
+                               (plist-get response :result)
+                               (nth 3 callback-info))))))
 
+              (let ((kite-session
+                     (gethash (websocket-url websocket)
+                              kite-active-sessions)))
                 (run-hook-with-args
                  (intern
                   (concat "kite-"
