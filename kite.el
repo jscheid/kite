@@ -454,6 +454,21 @@ prefix argument ARG, ignore (force-refresh) the browser cache."
                      (message "Page reloaded (with cache ignored)")
                    (message "Page reloaded"))))))
 
+(defun kite-navigate-page (url)
+  "Navigate the page associated with the current buffer to a new
+URL."
+  (interactive "F")
+  (unless kite-most-recent-session
+    (error "No kite session active"))
+  (lexical-let ((kite-session (gethash kite-most-recent-session
+                                       kite-active-sessions)))
+    (kite-send "Page.navigate"
+               :params
+               (list :url url)
+               :success-function
+               (lambda (result)
+                 (message "Page navigated")))))
+
 (defun kite--unique-session-name (title)
   "Create a unique name for the session, given the tab TITLE string.
 May rename existing sessions.  FIXME: this currently just returns
