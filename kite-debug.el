@@ -221,7 +221,9 @@ widget is activated."
                (when -activate-function
                  (funcall -activate-function widget)))
      (concat
-      (plist-get call-frame :functionName)
+      (if (not (string= "" (plist-get call-frame :functionName)))
+          (plist-get call-frame :functionName)
+        "(anonymous function)")
       " ("
       (kite-script-info-url
        (gethash
