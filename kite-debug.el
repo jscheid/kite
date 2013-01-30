@@ -71,7 +71,8 @@ for it, delete the window."
     (when (and kite-stack-window
                (eq (window-buffer kite-stack-window)
                    (current-buffer)))
-      (delete-window kite-stack-window))))
+      (ignore-errors
+        (delete-window kite-stack-window)))))
 
 (define-derived-mode kite-stack-mode special-mode "kite-stack"
   "Toggle kite stack mode."
