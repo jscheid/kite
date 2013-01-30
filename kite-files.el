@@ -450,10 +450,7 @@ she wants to use the local file contents instead."
        (post-initialize
         (lambda (mime-type)
           (let ((buffer-mode
-                 (nth 1 (find-if (lambda (candidate)
-                                   (string-match (car candidate)
-                                                 mime-type))
-                                 kite--mime-map))))
+                 (nth 1 (assoc mime-type kite--mime-map))))
             (when buffer-mode
               (funcall buffer-mode)))
           (setq kite-session -kite-session)
