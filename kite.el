@@ -449,7 +449,8 @@ prefix argument ARG, ignore (force-refresh) the browser cache."
                (lambda (result)
                  (if bool-prefix
                      (message "Page reloaded (with cache ignored)")
-                   (message "Page reloaded"))))))
+                   (message "Page reloaded"))))
+    (setf (kite-session-current-context kite-session) nil)))
 
 (defun kite--unique-session-name (title)
   "Create a unique name for the session, given the tab TITLE string.
