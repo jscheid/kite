@@ -170,17 +170,28 @@ if the response method is `Page.frameNavigated' then
 likely because the tab or browser was closed.  Removes the
 session from the list of active sessions and adds a header line
 to all session buffers saying that the session is closed."
-  (let ((kite-session (gethash (websocket-url websocket)
-                               kite-active-sessions)))
+  (let* ((kite-session (gethash (websocket-url websocket)
+                                kite-active-sessions))
+         (reason
+          (or (kite-session-detach-reason kite-session)
+              "reason unknown")))
     (when kite-session
       (message "\
-Kite session was closed by the remote debugging server: %s"
-               (kite-session-page-title kite-session))
+Kite session was closed by the remote debugging server: %s: %s"
+               (or
+                (when (not (string=
+                            (kite-session-page-title kite-session)
+                            ""))
+                  (kite-session-page-title kite-session))
+                (kite-session-page-url kite-session)
+                "(blank page)")
+               reason)
       (dolist (kite-buffer (kite-session-buffers kite-session))
         (when (buffer-live-p kite-buffer)
           (with-current-buffer kite-buffer
             (set (make-local-variable 'header-line-format)
-                 (propertize "*** Kite session closed ***"
+                 (propertize (format "*** Kite session closed: %s ***"
+                                     reason)
                              'face 'kite-session-closed)))))
       (remhash (websocket-url (kite-session-websocket kite-session))
                kite-active-sessions)
@@ -800,6 +811,12 @@ FIXME: this needs to reset many more state properties."
   (clrhash (kite-session-source-map-cache kite-session))
   (kite--mode-line-update))
 
+(defun kite--Inspector-detached (websocket-url packet)
+  "Remember the reason for detachment in the session."
+  (kite--log "kite--Inspector-detached, packet: %S" packet)
+  (setf (kite-session-detach-reason kite-session)
+        (plist-get packet :reason)))
+
 (add-hook 'kite-Runtime-executionContextCreated-hooks
           'kite--execution-context-created)
 (add-hook 'kite-Console-messageAdded-hooks
@@ -808,6 +825,8 @@ FIXME: this needs to reset many more state properties."
           'kite--messageRepeatCountUpdated)
 (add-hook 'kite-Debugger-globalObjectCleared-hooks
           'kite--globalObjectCleared)
+(add-hook 'kite-Inspector-detached-hooks
+          'kite--Inspector-detached)
 
 (defun kite--json-truth (t-or-nil)
   (if t-or-nil t :json-false))

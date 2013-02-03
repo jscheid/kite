@@ -47,6 +47,7 @@
 (defvar kite-Debugger-resumed-hooks nil)
 (defvar kite-Debugger-scriptParsed-hooks nil)
 (defvar kite-Inspector-inspect-hooks nil)
+(defvar kite-Inspector-detached-hooks nil)
 (defvar kite-Network-dataReceived-hooks nil)
 (defvar kite-Network-loadingFinished-hooks nil)
 (defvar kite-Network-requestWillBeSent-hooks nil)
@@ -90,6 +91,7 @@
   "Represents an active debugging session, i.e. a connection to a
 remote WebKit debugger instance."
   websocket
+  detach-reason
   debugger-host
   debugger-port
   page-favicon-url
