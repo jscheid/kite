@@ -341,7 +341,8 @@ and :title."
                          'console)))
                    (when console-buffer
                      (with-current-buffer console-buffer
-                       (kite--console-update-mode-line))))))))
+                       (kite--console-update-mode-line))))))
+    websocket-url))
 
 (defun kite-connect (&optional host port)
   "Connect to the remote debugger instance running on the given
