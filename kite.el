@@ -230,7 +230,7 @@ Could not contact remote debugger at %s:%s, check host and port%s"
                (if (> (length (buffer-string)) 0)
                    (concat ": " (buffer-string)) ""))))))
 
-(defun kite--connect-webservice (tab-alist)
+(defun kite--connect-webservice (tab-alist host port)
   "Create a new kite session for the given browser tab.
 TAB-ALIST is actually a plist that should contain the following
 fields fetched from the remote debugger via
@@ -249,6 +249,8 @@ and :title."
                       websocket-url
                       :on-message (function kite--on-message)
                       :on-close (function kite--on-close))
+          :debugger-host host
+          :debugger-port port
           :page-favicon-url (plist-get tab-alist :faviconUrl)
           :page-thumbnail-url (plist-get tab-alist :thumbnailUrl)
           :page-url (plist-get tab-alist :url)
@@ -453,7 +455,9 @@ enters the empty string at the prompt."
                       nil t nil 'kite-tab-history)))
       (when (> (length selection) 0)
         (kite--connect-webservice
-         (car (gethash selection completion-strings)))))))
+         (car (gethash selection completion-strings))
+         (or host kite-default-remote-host)
+         (or port kite-default-remote-port))))))
 
 (defun kite-reload-page (&optional arg)
   "Reload the page associated with the current buffer.  With a

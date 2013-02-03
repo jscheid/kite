@@ -90,6 +90,8 @@
   "Represents an active debugging session, i.e. a connection to a
 remote WebKit debugger instance."
   websocket
+  debugger-host
+  debugger-port
   page-favicon-url
   page-thumbnail-url
   page-url
