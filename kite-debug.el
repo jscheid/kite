@@ -448,25 +448,32 @@ existing breakpoints in newly visited buffers."
                          'kite-script-breakpoint-face))))))))
 
 (defun kite-set-script-source ()
-  "Send the buffer contents as the new contents for the script.
-Causes `Debugger.setScriptSource' to be sent to the remote
-debugger."
+  "Set the contents of the kite script overlay at point as the
+new source for the corresponding script.  Causes
+`Debugger.setScriptSource' to be sent to the remote debugger."
   (interactive)
   (if (kite-session-can-set-script-source kite-session)
-      (kite-send "Debugger.setScriptSource"
-                 :params
-                 (list :scriptId kite-script-id
-                       :scriptSource (save-restriction
-                                       (widen)
-                                       (buffer-string))
-                       :preview :json-false)
-                 :success-function
-                 (lambda (result)
-                   ;; FIXME: use :callFrames to update context
-                   ;; information
-                   (set (make-local-variable
-                         'kite-set-script-source-tick)
-                        (buffer-chars-modified-tick))))
+      (mapc (lambda (overlay)
+              (kite-send
+               "Debugger.setScriptSource"
+               :params
+               (list :scriptId kite-script-id
+                     :scriptSource (save-restriction
+                                     (widen)
+                                     (buffer-substring
+                                      (overlay-start overlay)
+                                      (overlay-end overlay)))
+                     :preview :json-false)
+               :success-function
+               (lambda (result)
+                 ;; FIXME: use :callFrames to update context
+                 ;; information
+                 (set (make-local-variable
+                       'kite-set-script-source-tick)
+                      (buffer-chars-modified-tick)))))
+            (remove-if (lambda (overlay)
+                         (null (overlay-get overlay 'kite-script-id)))
+                       (overlays-in (point-min) (point-max))))
     (message "Sorry, the remote debugger doesn't support setting\
  the script source")))
 
@@ -543,13 +550,13 @@ source map is loaded and parsed only once."
   "Returns a string to be displayed in the mode line"
   (concat " (" (kite-session-debugger-state kite-session) ")"))
 
-(defun kite-session-script-info-for-url (url)
-  "Return the script-info entry for the given URL in the session
-bound to `kite-session', or nil if not found."
+(defun kite-session-script-infos-for-url (url)
+  "Return a list of the script-info entries for the given URL in
+the session bound to `kite-session'."
   (let (result)
     (maphash (lambda (key value)
                (when (string= url (kite-script-info-url value))
-                 (setq result value)))
+                 (push value result)))
              (kite-session-script-infos kite-session))
     result))
 
@@ -573,10 +580,11 @@ properties `:url', `:lineNumber' and `:columnNumber'.  The
 variable `kite-session' should be bound to the session in which
 to visit the source file."
   (kite-visit-script
-    (kite-session-script-info-for-url
-     (plist-get stack-frame-plist :url))
-    (plist-get stack-frame-plist :lineNumber)
-    (plist-get stack-frame-plist :columnNumber)))
+   (car
+    (kite-session-script-infos-for-url
+     (plist-get stack-frame-plist :url)))
+   (plist-get stack-frame-plist :lineNumber)
+   (plist-get stack-frame-plist :columnNumber)))
 
 (provide 'kite-debug)
 

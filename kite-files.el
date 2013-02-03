@@ -156,16 +156,6 @@ been sent to the server."
       "*"
     "-"))
 
-(defun kite-session-script-info-for-url (url)
-  "Return the script-info entry for the given URL in the session
-bound to `kite-session', or nil if not found."
-  (let (result)
-    (maphash (lambda (key value)
-               (when (string= url (kite-script-info-url value))
-                 (setq result value)))
-             (kite-session-script-infos kite-session))
-    result))
-
 (defun kite-resolve-url-file (kite-session url)
   "Default for `kite-find-file-for-url-function'.  Returns the
 file name part of URLs with the `file' protocol, otherwise
@@ -446,17 +436,40 @@ she wants to use the local file contents instead."
   (lexical-let*
       ((-kite-session kite-session)
        (-after-load-url-function after-load-url-function)
-       (-script-info (kite-session-script-info-for-url url))
+       (-script-infos (kite-session-script-infos-for-url url))
        (post-initialize
         (lambda (mime-type)
+          (push (current-buffer) (kite-session-buffers -kite-session))
           (let ((buffer-mode
                  (nth 1 (assoc mime-type kite--mime-map))))
             (when buffer-mode
               (funcall buffer-mode)))
           (setq kite-session -kite-session)
-          (when (not (null -script-info))
-            (setq kite-script-id (kite-script-info-id -script-info))
-            (kite-script-mode t))
+          (mapc
+           (lambda (script-info)
+             (let ((script-overlay
+                    (make-overlay
+                     (save-excursion
+                       (goto-char 0)
+                       (forward-line (kite-script-info-start-line
+                                      script-info))
+                       (forward-char (kite-script-info-start-column
+                                      script-info))
+                       (point))
+                     (save-excursion
+                       (goto-char 0)
+                       (forward-line (kite-script-info-end-line
+                                      script-info))
+                       (forward-char (kite-script-info-end-column
+                                      script-info))
+                       (point))
+                     nil nil t)))
+               (overlay-put script-overlay 'face 'svn-mark-face)
+               (overlay-put script-overlay
+                            'kite-script-id
+                            (kite-script-info-id script-info))
+               (kite--log "adding script info: %S" script-info)))
+           -script-infos)
           (when -after-load-url-function
             (funcall -after-load-url-function)))))
     (let ((existing-buffer (kite--find-buffer-visiting-url url)))
