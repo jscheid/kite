@@ -180,6 +180,14 @@ Unfortunately, there is currently no easy way to know which suffix
 corresponds to which WebKit tab.  However, pages opened later in time
 usually have higher suffix numbers.
 
+## Debugging a new browser tab
+
+You can also create a debugging session for a new tab by using a prefix
+argument of `-' (the default when you use the `M--' modifier key or
+`C-u -' modifier keys) for any of the Kite buffer commands.  Note that
+this relies on undocumented features found in current Chrome versions
+and thus may or may not work with your WebKit browser.
+
 ## Remote Sessions and Multiple Debugging Sessions
 
 In some situations you might want to debug more than one page

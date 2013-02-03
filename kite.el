@@ -459,6 +459,13 @@ enters the empty string at the prompt."
          (or host kite-default-remote-host)
          (or port kite-default-remote-port))))))
 
+(defun kite-connect-new (&optional host port)
+  "Create a new tab in the target browser and connect to it.
+Return the websocket URL."
+  (kite--connect-webservice
+   (kite--http-json-request "/json/new" host port)
+   host port))
+
 (defun kite-reload-page (&optional arg)
   "Reload the page associated with the current buffer.  With a
 prefix argument ARG, ignore (force-refresh) the browser cache."
@@ -547,6 +554,9 @@ port.
 Otherwise, if PREFIX is a number, use the session with that
 index.
 
+Otherwise, if PREFIX is `-', create a new tab and prompt for a
+URL to navigate to in that tab.
+
 Otherwise, if any sessions are already open, reuse the most
 recently used session.
 
@@ -574,6 +584,8 @@ Otherwise, create a new session using default host and port."
                     (<= port 65535))
          (error "Port must be a number between 1 and 65535"))
        port)))
+   ((equal '- prefix)
+    (kite-connect-new))
    ((numberp prefix)
     (unless (and (>= prefix 1)
                  (<= prefix (length kite-active-session-list)))
