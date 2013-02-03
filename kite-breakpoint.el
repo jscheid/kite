@@ -37,42 +37,64 @@
 
 (require 'browse-url nil t)
 
-(defconst kite--dom-breakpoint-names
-  '("abort" "beforecopy" "beforecut" "beforeload" "beforepaste"
-    "beforeunload" "blocked" "blur" "cached" "change" "checking" "click"
-    "close" "complete" "compositionend" "compositionstart"
-    "compositionupdate" "connect" "contextmenu" "copy" "cut" "dblclick"
-    "devicemotion" "deviceorientation" "display" "downloading" "drag"
-    "dragend" "dragenter" "dragleave" "dragover" "dragstart" "drop"
-    "error" "focus" "focusin" "focusout" "hashchange" "input" "invalid"
-    "keydown" "keypress" "keyup" "load" "loadstart" "message"
-    "mousedown" "mousemove" "mouseout" "mouseover" "mouseup"
-    "mousewheel" "noupdate" "obsolete" "offline" "online" "open"
-    "overflowchanged" "pagehide" "pageshow" "paste" "popstate"
-    "readystatechange" "reset" "resize" "scroll" "search" "select"
-    "selectstart" "selectionchange" "storage" "submit" "textInput"
-    "unload" "updateready" "versionchange" "webkitvisibilitychange"
-    "write" "writeend" "writestart" "zoom" "DOMActivate" "DOMFocusIn"
-    "DOMFocusOut" "DOMAttrModified" "DOMCharacterDataModified"
-    "DOMNodeInserted" "DOMNodeInsertedIntoDocument" "DOMNodeRemoved"
-    "DOMNodeRemovedFromDocument" "DOMSubtreeModified" "DOMContentLoaded"
-    "webkitBeforeTextInserted" "webkitEditableContentChanged" "canplay"
-    "canplaythrough" "durationchange" "emptied" "ended" "loadeddata"
-    "loadedmetadata" "pause" "play" "playing" "ratechange" "seeked"
-    "seeking" "timeupdate" "volumechange" "waiting" "addtrack"
-    "cuechange" "enter" "exit" "webkitbeginfullscreen"
-    "webkitendfullscreen" "webkitsourceopen" "webkitsourceended"
-    "webkitsourceclose" "progress" "stalled" "suspend"
-    "webkitAnimationEnd" "webkitAnimationStart"
-    "webkitAnimationIteration" "webkitTransitionEnd" "orientationchange"
-    "timeout" "touchstart" "touchmove" "touchend" "touchcancel"
-    "success" "loadend" "webkitfullscreenchange" "webkitfullscreenerror"
-    "webkitspeechchange" "webglcontextlost" "webglcontextrestored"
-    "webglcontextcreationerror" "audioprocess" "connecting"
-    "addstream" "removestream" "statechange" "show"
-    "webkitpointerlocklost")
-  "WebKit DOM breakpoint names, taken from
-  Source/WebCore/dom/EventNames.h")
+(defconst kite--event-breakpoint-types
+  (eval-when-compile
+    (let ((by-category
+           '((dom
+              . ("abort" "beforecopy" "beforecut" "beforeload"
+                 "beforepaste" "beforeunload" "blocked" "blur"
+                 "cached" "change" "checking" "click" "close"
+                 "complete" "compositionend" "compositionstart"
+                 "compositionupdate" "connect" "contextmenu" "copy"
+                 "cut" "dblclick" "devicemotion" "deviceorientation"
+                 "display" "downloading" "drag" "dragend" "dragenter"
+                 "dragleave" "dragover" "dragstart" "drop" "error"
+                 "focus" "focusin" "focusout" "hashchange" "input"
+                 "invalid" "keydown" "keypress" "keyup" "load"
+                 "loadstart" "message" "mousedown" "mousemove"
+                 "mouseout" "mouseover" "mouseup" "mousewheel"
+                 "noupdate" "obsolete" "offline" "online" "open"
+                 "overflowchanged" "pagehide" "pageshow" "paste"
+                 "popstate" "readystatechange" "reset" "resize"
+                 "scroll" "search" "select" "selectstart"
+                 "selectionchange" "storage" "submit" "textInput"
+                 "unload" "updateready" "versionchange"
+                 "webkitvisibilitychange" "write" "writeend"
+                 "writestart" "zoom" "DOMActivate" "DOMFocusIn"
+                 "DOMFocusOut" "DOMAttrModified"
+                 "DOMCharacterDataModified" "DOMNodeInserted"
+                 "DOMNodeInsertedIntoDocument" "DOMNodeRemoved"
+                 "DOMNodeRemovedFromDocument" "DOMSubtreeModified"
+                 "DOMContentLoaded" "webkitBeforeTextInserted"
+                 "webkitEditableContentChanged" "canplay"
+                 "canplaythrough" "durationchange" "emptied" "ended"
+                 "loadeddata" "loadedmetadata" "pause" "play"
+                 "playing" "ratechange" "seeked" "seeking"
+                 "timeupdate" "volumechange" "waiting" "addtrack"
+                 "cuechange" "enter" "exit" "webkitbeginfullscreen"
+                 "webkitendfullscreen" "webkitsourceopen"
+                 "webkitsourceended" "webkitsourceclose" "progress"
+                 "stalled" "suspend" "webkitAnimationEnd"
+                 "webkitAnimationStart" "webkitAnimationIteration"
+                 "webkitTransitionEnd" "orientationchange" "timeout"
+                 "touchstart" "touchmove" "touchend" "touchcancel"
+                 "success" "loadend" "webkitfullscreenchange"
+                 "webkitfullscreenerror" "webkitspeechchange"
+                 "webglcontextlost" "webglcontextrestored"
+                 "webglcontextcreationerror" "audioprocess"
+                 "connecting" "addstream" "removestream" "statechange"
+                 "show" "webkitpointerlocklost"))
+             (instrumentation
+              . ("setTimer" "clearTimer" "timerFired"
+                 "requestAnimationFrame" "cancelAnimationFrame"
+                 "animationFrameFired"))))
+          result)
+      (loop for category in by-category
+            do (loop for event in (cdr category)
+                     do (push (cons event (car category)) result)))
+      result))
+  "WebKit DOM and instrumentation breakpoint names, taken from
+Source/WebCore/dom/EventNames.h")
 
 (defstruct
   (kite-breakpoint
@@ -426,7 +448,7 @@
   (let ((kite-session (kite--select-session))
         (event-name (completing-read
                      "Breakpoint on DOM event: "
-                     kite--dom-breakpoint-names
+                     kite--event-breakpoint-types
                      nil
                      'confirm
                      nil
@@ -434,8 +456,16 @@
     (when event-name
       (kite--session-add-breakpoint
        kite-session
-       (make-kite-dom-event-breakpoint
-        :event-name event-name)))))
+       (case (cdr (assoc event-name
+                         kite--event-breakpoint-types))
+         ('dom
+          (make-kite-dom-event-breakpoint
+           :event-name event-name))
+         ('instrumentation
+          (make-kite-instrumentation-breakpoint
+           :event-name event-name))
+         (otherwise
+          (assert nil)))))))
 
 (defun kite-set-instrumentation-breakpoint ()
   (interactive)
