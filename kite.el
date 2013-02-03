@@ -188,6 +188,48 @@ Kite session was closed by the remote debugging server: %s"
             (remove kite-session kite-active-session-list))
       (kite--mode-line-update))))
 
+(defun kite--http-json-request (path &optional host port)
+  "Perform an HTTP GET request with the URL given by HOST, PORT
+and PATH.  Fall back to `kite-default-remote-host' and
+`kite-default-remote-port' if either HOST or PORT is nil.
+Retrieve the response synchronously, assume that it is JSON text,
+and deserialize JSON using `list' for `json-array-type' and
+`plist' for `json-object-type'.  Return the deserialization
+result.  Output an error if the HTTP response is different from
+200 OK or if the response does not contain a JSON document."
+  ;; FIXME: it would be nice if this would use a higher-level
+  ;; interface, but url-http only works asynchronously.  Consider
+  ;; making this function (and all callers) asynchronous.
+  (let* ((url-request-method "GET")
+         (url-package-name "kite.el")
+         (url-package-version "0.1")
+         (url-http-attempt-keepalives nil)
+         (use-host (or host kite-default-remote-host))
+         (use-port (or port kite-default-remote-port))
+         (url
+          (url-parse-make-urlobj
+           "http" nil nil use-host use-port path)))
+    (with-current-buffer (url-retrieve-synchronously url)
+      (goto-char 0)
+      (if (and (looking-at "HTTP/1\\.. 200")
+               (re-search-forward "\n\n" nil t))
+          (if (save-excursion
+                (re-search-backward "\
+^Content-Type:[:space:]*application/json\\($\\|[:space:]*;\\)"
+                                    nil
+                                    t))
+              (let ((json-array-type 'list)
+                    (json-object-type 'plist))
+                (json-read))
+            (error "\
+Expected the HTTP response to contain a JSON document"))
+        (error "\
+Could not contact remote debugger at %s:%s, check host and port%s"
+               use-host
+               use-port
+               (if (> (length (buffer-string)) 0)
+                   (concat ": " (buffer-string)) ""))))))
+
 (defun kite--connect-webservice (tab-alist)
   "Create a new kite session for the given browser tab.
 TAB-ALIST is actually a plist that should contain the following
@@ -307,134 +349,110 @@ HOST and PORT using HTTP, retrieve a list of candidate tabs for
 debugging, prompt the user to pick one, and create a new session
 for the chosen tab.  Return the new session or nil if the user
 enters the empty string at the prompt."
-  (let* ((url-request-method "GET")
-         (url-package-name "kite.el")
-         (url-package-version "0.1")
-         (url-http-attempt-keepalives nil)
-         (use-host (or host kite-default-remote-host))
-         (use-port (or port kite-default-remote-port))
-         (url
-          (url-parse-make-urlobj
-           "http" nil nil use-host use-port "/json")))
-    (with-current-buffer (url-retrieve-synchronously url)
-      (goto-char 0)
-      (if (and (looking-at "HTTP/1\\.. 200")
-               (re-search-forward "\n\n" nil t))
-          (let* ((debugger-tabs (let ((json-array-type 'list)
-                                      (json-object-type 'plist))
-                                  (json-read)))
-                 (available-debuggers (make-hash-table))
-                 (available-strings (make-hash-table :test 'equal))
-                 (completion-strings (make-hash-table :test 'equal))
-                 (completion-candidates nil))
+  (let* ((debugger-tabs (kite--http-json-request "/json" host port))
+         (available-debuggers (make-hash-table))
+         (available-strings (make-hash-table :test 'equal))
+         (completion-strings (make-hash-table :test 'equal))
+         (completion-candidates nil))
 
-            ;; Gather debuggers from server response
+    ;; Gather debuggers from server response
 
-            (mapc (lambda (el)
-                    (when (plist-member el :webSocketDebuggerUrl)
-                      (puthash
-                       (plist-get el :webSocketDebuggerUrl)
-                       (cons el nil)
-                       available-debuggers)))
-                  debugger-tabs)
+    (mapc (lambda (el)
+            (when (plist-member el :webSocketDebuggerUrl)
+              (puthash
+               (plist-get el :webSocketDebuggerUrl)
+               (cons el nil)
+               available-debuggers)))
+          debugger-tabs)
 
-            ;; Gather debuggers currently open
+    ;; Gather debuggers currently open
 
-            (maphash
-             (lambda (websocket-url kite-session)
-               (puthash
-                websocket-url
-                `((:webSocketDebuggerUrl
-                   ,websocket-url
-                   :thumbnailUrl ,(kite-session-page-thumbnail-url
-                                   kite-session)
-                   :faviconUrl ,(kite-session-page-favicon-url
-                                 kite-session)
-                   :title ,(kite-session-page-title
-                            kite-session)
-                   :url ,(kite-session-page-url kite-session))
-                  . ,kite-session)
-                available-debuggers))
-             kite-active-sessions)
+    (maphash
+     (lambda (websocket-url kite-session)
+       (puthash
+        websocket-url
+        `((:webSocketDebuggerUrl
+           ,websocket-url
+           :thumbnailUrl ,(kite-session-page-thumbnail-url
+                           kite-session)
+           :faviconUrl ,(kite-session-page-favicon-url
+                         kite-session)
+           :title ,(kite-session-page-title
+                    kite-session)
+           :url ,(kite-session-page-url kite-session))
+          . ,kite-session)
+        available-debuggers))
+     kite-active-sessions)
 
-            ;; For each human readable identifier (url or title), see
-            ;; if it is ambiguous
+    ;; For each human readable identifier (url or title), see
+    ;; if it is ambiguous
 
-            (flet
-                ((add-item (item url)
-                           (let ((existing (gethash item
-                                                    available-strings
-                                                    '(0))))
-                 (puthash item
-                          (cons (1+ (car existing))
-                                (cons url (cdr existing)))
-                          available-strings))))
+    (flet
+        ((add-item (item url)
+                   (let ((existing (gethash item
+                                            available-strings
+                                            '(0))))
+                     (puthash item
+                              (cons (1+ (car existing))
+                                    (cons url (cdr existing)))
+                              available-strings))))
 
-             (maphash
-              (lambda (key value)
-                (let ((url (plist-get (car value) :url))
-                      (title (plist-get (car value) :title))
-                      (websocket-url
-                       (plist-get (car value) :webSocketDebuggerUrl)))
-                  (add-item url websocket-url)
-                  (when (not (equal title url))
-                    (add-item title websocket-url))))
-              available-debuggers))
+      (maphash
+       (lambda (key value)
+         (let ((url (plist-get (car value) :url))
+               (title (plist-get (car value) :title))
+               (websocket-url
+                (plist-get (car value) :webSocketDebuggerUrl)))
+           (add-item url websocket-url)
+           (when (not (equal title url))
+             (add-item title websocket-url))))
+       available-debuggers))
 
-            ;; Final pass, disambiguate and rearrange
+    ;; Final pass, disambiguate and rearrange
 
-            (flet
-             ((disambiguate
-               (string websocket-url)
-               (let ((existing
-                      (gethash string available-strings)))
-                 (if (<= (car existing) 1)
-                     string
-                   (concat string
-                           " ("
-                           (substring websocket-url
-                                      (length (kite--longest-prefix
-                                               (cdr existing))))
-                           ")")))))
+    (flet
+        ((disambiguate
+          (string websocket-url)
+          (let ((existing
+                 (gethash string available-strings)))
+            (if (<= (car existing) 1)
+                string
+              (concat string
+                      " ("
+                      (substring websocket-url
+                                 (length (kite--longest-prefix
+                                          (cdr existing))))
+                      ")")))))
 
-             (maphash (lambda (key value)
-                        (let ((url (plist-get (car value) :url))
-                              (title (plist-get (car value) :title))
-                              (websocket-url (plist-get
-                                              (car value)
-                                              :webSocketDebuggerUrl)))
+      (maphash (lambda (key value)
+                 (let ((url (plist-get (car value) :url))
+                       (title (plist-get (car value) :title))
+                       (websocket-url (plist-get
+                                       (car value)
+                                       :webSocketDebuggerUrl)))
 
-                          (puthash (disambiguate url websocket-url)
-                                   value
-                                   completion-strings)
-                          (puthash (disambiguate title websocket-url)
-                                   value
-                                   completion-strings)))
-                      available-debuggers))
+                   (puthash (disambiguate url websocket-url)
+                            value
+                            completion-strings)
+                   (puthash (disambiguate title websocket-url)
+                            value
+                            completion-strings)))
+               available-debuggers))
 
-            ;; Map to keys
+    ;; Map to keys
 
-            (maphash (lambda (key value)
-                       (setq completion-candidates
-                             (cons key completion-candidates)))
-                     completion-strings)
+    (maphash (lambda (key value)
+               (setq completion-candidates
+                     (cons key completion-candidates)))
+             completion-strings)
 
-            (let ((selection (completing-read
-                              "Choose tab: "
-                              completion-candidates
-                              nil t nil 'kite-tab-history)))
-              (when (> (length selection) 0)
-                (kite--connect-webservice
-                 (car (gethash selection completion-strings)))
-                (plist-get (car (gethash selection
-                                         completion-strings))
-                           :webSocketDebuggerUrl))))
-        (error "\
-Could not contact remote debugger at %s:%s, check host and port%s"
-               use-host
-               use-port
-               (if (> (length (buffer-string)) 0)
-                   (concat ": " (buffer-string)) ""))))))
+    (let ((selection (completing-read
+                      "Choose tab: "
+                      completion-candidates
+                      nil t nil 'kite-tab-history)))
+      (when (> (length selection) 0)
+        (kite--connect-webservice
+         (car (gethash selection completion-strings)))))))
 
 (defun kite-reload-page (&optional arg)
   "Reload the page associated with the current buffer.  With a
