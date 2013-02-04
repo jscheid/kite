@@ -448,6 +448,21 @@ existing breakpoints in newly visited buffers."
                          'face
                          'kite-script-breakpoint-face))))))))
 
+(defun kite-restart-frame ()
+  "Restart the currently selected call frame.  Causes
+`Debugger.restartFrame' to be sent to the remote debugger."
+  (interactive)
+  (kite-send
+   "Debugger.restartFrame"
+   :params
+   (list
+    :callFrameId
+    (plist-get
+     (elt
+      (kite-session-call-frames kite-session)
+      (kite-session-current-call-frame-index kite-session))
+     :callFrameId))))
+
 (defun kite-set-script-source ()
   "Set the contents of the kite script overlay at point as the
 new source for the corresponding script.  Causes

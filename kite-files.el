@@ -126,6 +126,7 @@ files."
     (define-key map (kbd "C-c c") 'kite-continue-to-location)
     (define-key map (kbd "C-c t") 'kite-set-breakpoint-at-point)
     (define-key map (kbd "C-c C-c") 'kite-set-script-source)
+    (define-key map (kbd "C-c C-r") 'kite-restart-frame)
     map)
   "Local keymap for the `kite-script-mode' minor mode")
 
