@@ -156,6 +156,16 @@ been sent to the server."
       "*"
     "-"))
 
+(defun kite-session-script-infos-for-url (url)
+  "Return a list of the script-info entries for the given URL in
+the session bound to `kite-session'."
+  (let (result)
+    (maphash (lambda (key value)
+               (when (string= url (kite-script-info-url value))
+                 (push value result)))
+             (kite-session-script-infos kite-session))
+    result))
+
 (defun kite-resolve-url-file (kite-session url)
   "Default for `kite-find-file-for-url-function'.  Returns the
 file name part of URLs with the `file' protocol, otherwise
@@ -484,69 +494,54 @@ she wants to use the local file contents instead."
           (switch-to-buffer buffer)
           (with-current-buffer buffer
             (setq kite-session -kite-session)
-            (if -script-info
-                ;; URL corresponds to a script
-                (kite-send "Debugger.getScriptSource"
-                           :params
-                           `(:scriptId ,(kite-script-info-id
-                                         -script-info))
-                           :success-function
-                           (lambda (result)
-                             (save-excursion
-                               (insert (plist-get result
-                                                  :scriptSource)))
-                             (set-buffer-modified-p nil)
-                             (funcall post-initialize "text/javascript")
-                             (set (make-local-variable
-                                   'kite-set-script-source-tick)
-                                  (buffer-chars-modified-tick))))
-              (let ((request (kite--network-request-for-url url)))
-                (if request
-                    ;; URL corresponds to a network resource
-                    (kite-send "Network.getResponseBody"
-                               :params
-                               (list :requestId (kite-request-id request))
-                               :success-function
-                               (lambda (result)
-                                 (save-excursion
-                                   (insert
-                                    (funcall
-                                     (if (eq t
-                                             (plist-get result
-                                                        :base64Encoded))
-                                         'base64-decode-string
-                                       'identity)
-                                     (plist-get result :body)))
-                                   (set-buffer-modified-p nil)
-                                   (funcall post-initialize
-                                            (plist-get
-                                             (kite-request-response request)
-                                             :mimeType)))))
-                  ;; URL doesn't correspond to either script or network
-                  ;; request
-                  (let ((url-http-attempt-keepalives t))
-                    (url-retrieve
-                     url
-                     (lambda (&rest ignore)
-                       (re-search-forward "\n\n")
-                       (let* ((contents (buffer-substring (point)
-                                                          (point-max)))
-                              (headers-end (point))
-                              (mime-type
-                               (progn
-                                 (goto-char (point-min))
-                                 (when (re-search-forward
-                                        "^Content-Type: \\([^;\r\n]*\\)")
-                                   (match-string 1)))))
-                         (with-current-buffer buffer
-                           (save-excursion
-                             (insert contents))
-                           (set-buffer-modified-p nil)
-                           (funcall post-initialize mime-type))))
-                     nil                  ; cbargs
-                     t                    ; silent
-                     t                    ; inhibit-cookies
-                     )))))))))))
+            (let ((request
+                   (kite--network-most-recent-request-for-url url)))
+              (if request
+                  ;; URL corresponds to a network resource
+                  (kite-send "Network.getResponseBody"
+                             :params
+                             (list :requestId (kite-request-id request))
+                             :success-function
+                             (lambda (result)
+                               (save-excursion
+                                 (insert
+                                  (funcall
+                                   (if (eq t
+                                           (plist-get result
+                                                      :base64Encoded))
+                                       'base64-decode-string
+                                     'identity)
+                                   (plist-get result :body)))
+                                 (set-buffer-modified-p nil)
+                                 (funcall post-initialize
+                                          (plist-get
+                                           (kite-request-response request)
+                                           :mimeType)))))
+                ;; URL doesn't correspond to either script or network
+                ;; request
+                (let ((url-http-attempt-keepalives t))
+                  (url-retrieve
+                   url
+                   (lambda (&rest ignore)
+                     (re-search-forward "\n\n")
+                     (let* ((contents (buffer-substring (point)
+                                                        (point-max)))
+                            (headers-end (point))
+                            (mime-type
+                             (progn
+                               (goto-char (point-min))
+                               (when (re-search-forward
+                                      "^Content-Type: \\([^;\r\n]*\\)")
+                                 (match-string 1)))))
+                       (with-current-buffer buffer
+                         (save-excursion
+                           (insert contents))
+                         (set-buffer-modified-p nil)
+                         (funcall post-initialize mime-type))))
+                   nil                  ; cbargs
+                   t                    ; silent
+                   t                    ; inhibit-cookies
+                   ))))))))))
 
 (defun kite--find-buffer-visiting-url (url)
   "Return the Kite buffer visiting URL."

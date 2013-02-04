@@ -550,16 +550,6 @@ source map is loaded and parsed only once."
   "Returns a string to be displayed in the mode line"
   (concat " (" (kite-session-debugger-state kite-session) ")"))
 
-(defun kite-session-script-infos-for-url (url)
-  "Return a list of the script-info entries for the given URL in
-the session bound to `kite-session'."
-  (let (result)
-    (maphash (lambda (key value)
-               (when (string= url (kite-script-info-url value))
-                 (push value result)))
-             (kite-session-script-infos kite-session))
-    result))
-
 (defun kite-visit-location (location-plist)
   "Visit the source file corresponding to the call frame given by
 LOCATION-PLIST, which should be a plist with at least the
