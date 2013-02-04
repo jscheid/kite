@@ -161,7 +161,7 @@ in time at which a network event was recorded.  Updated by
   "Return the `kite-request' structure corresponding to the given
 REQUEST-ID, or nil if not found."
   (let ((result
-         (gethash request-id (kite-session-requests-by-id
+         (gethash request-id (kite-session-request-by-id
                               kite-session))))
     (if result
         result
@@ -442,7 +442,7 @@ You can reload the page using the following key binding(s):
     (set (make-local-variable 'kite--network-sorted-requests) nil)
 
     (when (> (hash-table-count 
-              (kite-session-requests-by-id kite-session))
+              (kite-session-request-by-id kite-session))
              0)
       (let (all-times)
         (maphash (lambda (request-id request)
@@ -450,7 +450,7 @@ You can reload the page using the following key binding(s):
                          (nconc
                           (mapcar 'cdr (kite-request-times request))
                           all-times)))
-                 (kite-session-requests-by-id kite-session))
+                 (kite-session-request-by-id kite-session))
         (set (make-local-variable 'kite--network-min-time)
              (apply 'min all-times))
         (set (make-local-variable 'kite--network-max-time)
@@ -465,7 +465,7 @@ You can reload the page using the following key binding(s):
   (let ((num-ewocs (length (ewoc-collect kite--network-ewoc
                                          (lambda (item) t))))
         (num-requests
-         (hash-table-count (kite-session-requests-by-id
+         (hash-table-count (kite-session-request-by-id
                             kite-session))))
 
     (while (< num-ewocs num-requests)
@@ -509,7 +509,7 @@ You can reload the page using the following key binding(s):
                (maphash
                 (lambda (key value)
                   (push value unsorted-request))
-                (kite-session-requests-by-id kite-session))
+                (kite-session-request-by-id kite-session))
                unsorted-request)
              (lambda (request1 request2)
                (string< (kite-request-url request1)
@@ -599,7 +599,8 @@ and re-rendering the network buffer, if available."
                              :frame :url)))
     (setq kite--network-min-time)
     (setq kite--network-max-time)
-    (clrhash (kite-session-requests-by-id kite-session)))
+    (clrhash (kite-session-request-by-id kite-session))
+    (clrhash (kite-session-requests-by-url kite-session)))
 
   ;; Create new kite-request
   (let ((request
@@ -614,7 +615,15 @@ and re-rendering the network buffer, if available."
           :redirect-response (plist-get packet :redirectResponse))))
     (puthash (plist-get packet :requestId)
              request
-             (kite-session-requests-by-id kite-session))
+             (kite-session-request-by-id kite-session))
+    (let ((url (kite--get packet :request :url)))
+      (puthash
+       url
+       (cons request
+             (gethash
+              url
+              (kite-session-requests-by-url kite-session)))
+       (kite-session-requests-by-url kite-session)))
     (kite--network-invalidate websocket-url request)))
 
 (defun kite--Network-requestServedFromCache (websocket-url packet)

@@ -116,7 +116,8 @@ remote WebKit debugger instance."
   document-root
   emulate-touch-events
   show-paint-rects
-  (requests-by-id (make-hash-table :test 'equal))
+  (request-by-id (make-hash-table :test 'equal))
+  (requests-by-url (make-hash-table :test 'equal))
   disable-cache
   can-override-device-metrics
   can-override-geo-location

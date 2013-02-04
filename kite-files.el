@@ -219,7 +219,7 @@ its contents:
       (maphash
        (lambda (request-id request)
          (push (kite-request-url request) urls))
-       (kite-session-requests-by-id kite-session))
+       (kite-session-request-by-id kite-session))
       ;; Scripts
       (maphash
        (lambda (key script-info)
@@ -409,8 +409,12 @@ of generated (or original) source."
 a name and sets initial buffer-local variables."
   (get-buffer-create url))
 
-(defun kite--network-request-for-url (url)
-  nil)
+(defun kite--network-most-recent-request-for-url (url)
+  "Return a `kite-request' object corresponding most recent
+request sent for the given URL, or nil if no such request was
+sent yet."
+  (car (gethash url (kite-session-requests-by-url
+                     kite-session))))
 
 (defun kite-visit-url (url &optional after-load-url-function)
   "Create a buffer showing the contents of URL, then invoke
