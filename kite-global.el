@@ -103,6 +103,8 @@ remote WebKit debugger instance."
   unique-name
   (script-infos (make-hash-table :test 'equal))
   (debugger-state kite--debugger-state-resumed)
+  call-frames
+  (current-call-frame-index 0)
   (next-request-id 0)
   (pending-requests (make-hash-table))
   buffers

@@ -258,6 +258,8 @@ widget is activated."
                  (line-number (1+ (plist-get location :lineNumber)))
                  (column-number (plist-get location :columnNumber))
                  (-kite-session kite-session))
+    (setf (kite-session-call-frames kite-session) call-frames)
+    (setf (kite-session-current-call-frame-index kite-session) 0)
     (kite-visit-script
      script-info
      line-number
