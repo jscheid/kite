@@ -49,6 +49,7 @@
 (defvar kite-Inspector-inspect-hooks nil)
 (defvar kite-Inspector-detached-hooks nil)
 (defvar kite-Network-dataReceived-hooks nil)
+(defvar kite-Network-loadingFailed-hooks nil)
 (defvar kite-Network-loadingFinished-hooks nil)
 (defvar kite-Network-requestWillBeSent-hooks nil)
 (defvar kite-Network-responseReceived-hooks nil)
