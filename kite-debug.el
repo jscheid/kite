@@ -257,8 +257,7 @@ widget is activated."
                            (kite-session-script-infos kite-session)))
                  (line-number (1+ (plist-get location :lineNumber)))
                  (column-number (plist-get location :columnNumber))
-                 (kite-session (gethash websocket-url
-                                        kite-active-sessions)))
+                 (-kite-session kite-session))
     (kite-visit-script
      script-info
      line-number
@@ -268,7 +267,7 @@ widget is activated."
        (set (make-local-variable 'kite-script-id)
             (plist-get location :scriptId))
        (set (make-local-variable 'kite-session)
-            kite-session)
+            -kite-session)
 
        (let* ((current-window (selected-window))
               (stack-buffer (kite--get-buffer-create
@@ -283,7 +282,7 @@ widget is activated."
                                'kite-stack-buffer
                                stack-buffer)
          (with-current-buffer stack-buffer
-           (set (make-local-variable 'kite-session) kite-session)
+           (set (make-local-variable 'kite-session) -kite-session)
            (set (make-local-variable 'widget-link-prefix) "")
            (set (make-local-variable 'widget-link-suffix) "")
            (let ((inhibit-read-only t))
