@@ -295,6 +295,13 @@ debugger API `RGBA' structure format."
 (defun kite--url-expand-file-name (url &optional default)
   (url-expand-file-name url default))
 
+(defun kite--frame-inner-width ()
+  "Return inner frame width (sans borders) in pixels."
+  (if (fboundp 'window-inside-pixel-edges)
+      (- (nth 2 (window-inside-pixel-edges))
+         (nth 0 (window-inside-pixel-edges)))
+    (frame-pixel-width)))
+
 (provide 'kite-util)
 
 ;;; kite-util.el ends here
