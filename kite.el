@@ -336,6 +336,7 @@ and :title."
     (kite-send "Inspector.enable")
     (kite-send "Debugger.enable")
     (kite-send "CSS.enable")
+    (kite-send "Network.enable")
 
     ;; Get initial state
 
