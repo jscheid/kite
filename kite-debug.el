@@ -432,11 +432,24 @@ is available, go to the original location instead."
       ((string= (url-type url-parts) "file")
        (find-file (url-filename url-parts))
        (after-load))
+      (kite-local-root 
+       (find-file (kite-find-local-file url-parts))
+       (after-load))
       (t
        (switch-to-buffer
         (or (get-buffer url)
             (kite--create-remote-script-buffer
              script-info (function after-load)))))))))
+
+(setq kite-local-root "~/workspace/prosjekthotell")
+
+(defun kite-find-local-file (url-parts)
+  "Returns the local path of a debugged file if some var is set"
+  (interactive)
+  (progn
+    (cond (kite-local-root (concat kite-local-root (car (url-path-and-query url-parts))))
+	(t (url-filename url-parts)))))
+
 
 (defun kite--debug-stats-mode-line-indicator ()
   "Returns a string to be displayed in the mode line"
@@ -451,6 +464,7 @@ bound to `kite-session', or nil if not found."
                  (setq result value)))
              (kite-session-script-infos kite-session))
     result))
+
 
 (defun kite-visit-stack-frame (stack-frame-plist)
   "Visit the source file corresponding to the stack frame given
