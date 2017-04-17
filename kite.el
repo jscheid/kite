@@ -852,6 +852,35 @@ FIXME: there must be a more elegant way to do this."
   ;; Quote this way to avoid the dependency generator picking it up
   (require (quote kite)))
 
+(defun kite--source-mode-enter (prefix)
+  "Create a Kite session."
+  (lexical-let*
+      ((websocket-url (kite--find-default-session prefix))
+       (-kite-session (gethash websocket-url kite-active-sessions)))
+    (push (current-buffer) (kite-session-buffers -kite-session))
+    (setq kite-session -kite-session)
+    (set (make-local-variable 'kite-buffer-type) 'source)
+    (add-hook 'kill-buffer-hook 'kite--source-mode-exit nil t)))
+
+(defun kite--source-mode-exit ()
+  "Remove the current buffer from Kite session."
+  (remove-hook 'kill-buffer-hook 'kite--source-mode-exit t)
+  (kite--kill-buffer))
+
+(defvar kite-source-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "C-M-x") 'kite-eval-defun)
+    (define-key map (kbd "C-C C-k r") 'kite-reload-page)
+    map)
+  "Keymap used when `kite-source-mode' is active.")
+
+(define-minor-mode kite-source-mode
+  "Minor Kite mode to evaluate code in current buffer."
+  :global nil :group 'kite :init-value nil :lighter " Kite"
+  (if kite-source-mode
+      (kite--source-mode-enter (or current-prefix-arg '(4)))
+    (kite--source-mode-exit)))
+
 (provide 'kite)
 
 ;;; kite.el ends here
