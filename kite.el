@@ -416,16 +416,22 @@ enters the empty string at the prompt."
                              (cons key completion-candidates)))
                      completion-strings)
 
-            (let ((selection (completing-read
-                              "Choose tab: "
-                              completion-candidates
-                              nil t nil 'kite-tab-history)))
-              (when (> (length selection) 0)
-                (kite--connect-webservice
-                 (car (gethash selection completion-strings)))
-                (plist-get (car (gethash selection
-                                         completion-strings))
-                           :webSocketDebuggerUrl))))
+            (flet ((connect (selection)
+                            (when (> (length selection) 0)
+                              (message "Connecting to tab %S" selection)
+                              (kite--connect-webservice
+                               (car (gethash selection completion-strings)))
+                              (plist-get
+                               (car (gethash selection completion-strings))
+                               :webSocketDebuggerUrl))))
+
+              (if (= (length debugger-tabs) 1)
+                  (connect (first completion-candidates))
+
+                (connect (completing-read
+                          "Choose tab: "
+                          completion-candidates
+                          nil t nil 'kite-tab-history)))))
         (error "\
 Could not contact remote debugger at %s:%s, check host and port%s"
                use-host
